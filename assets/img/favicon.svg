@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Chat">
+  <style>
+    :root { color-scheme: light dark; }
+    .bubble { fill: #171717; }
+    .glyph { fill: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      .bubble { fill: #fafafa; }
+      .glyph { fill: #171717; }
+    }
+  </style>
+  <path class="bubble" d="M6 4h20a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H14l-8 6v-6a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z"/>
+  <circle class="glyph" cx="11" cy="14" r="2"/>
+  <circle class="glyph" cx="16" cy="14" r="2"/>
+  <circle class="glyph" cx="21" cy="14" r="2"/>
+</svg>

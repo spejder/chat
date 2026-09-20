@@ -73,3 +73,64 @@ jobs:
 
       - name: Make sure that the format and the modernizers change nothing
         run: git diff --exit-code
+
+  html:
+    name: Validate the markup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: go-task/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate the rendered markup
+        run: task html
+
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: go-task/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache the tool binaries
+        uses: actions/cache@v6
+        with:
+          path: bin
+          key: tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml') }}
+
+      - name: Build
+        run: task build
+
+      - name: Start the server
+        run: |
+          ./chat -addr :8080 &
+          for _ in $(seq 1 30); do
+            curl -sf -o /dev/null http://localhost:8080 && exit 0
+            sleep 1
+          done
+          echo "The server did not answer." >&2
+          exit 1
+
+      - name: Audit the page
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: http://localhost:8080/
+          configPath: .github/lighthouserc.json
+          uploadArtifacts: true

@@ -17,6 +17,7 @@ button sends a request, and the server answers with an HTML fragment.
 | Styling         | Tailwind CSS | 4.3.3   |
 | Browser updates | htmx         | 4.0.0   |
 | Linting         | golangci-lint | 2.13.2 |
+| Markup check    | html-validate | 10      |
 
 The file `assets/js/htmx.min.js` is htmx 4.0.0. The name carries no version, so
 read the version here. htmx 4 is not the default version on npm, so every
@@ -76,7 +77,13 @@ Check the code before you commit:
 task fix
 task lint
 task fmt
+task html
 ```
+
+The project follows the Chrome modern web guidance. The Baseline target is
+Baseline Widely available. The server sends a strict Content Security Policy,
+packs text answers with gzip, and serves every static file under an address
+that carries a hash of the content.
 
 Run `task` alone to see all tasks.
 

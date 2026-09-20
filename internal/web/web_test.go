@@ -39,7 +39,13 @@ func TestHomeIsAWholeDocument(t *testing.T) {
 	}
 
 	body := out.String()
-	for _, want := range []string{"<!doctype html>", "<title>Chat</title>", "</html>"} {
+	for _, want := range []string{
+		"<!doctype html>",
+		"<title>Chat</title>",
+		`<meta name="description"`,
+		`<link rel="icon"`,
+		"</html>",
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not hold %q", want)
 		}
@@ -52,7 +58,7 @@ func TestLayoutPutsTheChildrenInTheBody(t *testing.T) {
 	t.Parallel()
 
 	var out strings.Builder
-	if err := web.Layout("Title").Render(
+	if err := web.Layout("Title", "Description").Render(
 		templ.WithChildren(context.Background(), templ.Raw("<span>marker</span>")),
 		&out,
 	); err != nil {

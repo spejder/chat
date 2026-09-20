@@ -4,7 +4,7 @@ import "github.com/spejder/chat/internal/components/button"
 
 // Home renders the start page.
 templ Home() {
-	@Layout("Chat") {
+	@Layout("Chat", "A chat application built with Go, templ and htmx.") {
 		<main class="flex min-h-full items-center justify-center p-6">
 			<div class="flex w-full max-w-md flex-col items-center gap-6 rounded-xl border bg-card p-8 text-card-foreground shadow-sm">
 				<h1 class="text-3xl font-semibold tracking-tight">Hello world</h1>

@@ -50,6 +50,12 @@ linters:
           - revive
           - gocritic
           - unparam
+      # cmd/renderhtml is a tool that a developer runs by hand. The output
+      # directory comes from the command line, which gosec reads as a path
+      # from an attacker.
+      - path: cmd/renderhtml/
+        linters:
+          - gosec
 
 formatters:
   enable:

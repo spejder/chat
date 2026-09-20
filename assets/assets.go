@@ -5,9 +5,72 @@
 // repository keeps dist/.gitkeep so the embed pattern always matches a file.
 package assets
 
-import "embed"
+import (
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"fmt"
+	"io/fs"
+)
 
 // FS holds the static files of the application.
 //
-//go:embed all:css all:js all:dist
+//go:embed all:css all:js all:dist all:img
 var FS embed.FS
+
+// fingerprints maps the path of an embedded file to a short hash of its
+// content. A build with new content gives a new hash, so the browser asks for
+// the file again instead of using an old copy.
+var fingerprints = readFingerprints()
+
+// URL returns the address under which the server sends an embedded file. The
+// address carries the hash of the content, so the answer can tell the browser
+// to keep the file for a year.
+func URL(path string) string {
+	hash, ok := fingerprints[path]
+	if !ok {
+		return "/assets/" + path
+	}
+
+	return "/assets/" + path + "?v=" + hash
+}
+
+// Fingerprint returns the hash of an embedded file. The second value is false
+// when the binary holds no such file.
+func Fingerprint(path string) (string, bool) {
+	hash, ok := fingerprints[path]
+
+	return hash, ok
+}
+
+// readFingerprints hashes every embedded file once, at program start.
+func readFingerprints() map[string]string {
+	out := make(map[string]string)
+
+	err := fs.WalkDir(FS, ".", func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if entry.IsDir() {
+			return nil
+		}
+
+		content, err := FS.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		sum := sha256.Sum256(content)
+		out[path] = hex.EncodeToString(sum[:])[:12]
+
+		return nil
+	})
+	if err != nil {
+		// The files come from the binary itself, so a failure here means the
+		// build is broken.
+		panic(fmt.Sprintf("read the embedded files: %v", err))
+	}
+
+	return out
+}

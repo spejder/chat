@@ -5,6 +5,9 @@
 /chat
 /assets/dist/styles.css
 
+# Rendered markup for the HTML validator
+/tmp/
+
 # Generated templ code is committed, but keep editor noise out
 *.swp
 .DS_Store

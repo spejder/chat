@@ -3,6 +3,8 @@ package server
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/a-h/templ"
@@ -19,7 +21,7 @@ func New() http.Handler {
 	mux.Handle("GET /{$}", templ.Handler(web.Home()))
 	mux.HandleFunc("POST /greet", greet)
 
-	return mux
+	return secure(compress(mux))
 }
 
 // greet answers the htmx request with the greeting fragment.
@@ -31,10 +33,28 @@ func greet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// static adds a cache header to the embedded files.
+// static tells the browser how long it can keep an embedded file.
+//
+// A request that carries the current hash of the file gets the file for a
+// year, because that address can never point at other content. Every other
+// request gets a short time and the hash as an ETag, so the next request ends
+// in a small answer with the status 304.
 func static(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		path := strings.TrimPrefix(r.URL.Path, "/")
+
+		hash, known := assets.Fingerprint(path)
+		switch {
+		case known && r.URL.Query().Get("v") == hash:
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		default:
+			w.Header().Set("Cache-Control", "public, max-age=60")
+		}
+
+		if known {
+			w.Header().Set("ETag", strconv.Quote(hash))
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }

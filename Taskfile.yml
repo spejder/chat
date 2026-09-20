@@ -5,6 +5,7 @@ vars:
   TAILWIND: ./bin/tailwindcss
   GOLANGCI_VERSION: 2.13.2
   GOLANGCI: ./bin/golangci-lint
+  HTML_VALIDATE_VERSION: 10
   CSS_IN: assets/css/globals.css
   CSS_OUT: assets/dist/styles.css
 
@@ -100,6 +101,13 @@ tasks:
     cmds:
       - go tool templ fmt .
       - "{{.GOLANGCI}} fmt"
+
+  html:
+    desc: Check the rendered markup with an HTML validator
+    deps: [generate]
+    cmds:
+      - go run ./cmd/renderhtml tmp/html
+      - npx --yes html-validate@{{.HTML_VALIDATE_VERSION}} "tmp/html/*.html"
 
   fix:
     desc: Apply the modernizations that go fix suggests
