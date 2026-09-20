@@ -80,6 +80,9 @@ task fmt
 task html
 ```
 
+The page follows the light or dark theme of the operating system. There is
+no switch.
+
 The project follows the Chrome modern web guidance. The Baseline target is
 Baseline Widely available. The server sends a strict Content Security Policy,
 packs text answers with gzip, and serves every static file under an address

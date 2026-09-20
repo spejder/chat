@@ -72,6 +72,23 @@ set of web features that every major browser supports.
 - The guidance comes from the Chrome plugin `modern-web-guidance`. Follow it
   where it does not fight templ or shadcn-templ.
 
+## Dark mode
+
+The page follows the operating system. There is no switch and nothing is
+stored.
+
+- `assets/css/globals.css` holds the dark values in
+  `@media (prefers-color-scheme: dark) { :root { ... } }`, after the light
+  values. Both blocks have the same specificity, so the later one wins.
+- The file must not hold `@custom-variant dark`. That line binds the `dark:`
+  utilities to a `.dark` class, and nothing sets that class. Without the line,
+  Tailwind uses the media query, which is what we want.
+- A new version of the registry theme writes the class based setup again.
+  `assets/assets_test.go` fails when that happens.
+- `assets/img/favicon.svg` carries its own media query, and the layout sets
+  `<meta name="color-scheme" content="light dark">`, so form controls and
+  scrollbars follow too.
+
 ## The HTTP answer
 
 `internal/server/headers.go` sets the Content Security Policy and three more
