@@ -1,11 +1,20 @@
 {
   "name": "chat",
-  "image": "mcr.microsoft.com/devcontainers/go:1.27-bookworm",
+  "dockerComposeFile": [
+    "../compose.yaml",
+    "compose.yaml"
+  ],
+  "service": "app",
+  "workspaceFolder": "/workspaces/chat",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "postCreateCommand": "./.devcontainer/post-create.sh",
-  "forwardPorts": [7331, 8080],
+  "forwardPorts": [
+    5432,
+    7331,
+    8080
+  ],
   "portsAttributes": {
     "7331": {
       "label": "templ proxy, reloads the browser",
@@ -13,6 +22,10 @@
     },
     "8080": {
       "label": "chat server",
+      "onAutoForward": "silent"
+    },
+    "5432": {
+      "label": "Postgres",
       "onAutoForward": "silent"
     }
   },

@@ -1,0 +1,15 @@
+# The development container next to the services of the application. The file
+# compose.yaml in the repository root brings the database.
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/go:1.27-bookworm
+    volumes:
+      # Compose reads a relative path from the directory of the first compose
+      # file, which is the repository root, not from this file.
+      - .:/workspaces/chat:cached
+    command: sleep infinity
+    environment:
+      DATABASE_URL: postgres://chat:chat@postgres:5432/chat?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy

@@ -1,0 +1,23 @@
+name: chat
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: chat
+      POSTGRES_PASSWORD: chat
+      POSTGRES_DB: chat
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # pg_isready answers as soon as the server accepts connections.
+      test: ["CMD-SHELL", "pg_isready -U chat -d chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      # The image of Postgres 18 keeps the files in a version directory.
+      - postgres-data:/var/lib/postgresql
+
+volumes:
+  postgres-data:

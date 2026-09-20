@@ -6,6 +6,7 @@ vars:
   GOLANGCI_VERSION: 2.13.2
   GOLANGCI: ./bin/golangci-lint
   HTML_VALIDATE_VERSION: 10
+  DATABASE_URL: '{{.DATABASE_URL | default "postgres://chat:chat@localhost:5432/chat?sslmode=disable"}}'
   CSS_IN: assets/css/globals.css
   CSS_OUT: assets/dist/styles.css
 
@@ -59,6 +60,22 @@ tasks:
           | tar -xzf - -C bin --strip-components=1 "${name}/golangci-lint"
       - chmod +x {{.GOLANGCI}}
 
+  db:up:
+    desc: Start Postgres in the background
+    cmds:
+      - docker compose up --detach --wait
+
+  db:down:
+    desc: Stop Postgres and keep the data
+    cmds:
+      - docker compose down
+
+  db:reset:
+    desc: Stop Postgres and throw the data away
+    prompt: This deletes every row in the local database. Go on?
+    cmds:
+      - docker compose down --volumes
+
   generate:
     desc: Generate Go code from the templ files
     cmds:
@@ -92,6 +109,8 @@ tasks:
   test:
     desc: Run the tests
     deps: [generate]
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
     cmds:
       - go test ./...
 
