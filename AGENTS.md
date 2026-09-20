@@ -100,6 +100,14 @@ Read the browser console after you add a component.
 `internal/server/compress.go` packs text answers with gzip. It leaves images,
 fonts and range requests alone.
 
+`assets.Integrity(path)` returns the value for the integrity attribute of the
+stylesheet and the script. The browser hashes the file it received and refuses
+it when the two hashes differ. The value and the address come from the same
+bytes at program start, so they can never disagree. An unknown path gives an
+empty value, because a wrong value blocks the file. The icon link carries no
+integrity attribute, because the browser reads that attribute only for scripts
+and stylesheets.
+
 `assets.URL(path)` returns the address of a static file with a hash of the
 content. The layout calls it. A request that carries the current hash gets a
 cache time of one year. Every other request gets 60 seconds and an ETag.

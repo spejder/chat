@@ -13,8 +13,12 @@ templ Layout(title, description string) {
 			<meta name="description" content={ description }/>
 			<title>{ title }</title>
 			<link rel="icon" type="image/svg+xml" href={ assets.URL("img/favicon.svg") }/>
-			<link rel="stylesheet" href={ assets.URL("dist/styles.css") }/>
-			<script src={ assets.URL("js/htmx.min.js") } defer></script>
+			<link
+				rel="stylesheet"
+				href={ assets.URL("dist/styles.css") }
+				integrity={ assets.Integrity("dist/styles.css") }
+			/>
+			<script src={ assets.URL("js/htmx.min.js") } integrity={ assets.Integrity("js/htmx.min.js") } defer></script>
 		</head>
 		<body class="h-full bg-background text-foreground antialiased">
 			{ children... }

@@ -8,6 +8,7 @@ package assets
 import (
 	"crypto/sha256"
 	"embed"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
@@ -21,7 +22,7 @@ var FS embed.FS
 // fingerprints maps the path of an embedded file to a short hash of its
 // content. A build with new content gives a new hash, so the browser asks for
 // the file again instead of using an old copy.
-var fingerprints = readFingerprints()
+var fingerprints, integrities = readHashes()
 
 // URL returns the address under which the server sends an embedded file. The
 // address carries the hash of the content, so the answer can tell the browser
@@ -43,9 +44,19 @@ func Fingerprint(path string) (string, bool) {
 	return hash, ok
 }
 
-// readFingerprints hashes every embedded file once, at program start.
-func readFingerprints() map[string]string {
-	out := make(map[string]string)
+// Integrity returns the value for the integrity attribute of a script or a
+// stylesheet, for example "sha256-47DEQpj8...". The browser reads the file,
+// hashes it, and refuses to use it when the two hashes differ.
+func Integrity(path string) string {
+	return integrities[path]
+}
+
+// readHashes hashes every embedded file once, at program start. The first map
+// holds the short hash for the address, the second the value for the integrity
+// attribute. Both come from the same bytes.
+func readHashes() (map[string]string, map[string]string) {
+	short := make(map[string]string)
+	integrity := make(map[string]string)
 
 	err := fs.WalkDir(FS, ".", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -62,7 +73,8 @@ func readFingerprints() map[string]string {
 		}
 
 		sum := sha256.Sum256(content)
-		out[path] = hex.EncodeToString(sum[:])[:12]
+		short[path] = hex.EncodeToString(sum[:])[:12]
+		integrity[path] = "sha256-" + base64.StdEncoding.EncodeToString(sum[:])
 
 		return nil
 	})
@@ -72,5 +84,5 @@ func readFingerprints() map[string]string {
 		panic(fmt.Sprintf("read the embedded files: %v", err))
 	}
 
-	return out
+	return short, integrity
 }

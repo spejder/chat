@@ -1,6 +1,8 @@
 package assets_test
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"io/fs"
 	"strings"
 	"testing"
@@ -53,5 +55,36 @@ func TestTheThemeFollowsTheSystem(t *testing.T) {
 
 	if strings.Contains(css, "@custom-variant dark") {
 		t.Error("the class based dark variant is back, so the dark utilities need a .dark class")
+	}
+}
+
+// TestIntegrityMatchesTheFile makes sure that the value in the integrity
+// attribute is the hash of the bytes the server sends. A wrong value makes
+// the browser drop the file, and the page loses its style or its behaviour.
+func TestIntegrityMatchesTheFile(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{"js/htmx.min.js", "css/globals.css"} {
+		content, err := fs.ReadFile(assets.FS, path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+
+		sum := sha256.Sum256(content)
+		want := "sha256-" + base64.StdEncoding.EncodeToString(sum[:])
+
+		if got := assets.Integrity(path); got != want {
+			t.Errorf("Integrity(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
+// TestIntegrityOfAnUnknownFile makes sure that an unknown path gives an empty
+// value, because an integrity attribute with a wrong value blocks the file.
+func TestIntegrityOfAnUnknownFile(t *testing.T) {
+	t.Parallel()
+
+	if got := assets.Integrity("js/does-not-exist.js"); got != "" {
+		t.Errorf("Integrity of an unknown file = %q, want an empty value", got)
 	}
 }

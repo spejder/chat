@@ -36,6 +36,7 @@ func TestRoutes(t *testing.T) {
 				`id="greeting"`,
 				"/assets/js/htmx.min.js",
 				"/assets/dist/styles.css",
+				`integrity="sha256-`,
 			},
 		},
 		{
