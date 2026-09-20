@@ -7,5 +7,7 @@ package assets
 
 import "embed"
 
+// FS holds the static files of the application.
+//
 //go:embed all:css all:js all:dist
 var FS embed.FS

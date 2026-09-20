@@ -1,0 +1,59 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - durationcheck
+    - errname
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
+    - predeclared
+    - revive
+    - sloglint
+    - unconvert
+    - unparam
+    - usetesting
+    - wastedassign
+    - whitespace
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: var-naming
+        - name: indent-error-flow
+        - name: error-strings
+        - name: context-as-argument
+        - name: unreachable-code
+    sloglint:
+      # The project logs with key and value pairs, never with slog.Attr.
+      kv-only: true
+      static-msg: false
+
+  exclusions:
+    # The templ files carry a "Code generated" header.
+    generated: lax
+    rules:
+      # The code under internal/components and internal/utils comes from the
+      # shadcn-templ registry. An upgrade overwrites it, so a fix of a
+      # comment or a name there does not survive.
+      - path: internal/(components|utils)/
+        linters:
+          - revive
+          - gocritic
+          - unparam
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax

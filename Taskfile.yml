@@ -3,6 +3,8 @@ version: "3"
 vars:
   TAILWIND_VERSION: 4.3.3
   TAILWIND: ./bin/tailwindcss
+  GOLANGCI_VERSION: 2.13.2
+  GOLANGCI: ./bin/golangci-lint
   CSS_IN: assets/css/globals.css
   CSS_OUT: assets/dist/styles.css
 
@@ -14,7 +16,11 @@ tasks:
     silent: true
 
   tools:
-    desc: Download the Tailwind standalone binary into ./bin
+    desc: Download every pinned tool binary into ./bin
+    deps: [tools:tailwind, tools:golangci]
+
+  tools:tailwind:
+    desc: Download the Tailwind binary into ./bin
     status:
       - test -x {{.TAILWIND}}
     cmds:
@@ -31,6 +37,27 @@ tasks:
           "https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/${asset}"
       - chmod +x {{.TAILWIND}}
 
+  tools:golangci:
+    desc: Download the golangci-lint binary into ./bin
+    status:
+      - test -x {{.GOLANGCI}}
+      - "{{.GOLANGCI}} --version | grep -q ' {{.GOLANGCI_VERSION}} '"
+    cmds:
+      - mkdir -p bin
+      - |
+        case "$(uname -s)-$(uname -m)" in
+          Linux-x86_64) platform=linux-amd64 ;;
+          Linux-aarch64) platform=linux-arm64 ;;
+          Darwin-x86_64) platform=darwin-amd64 ;;
+          Darwin-arm64) platform=darwin-arm64 ;;
+          *) echo "No golangci-lint binary for $(uname -s) $(uname -m)." >&2; exit 1 ;;
+        esac
+        name="golangci-lint-{{.GOLANGCI_VERSION}}-${platform}"
+        curl -fsSL \
+          "https://github.com/golangci/golangci-lint/releases/download/v{{.GOLANGCI_VERSION}}/${name}.tar.gz" \
+          | tar -xzf - -C bin --strip-components=1 "${name}/golangci-lint"
+      - chmod +x {{.GOLANGCI}}
+
   generate:
     desc: Generate Go code from the templ files
     cmds:
@@ -38,7 +65,7 @@ tasks:
 
   css:
     desc: Build the stylesheet
-    deps: [tools]
+    deps: [tools:tailwind]
     cmds:
       - "{{.TAILWIND}} --input {{.CSS_IN}} --output {{.CSS_OUT}} --minify"
 
@@ -51,7 +78,7 @@ tasks:
 
   dev:
     desc: Run the server and rebuild on every change
-    deps: [tools, generate, css]
+    deps: [tools:tailwind, generate, css]
     cmds:
       - |
         go tool templ generate --watch \
@@ -69,9 +96,10 @@ tasks:
 
   fmt:
     desc: Format the code
+    deps: [tools:golangci]
     cmds:
       - go tool templ fmt .
-      - go fmt ./...
+      - "{{.GOLANGCI}} fmt"
 
   fix:
     desc: Apply the modernizations that go fix suggests
@@ -81,6 +109,7 @@ tasks:
 
   lint:
     desc: Run the static checks
-    deps: [generate]
+    deps: [tools:golangci, generate]
     cmds:
-      - go vet ./...
+      # golangci-lint runs govet, so a separate go vet adds nothing.
+      - "{{.GOLANGCI}} run"

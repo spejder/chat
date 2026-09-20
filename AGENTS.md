@@ -8,8 +8,8 @@ something that the next agent needs.
 
 ```
 task fix    # go fix ./..., the modernizers of Go 1.27
-task lint   # go vet ./...
-task fmt    # templ fmt and go fmt
+task lint   # golangci-lint run
+task fmt    # templ fmt, then golangci-lint fmt
 task build  # generate, css, go build
 ```
 
@@ -22,8 +22,10 @@ shadcn-templ copies into the project.
 
 - templ is a tool of this module. Call `go tool templ generate`, never a global
   `templ`. The version lives in `go.mod`.
-- Tailwind is the standalone binary in `./bin`. The `tools` task downloads it.
-  Git ignores `./bin`. The version is pinned in `Taskfile.yml`.
+- Tailwind and golangci-lint are binaries in `./bin`. The `tools` task
+  downloads both. Git ignores `./bin`. Both versions are pinned in
+  `Taskfile.yml`. Do not call a golangci-lint from the PATH, because its
+  version can differ from the pinned one.
 - `task` and `shadcn-templ` are installed with `go install`. See `README.md`.
 
 ## templ
@@ -67,6 +69,20 @@ shadcn-templ copies into the project.
   `assets/css/globals.css`. Add a line when you put templ files outside
   `internal`. With the automatic search on, words from the Markdown files
   become class names and the output changes from machine to machine.
+
+## Linting
+
+`.golangci.yml` uses the version 2 file format. It holds the standard linters
+plus a set of stricter ones, and `gofumpt` and `goimports` as formatters.
+
+- The generated `*_templ.go` files carry a "Code generated" header, and the
+  `generated: lax` setting keeps them out of the reports.
+- The code under `internal/components` and `internal/utils` comes from the
+  shadcn-templ registry. The rules that only report style, `revive`,
+  `gocritic` and `unparam`, are off for those paths, because an upgrade
+  overwrites the code. The rules that report real faults stay on. A finding
+  there comes back after every upgrade, so fix it again.
+- `golangci-lint run` includes `govet`. Do not add a separate `go vet` step.
 
 ## Development container
 

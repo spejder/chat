@@ -16,6 +16,7 @@ button sends a request, and the server answers with an HTML fragment.
 | Components      | shadcn-templ | 2.0     |
 | Styling         | Tailwind CSS | 4.3.3   |
 | Browser updates | htmx         | 4.0.0   |
+| Linting         | golangci-lint | 2.13.2 |
 
 The file `assets/js/htmx.min.js` is htmx 4.0.0. The name carries no version, so
 read the version here. htmx 4 is not the default version on npm, so every
@@ -67,6 +68,14 @@ Build the binary:
 
 ```
 task build
+```
+
+Check the code before you commit:
+
+```
+task fix
+task lint
+task fmt
 ```
 
 Run `task` alone to see all tasks.
