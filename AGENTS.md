@@ -84,6 +84,22 @@ plus a set of stricter ones, and `gofumpt` and `goimports` as formatters.
   there comes back after every upgrade, so fix it again.
 - `golangci-lint run` includes `govet`. Do not add a separate `go vet` step.
 
+## Tests
+
+- Test files live next to the code in an external package, for example
+  `package server_test`. The one exception is `cmd/chat/main_test.go`, because
+  `defaultAddr` is unexported.
+- Build a request with `httptest.NewRequestWithContext(t.Context(), ...)`. The
+  `noctx` linter refuses `httptest.NewRequest`.
+- The route tests read the rendered markup, so they also cover the templates
+  and the htmx attributes. A wrong `hx-post` target fails the build.
+- `assets/assets_test.go` holds the htmx version. Change that test when you
+  update `assets/js/htmx.min.js`.
+- Do not write tests for `internal/components` and `internal/utils`. That code
+  comes from the shadcn-templ registry.
+- `task test` runs `task generate` first, so a changed `.templ` file is always
+  part of the run.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs two jobs on every push to main and on every
