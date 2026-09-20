@@ -18,6 +18,11 @@ import (
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/server"
 	"github.com/spejder/chat/internal/sms"
+
+	// The image starts from scratch, which holds no root certificates. This
+	// package carries a set inside the binary, and Go uses it when the system
+	// has none.
+	_ "golang.org/x/crypto/x509roots/fallback"
 )
 
 // The release build fills these in with -ldflags. A build from source keeps

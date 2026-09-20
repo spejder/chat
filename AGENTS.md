@@ -314,8 +314,11 @@ so Docker creates it and gives it to root, and `go install` then fails with
   a broken image shows up before a tag exists.
 - The `before` hooks run `task generate` and `task css`, because the binary
   carries the stylesheet. A build that skips them ships an old stylesheet.
-- `Dockerfile` starts from distroless static as the nonroot user. The image
-  holds the binary and nothing else, and the binary carries every static file.
+- `Dockerfile` starts from `scratch` and runs as the user 65532. The image
+  holds one layer with the binary. Every static file lives in the binary, and
+  `cmd/chat` imports `golang.org/x/crypto/x509roots/fallback`, so the binary
+  also carries the root certificates that a scratch image lacks. Keep that
+  import as long as the image starts from scratch.
 - The release workflow follows a green CI run on main. It writes the next
   patch tag and then lets goreleaser publish the release and push the image to
   `ghcr.io/spejder/chat`.

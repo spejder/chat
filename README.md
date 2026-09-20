@@ -127,8 +127,9 @@ That builds the binaries and the image for amd64 and arm64 and publishes
 nothing. A push to main that passes the CI workflow writes the next patch tag
 and pushes the image to `ghcr.io/spejder/chat`.
 
-The image carries only the binary, which holds every static file. Give it
-`DATABASE_URL` and `ORIGIN`:
+The image starts from scratch and carries one file, the binary, which holds
+every static file and the root certificates. Give it `DATABASE_URL` and
+`ORIGIN`:
 
 ```
 docker run --rm -p 8080:8080 \
