@@ -139,6 +139,9 @@ tasks:
     env:
       DATABASE_URL: "{{.DATABASE_URL}}"
       ORIGIN: "{{.ORIGIN}}"
+      # The component bundle then rebuilds from the source files on every
+      # request, so a change to a component needs no restart.
+      GO_ENV: development
     cmds:
       - |
         # The reload proxy owns port 8080, the port that the browser uses,

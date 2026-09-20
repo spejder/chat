@@ -11,6 +11,7 @@ import (
 
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/components"
 	"github.com/spejder/chat/internal/web"
 )
 
@@ -31,6 +32,7 @@ func New(config Config) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", static(http.FileServerFS(assets.FS))))
+	mux.Handle("GET /components/{bundle}", components.ScriptsHandler())
 	mux.Handle("GET /{$}", templ.Handler(web.Home()))
 	mux.HandleFunc("POST /greet", greet)
 

@@ -4,6 +4,7 @@ import (
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/components/button"
 	"github.com/spejder/chat/internal/components/input"
+	"github.com/spejder/chat/internal/components/inputotp"
 	"github.com/spejder/chat/internal/components/label"
 )
 
@@ -102,20 +103,27 @@ templ CodePanel(email, message string) {
 			@label.Label(label.Props{For: "code"}) {
 				Six digit code
 			}
-			@input.Input(input.Props{
+			// The component holds one real field under the six boxes. That
+			// field carries autocomplete="one-time-code", so a browser can
+			// fill the code in.
+			@inputotp.InputOTP(inputotp.Props{
 				ID:       "code",
 				Name:     "code",
-				Type:     "text",
 				Required: true,
-				Attributes: templ.Attributes{
-					"autocomplete": "one-time-code",
-					"inputmode":    "numeric",
-					"pattern":      "[0-9]{6}",
-					"maxlength":    "6",
-					"autofocus":    true,
-					"data-otp":     true,
-				},
-			})
+				Pattern:  inputotp.RegexpOnlyDigits,
+			}) {
+				@inputotp.Group() {
+					@inputotp.Slot(inputotp.SlotProps{Index: 0})
+					@inputotp.Slot(inputotp.SlotProps{Index: 1})
+					@inputotp.Slot(inputotp.SlotProps{Index: 2})
+				}
+				@inputotp.Separator()
+				@inputotp.Group() {
+					@inputotp.Slot(inputotp.SlotProps{Index: 3})
+					@inputotp.Slot(inputotp.SlotProps{Index: 4})
+					@inputotp.Slot(inputotp.SlotProps{Index: 5})
+				}
+			}
 		</div>
 		@errorMessage(message)
 		@button.Button(button.Props{Type: button.TypeSubmit}) {

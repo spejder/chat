@@ -3,6 +3,7 @@ package web
 import (
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/components"
 	"github.com/spejder/chat/internal/components/button"
 )
 
@@ -23,6 +24,8 @@ templ Layout(title, description string) {
 				integrity={ assets.Integrity("dist/styles.css") }
 			/>
 			<script src={ assets.URL("js/htmx.min.js") } integrity={ assets.Integrity("js/htmx.min.js") } defer></script>
+			<!-- The shadcn-templ components that carry behaviour share one bundle, which the server hands out under /components/. -->
+			@components.Scripts()
 		</head>
 		<body class="flex h-full flex-col bg-background text-foreground antialiased">
 			@header()

@@ -47,6 +47,20 @@ shadcn-templ copies into the project.
   again after an upgrade.
 - Components take a `Props` struct. Pass htmx attributes through
   `Attributes: templ.Attributes{...}`.
+- A component that carries behaviour brings a JavaScript file. They all share
+  one bundle: `@components.Scripts()` sits in the head of the layout, and the
+  route `GET /components/{bundle}` hands it out. Never add a script tag for a
+  single component.
+- The bundle rebuilds from `internal/components` on every request while
+  `GO_ENV` is not `production`. `cmd/chat` therefore sets `GO_ENV=production`
+  when the variable is empty, because a binary runs far from that directory
+  and would serve an empty bundle. The `dev` task sets `GO_ENV=development`,
+  so a change to a component needs no restart.
+- The six digit field is `inputotp` from the registry. One invisible input
+  behind the boxes holds the value and carries
+  `autocomplete="one-time-code"`. Code that writes into it must find it with
+  `[data-tui-inputotp-input]` and then send an `input` event, or the boxes
+  stay empty.
 
 ## htmx
 
@@ -211,10 +225,11 @@ plus a set of stricter ones, and `gofumpt` and `goimports` as formatters.
 - The generated `*_templ.go` files carry a "Code generated" header, and the
   `generated: lax` setting keeps them out of the reports.
 - The code under `internal/components` and `internal/utils` comes from the
-  shadcn-templ registry. The rules that only report style, `revive`,
-  `gocritic` and `unparam`, are off for those paths, because an upgrade
-  overwrites the code. The rules that report real faults stay on. A finding
-  there comes back after every upgrade, so fix it again.
+  shadcn-templ registry, and part of it is generated. `.golangci.yml` turns
+  the reporting linters and the formatters off for those paths, because an
+  upgrade overwrites the code and the findings are style or false positives,
+  for example a long string in the icon data that `gosec` reads as a
+  password. Read a new finding there before you widen the list.
 - `golangci-lint run` includes `govet`. Do not add a separate `go vet` step.
 
 ## Tests
@@ -247,6 +262,9 @@ them with html-validate.
   `<input>` and `type` on `<link>`, so it reports correct markup. Keep the
   `data-` prefix on the htmx attributes anyway, because `data-*` is part of the
   HTML standard and other validators do read it.
+- The rule `no-inline-style` is off. Registry components write a `style`
+  attribute for values that a class cannot hold, which is also why the policy
+  carries `style-src-attr`.
 - `cmd/renderhtml` wraps a fragment in a small document, because a validator
   reads a file as a whole document.
 

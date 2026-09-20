@@ -174,6 +174,10 @@
 
 				field.value = otp.code;
 
+				// The boxes of the component follow the field only when it
+				// reports the change.
+				field.dispatchEvent(new Event("input", { bubbles: true }));
+
 				if (form) {
 					form.requestSubmit();
 				}
@@ -188,7 +192,7 @@
 			wirePasskey(panel);
 		}
 
-		for (const field of document.querySelectorAll("[data-otp]")) {
+		for (const field of document.querySelectorAll("[data-tui-inputotp-input]")) {
 			wireCode(field);
 		}
 	};

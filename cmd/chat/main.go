@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -32,6 +33,16 @@ func run() error {
 	migrateOnly := flag.Bool("migrate-only", false, "apply the migrations and stop")
 	origin := flag.String("origin", defaultOrigin(), "address of this site, which a passkey belongs to")
 	flag.Parse()
+
+	// The script bundle of the components rebuilds from the source directory
+	// while GO_ENV is not "production". A binary runs far from that
+	// directory, where the rebuild would give an empty bundle, so production
+	// is the default and the dev task says development.
+	if os.Getenv("GO_ENV") == "" {
+		if err := os.Setenv("GO_ENV", "production"); err != nil {
+			return fmt.Errorf("set GO_ENV: %w", err)
+		}
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
