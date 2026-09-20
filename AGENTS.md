@@ -89,6 +89,35 @@ sets it for the service container.
   does not match. pgx reads and writes `uuid.UUID` with no extra code,
   although the type carries no `Scan` or `Value` method.
 
+## Signing in
+
+A visitor types an email address. A person with a passkey signs in with it. A
+person without one receives a six digit code by SMS and is then offered a
+passkey.
+
+- `internal/auth` holds the rules and no HTTP. `internal/server/auth.go` holds
+  the routes, and `internal/web/login.templ` holds the panels.
+- The answer to an unknown address looks exactly like the answer to an address
+  without a passkey, and no message goes out. Never write a page that says
+  whether an address exists.
+- A code lives 10 minutes and allows five tries. A new code stops the older
+  ones. The table holds the SHA-256 hash of the code together with the user
+  identifier, never the digits.
+- The session cookie is `chat_session`. It is HttpOnly, SameSite=Lax, and
+  Secure as soon as the origin is HTTPS. The table holds the hash of the
+  token.
+- `-origin`, or the `ORIGIN` environment variable, names the address of the
+  site. A passkey belongs to one host, so a wrong value breaks every passkey
+  with an unclear browser error.
+- `internal/sms` prints the message instead of sending it. There is no
+  provider yet.
+- The last line of the message is `@<host> #<code>`. Keep it. Some browsers
+  read the code from that line, and the line binds the code to this site.
+- A Go test cannot run a passkey ceremony, because that needs an
+  authenticator. The tests cover the choice between the two paths, the code
+  path end to end, and the storage. Check a change to the ceremony by hand in
+  Chrome with a virtual authenticator.
+
 ## Tests that need the database
 
 `internal/postgres/postgrestest` creates a database for each test, applies the
@@ -103,7 +132,13 @@ set of web features that every major browser supports.
 - Prefer a native element over a script: `<dialog>`, `popover`, `<details>`,
   and the matching `<input type="...">`.
 - Do not add a polyfill. If a feature sits outside the target, write the
-  fallback by hand or leave the feature out.
+  fallback by hand or leave the feature out. `assets/js/auth.js` converts
+  base64url by hand for that reason, because
+  `PublicKeyCredential.parseCreationOptionsFromJSON` is newer than the target.
+- A feature outside the target may sit on top of a path that works without it,
+  behind a feature test. The WebOTP API is such a case: the code field carries
+  `autocomplete="one-time-code"`, which works everywhere, and only a browser
+  with `OTPCredential` also reads the code out of the message.
 - Do not use `data-hx-on`. It turns a string into code, and the Content
   Security Policy blocks that.
 - Do not rewrite the markup of a registry component. Wrap it instead.
@@ -202,11 +237,11 @@ them with html-validate.
   newer Node than the development container holds.
 - `.htmlvalidate.json` turns `doctype-style` off. templ writes
   `<!doctype html>` in lower case, which is valid, and templ owns that output.
-- The rule `no-unknown-attributes` is on, which is the reason for the `data-`
-  prefix on the htmx attributes. The rule reports an invented attribute such as
-  `clas` or `foo`, which a browser would silently ignore.
-- The configuration adds `type` to the `link` element. The attribute is part of
-  the HTML standard, but the metadata of html-validate misses it.
+- The rule `no-unknown-attributes` is off. Its metadata misses standard
+  attributes, for example `name`, `placeholder` and `autocomplete` on
+  `<input>` and `type` on `<link>`, so it reports correct markup. Keep the
+  `data-` prefix on the htmx attributes anyway, because `data-*` is part of the
+  HTML standard and other validators do read it.
 - `cmd/renderhtml` wraps a fragment in a small document, because a validator
   reads a file as a whole document.
 

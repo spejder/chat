@@ -100,6 +100,23 @@ that carries a hash of the content.
 
 Run `task` alone to see all tasks.
 
+## Signing in
+
+A visitor types an email address on `/login`.
+
+- A person with a passkey signs in with the passkey.
+- A person without one receives a six digit code by SMS, and the page then
+  offers to create a passkey.
+
+There is no SMS provider yet. The server prints the message to standard
+output, so the code stands in the terminal that runs `task dev`.
+
+The seed writes two users, and both carry the same phone number. Sign in as
+`arne@ejbygruppe.dk` or `test-jorgensen@ejbygruppe.dk`.
+
+A passkey belongs to one address. `ORIGIN`, or the flag `-origin`, must be the
+address that the browser shows. The default is `http://localhost:8080`.
+
 ## Continuous integration
 
 GitHub Actions builds and tests the project, and runs the linter, on every
