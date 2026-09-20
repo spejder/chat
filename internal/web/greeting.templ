@@ -1,0 +1,8 @@
+package web
+
+import "time"
+
+// Greeting renders the fragment that htmx swaps into the page.
+templ Greeting(now time.Time) {
+	<span class="text-foreground">Hello from the server at { now.Format("15:04:05") }.</span>
+}

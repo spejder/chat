@@ -1,0 +1,71 @@
+version: "3"
+
+vars:
+  TAILWIND_VERSION: 4.3.3
+  TAILWIND: ./bin/tailwindcss
+  CSS_IN: assets/css/globals.css
+  CSS_OUT: assets/dist/styles.css
+
+tasks:
+  default:
+    desc: List the tasks
+    cmds:
+      - task --list
+    silent: true
+
+  tools:
+    desc: Download the Tailwind standalone binary into ./bin
+    status:
+      - test -x {{.TAILWIND}}
+    cmds:
+      - mkdir -p bin
+      - curl -fsSL -o {{.TAILWIND}} https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/tailwindcss-linux-x64
+      - chmod +x {{.TAILWIND}}
+
+  generate:
+    desc: Generate Go code from the templ files
+    cmds:
+      - go tool templ generate
+
+  css:
+    desc: Build the stylesheet
+    deps: [tools]
+    cmds:
+      - "{{.TAILWIND}} --input {{.CSS_IN}} --output {{.CSS_OUT}} --minify"
+
+  build:
+    desc: Build the server binary
+    cmds:
+      - task: generate
+      - task: css
+      - go build -o chat ./cmd/chat
+
+  dev:
+    desc: Run the server and rebuild on every change
+    deps: [tools, generate, css]
+    cmds:
+      - |
+        go tool templ generate --watch \
+          --proxy=http://localhost:8080 \
+          --open-browser=false \
+          --cmd="go run ./cmd/chat" &
+        {{.TAILWIND}} --input {{.CSS_IN}} --output {{.CSS_OUT}} --watch &
+        wait
+
+  test:
+    desc: Run the tests
+    deps: [generate]
+    cmds:
+      - go test ./...
+
+  fmt:
+    desc: Format the code
+    cmds:
+      - go tool templ fmt .
+      - go fmt ./...
+
+  lint:
+    desc: Run the static checks
+    deps: [generate]
+    cmds:
+      - go vet ./...

@@ -1,0 +1,10 @@
+# Local tool binaries
+/bin/
+
+# Build output
+/chat
+/assets/dist/styles.css
+
+# Generated templ code is committed, but keep editor noise out
+*.swp
+.DS_Store
