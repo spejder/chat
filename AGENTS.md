@@ -47,6 +47,11 @@ shadcn-templ copies into the project.
   again after an upgrade.
 - Components take a `Props` struct. Pass htmx attributes through
   `Attributes: templ.Attributes{...}`.
+- Use a native control when the registry component hides one. The checkbox of
+  the registry marks its real input `aria-hidden` and `tabindex="-1"`, so it
+  needs its script to work at all, which fights the rule above about native
+  elements. The form that starts a conversation uses a plain
+  `<input type="checkbox">`.
 - A component that carries behaviour brings a JavaScript file. They all share
   one bundle: `@components.Scripts()` sits in the head of the layout, and the
   route `GET /components/{bundle}` hands it out. Never add a script tag for a
@@ -136,6 +141,32 @@ passkey.
   authenticator. The tests cover the choice between the two paths, the code
   path end to end, and the storage. Check a change to the ceremony by hand in
   Chrome with a virtual authenticator.
+
+## Conversations
+
+A conversation carries a subject and a fixed set of people. The word is
+conversation everywhere: the tables, the routes and the types. Do not write
+thread or room.
+
+- `internal/chat` holds the rules and knows no SQL.
+  `internal/postgres/chat.go` holds the queries, and `internal/server/chat.go`
+  holds the routes.
+- Every read and every write asks first whether this person takes part. A
+  conversation of other people answers 404, exactly like one that does not
+  exist, so the answer never says what exists.
+- `requireUser` guards every conversation route and sends a visitor without a
+  session to `/login`. The start page and the static files stay open.
+- The people are fixed when the conversation starts. There is no way to add
+  somebody later yet.
+- The unread count comes from `last_read_at` in
+  `conversation_participants`. Every read of the messages writes that column,
+  including the poll, so the count stays at zero while a page is open.
+- The message list asks for itself every three seconds, and the list page
+  every ten. This is the cheapest thing that works. Server-sent events are the
+  next step when the cost of the poll begins to hurt.
+- `ChatStore.Create` is the only transaction in the project. Every query
+  inside it must go through the `*db.Queries` that `WithTx` returns, or the
+  work lands outside the transaction.
 
 ## Tests that need the database
 
@@ -262,6 +293,8 @@ them with html-validate.
   `<input>` and `type` on `<link>`, so it reports correct markup. Keep the
   `data-` prefix on the htmx attributes anyway, because `data-*` is part of the
   HTML standard and other validators do read it.
+- The rule `form-dup-name` allows a shared name for checkboxes, which is how
+  a group of checkboxes reaches the server as a list.
 - The rule `no-inline-style` is off. Registry components write a `style`
   attribute for values that a class cannot hold, which is also why the policy
   carries `style-src-attr`.

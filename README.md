@@ -117,6 +117,15 @@ The seed writes two users, and both carry the same phone number. Sign in as
 A passkey belongs to one address. `ORIGIN`, or the flag `-origin`, must be the
 address that the browser shows. The default is `http://localhost:8080`.
 
+## Conversations
+
+A conversation carries a subject and a fixed set of people. A signed in person
+sees their conversations, starts a new one, reads it and writes in it. The list
+counts the messages that this person has not read.
+
+The page asks the server for new messages every three seconds, so an answer
+from somebody else appears without a reload.
+
 ## The container image
 
 ```
