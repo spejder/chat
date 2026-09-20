@@ -305,6 +305,26 @@ Do not mount a named volume on `/go/pkg/mod`. The image has no such directory,
 so Docker creates it and gives it to root, and `go install` then fails with
 `mkdir /go/pkg/mod/cache: permission denied`.
 
+## The release and the image
+
+`goreleaser` builds the binaries and the container image.
+
+- `task image` runs `goreleaser release --snapshot --clean`, which builds
+  everything and publishes nothing. The CI workflow runs the same command, so
+  a broken image shows up before a tag exists.
+- The `before` hooks run `task generate` and `task css`, because the binary
+  carries the stylesheet. A build that skips them ships an old stylesheet.
+- `Dockerfile` starts from distroless static as the nonroot user. The image
+  holds the binary and nothing else, and the binary carries every static file.
+- The release workflow follows a green CI run on main. It writes the next
+  patch tag and then lets goreleaser publish the release and push the image to
+  `ghcr.io/spejder/chat`.
+- The repository does not exist on GitHub yet, so `.goreleaser.yml` names the
+  owner and the repository instead of reading them from a remote. Remove those
+  two lines once a remote exists, or leave them, because they are correct.
+- The version, the commit and the date reach the binary through `-ldflags`,
+  and the server writes them into the log at start.
+
 ## Verification
 
 Do not stop at a green build. Start the server on a free port, request the page

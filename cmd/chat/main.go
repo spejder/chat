@@ -20,6 +20,14 @@ import (
 	"github.com/spejder/chat/internal/sms"
 )
 
+// The release build fills these in with -ldflags. A build from source keeps
+// the words below.
+var (
+	version = "development"
+	commit  = "unknown"
+	date    = "unknown"
+)
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("server stopped", "error", err)
@@ -79,6 +87,7 @@ func run() error {
 	}
 
 	slog.Info("the sign in is ready", "origin", *origin)
+	slog.Info("this is chat", "version", version, "commit", commit, "date", date)
 
 	srv := &http.Server{
 		Addr: *addr,

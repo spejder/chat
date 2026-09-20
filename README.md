@@ -117,6 +117,26 @@ The seed writes two users, and both carry the same phone number. Sign in as
 A passkey belongs to one address. `ORIGIN`, or the flag `-origin`, must be the
 address that the browser shows. The default is `http://localhost:8080`.
 
+## The container image
+
+```
+task image
+```
+
+That builds the binaries and the image for amd64 and arm64 and publishes
+nothing. A push to main that passes the CI workflow writes the next patch tag
+and pushes the image to `ghcr.io/spejder/chat`.
+
+The image carries only the binary, which holds every static file. Give it
+`DATABASE_URL` and `ORIGIN`:
+
+```
+docker run --rm -p 8080:8080 \
+  -e DATABASE_URL=postgres://chat:chat@postgres:5432/chat?sslmode=disable \
+  -e ORIGIN=https://chat.example.com \
+  ghcr.io/spejder/chat:latest
+```
+
 ## Continuous integration
 
 GitHub Actions builds and tests the project, and runs the linter, on every

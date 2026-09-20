@@ -1,0 +1,85 @@
+---
+version: 2
+
+# The repository does not exist on GitHub yet, so the owner and the name stand
+# here instead of coming from a remote.
+project_name: chat
+
+# The binary carries the stylesheet and the scripts, so the CSS must exist
+# before the build starts.
+before:
+  hooks:
+    - task generate
+    - task css
+
+builds:
+  - id: chat
+    main: ./cmd/chat
+    binary: chat
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{ .CommitDate }}
+
+archives:
+  - formats:
+      - binary
+    ids:
+      - chat
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- if eq .Os "linux" }}Linux
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+
+dockers_v2:
+  - images:
+      - 'ghcr.io/spejder/{{ .ProjectName }}'
+    tags:
+      - '{{ .Tag }}'
+      - 'v{{ .Major }}'
+      - 'latest'
+    ids:
+      - chat
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    sbom: false
+    labels:
+      "org.opencontainers.image.authors": "Arne Jørgensen <arne@arnested.dk>"
+      "org.opencontainers.image.created": "{{.CommitDate}}"
+      "org.opencontainers.image.description": "A chat application built with Go, templ and htmx"
+      "org.opencontainers.image.licenses": "MIT"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.source": "https://github.com/spejder/{{.ProjectName}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+release:
+  github:
+    owner: spejder
+    name: chat
+  prerelease: auto

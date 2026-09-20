@@ -11,3 +11,6 @@
 # Generated templ code is committed, but keep editor noise out
 *.swp
 .DS_Store
+
+# GoReleaser output
+/dist/

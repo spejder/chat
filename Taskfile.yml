@@ -155,6 +155,11 @@ tasks:
         {{.TAILWIND}} --input {{.CSS_IN}} --output {{.CSS_OUT}} --watch &
         wait
 
+  image:
+    desc: Build the container image and the binaries without publishing
+    cmds:
+      - goreleaser release --snapshot --clean
+
   test:
     desc: Run the tests
     deps: [generate]
