@@ -64,6 +64,12 @@ tasks:
       - go tool templ fmt .
       - go fmt ./...
 
+  fix:
+    desc: Apply the modernizations that go fix suggests
+    deps: [generate]
+    cmds:
+      - go fix ./...
+
   lint:
     desc: Run the static checks
     deps: [generate]
