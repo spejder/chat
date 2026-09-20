@@ -81,6 +81,9 @@ Apple computer runs on arm64.
 Forwarded ports: 8080 is the server, 7331 is the templ proxy that reloads the
 browser during `task dev`.
 
+`.devcontainer/devcontainer-lock.json` pins the feature to one digest. The
+devcontainer command writes it. Commit every change of the file.
+
 Do not mount a named volume on `/go/pkg/mod`. The image has no such directory,
 so Docker creates it and gives it to root, and `go install` then fails with
 `mkdir /go/pkg/mod/cache: permission denied`.
