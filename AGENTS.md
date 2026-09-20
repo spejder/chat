@@ -322,9 +322,6 @@ so Docker creates it and gives it to root, and `go install` then fails with
 - The release workflow follows a green CI run on main. It writes the next
   patch tag and then lets goreleaser publish the release and push the image to
   `ghcr.io/spejder/chat`.
-- The repository does not exist on GitHub yet, so `.goreleaser.yml` names the
-  owner and the repository instead of reading them from a remote. Remove those
-  two lines once a remote exists, or leave them, because they are correct.
 - The version, the commit and the date reach the binary through `-ldflags`,
   and the server writes them into the log at start.
 

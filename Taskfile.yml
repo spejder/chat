@@ -177,7 +177,9 @@ tasks:
 
   html:
     desc: Check the rendered markup with an HTML validator
-    deps: [generate]
+    # The css task must run first, because the layout reads the hash of the
+    # stylesheet.
+    deps: [generate, css]
     cmds:
       - go run ./cmd/renderhtml tmp/html
       - npx --yes html-validate@{{.HTML_VALIDATE_VERSION}} "tmp/html/*.html"

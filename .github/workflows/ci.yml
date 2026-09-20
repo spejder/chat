@@ -153,6 +153,27 @@ jobs:
   lighthouse:
     name: Lighthouse
     runs-on: ubuntu-latest
+
+    # The server reads the database at start, so the audit needs one too.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: chat
+          POSTGRES_PASSWORD: chat
+          POSTGRES_DB: chat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chat -d chat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://chat:chat@localhost:5432/chat?sslmode=disable
+      ORIGIN: http://localhost:8080
+
     steps:
       - uses: actions/checkout@v7
 

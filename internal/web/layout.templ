@@ -9,6 +9,13 @@ import (
 
 // Layout renders the HTML shell that every page shares.
 templ Layout(title, description string) {
+	{{
+		// A file that the build has not made yet carries no hash. The
+		// attribute then stays out, because an empty integrity is not valid
+		// markup and protects nothing.
+		styleIntegrity := assets.Integrity("dist/styles.css")
+		scriptIntegrity := assets.Integrity("js/htmx.min.js")
+	}}
 	<!DOCTYPE html>
 	<html lang="en" class="h-full">
 		<head>
@@ -21,9 +28,13 @@ templ Layout(title, description string) {
 			<link
 				rel="stylesheet"
 				href={ assets.URL("dist/styles.css") }
-				integrity={ assets.Integrity("dist/styles.css") }
+				if styleIntegrity != "" {
+					integrity={ styleIntegrity }
+				}
 			/>
-			<script src={ assets.URL("js/htmx.min.js") } integrity={ assets.Integrity("js/htmx.min.js") } defer></script>
+			<script src={ assets.URL("js/htmx.min.js") } if scriptIntegrity != "" {
+	integrity={ scriptIntegrity }
+} defer></script>
 			<!-- The shadcn-templ components that carry behaviour share one bundle, which the server hands out under /components/. -->
 			@components.Scripts()
 		</head>

@@ -19,7 +19,10 @@ templ Login(panel templ.Component) {
 				</div>
 			</div>
 		</main>
-		<script src={ assets.URL("js/auth.js") } integrity={ assets.Integrity("js/auth.js") } defer></script>
+		{{ authIntegrity := assets.Integrity("js/auth.js") }}
+		<script src={ assets.URL("js/auth.js") } if authIntegrity != "" {
+	integrity={ authIntegrity }
+} defer></script>
 	}
 }
 
