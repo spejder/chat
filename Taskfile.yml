@@ -105,6 +105,13 @@ tasks:
     cmds:
       - go run ./cmd/chat -migrate-only
 
+  seed:
+    desc: Write the development users into the database
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+    cmds:
+      - go run ./cmd/seed
+
   generate:
     desc: Generate Go code from the templ files and the SQL queries
     deps: [tools:sqlc]

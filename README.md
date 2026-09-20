@@ -59,10 +59,11 @@ With the devcontainer you can skip the next section.
 
 ## Development
 
-Start the database:
+Start the database and write the development users:
 
 ```
 task db:up
+task seed
 ```
 
 Start the server and the file watchers:

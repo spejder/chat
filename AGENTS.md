@@ -78,6 +78,9 @@ sets it for the service container.
   four digit prefix, because sqlc reads the files in name order. The binary
   carries them, and `cmd/chat` applies them at start. `task migrate` applies
   them alone.
+- `task seed` writes the development users with `cmd/seed`. The people live in
+  `internal/seed`. The seed is not a migration, so a new environment holds no
+  users until somebody runs it. A second run changes nothing.
 - The identifier of a row is a UUID version 7 from the standard library
   package `uuid`. Go writes it, not the database, and a list in identifier
   order is a list in creation order.
