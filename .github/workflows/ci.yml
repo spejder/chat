@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: go-task/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache the tool binaries
+        uses: actions/cache@v6
+        with:
+          path: bin
+          key: tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml') }}
+
+      - name: Build
+        run: task build
+
+      - name: Make sure that the generated code is current
+        run: git diff --exit-code
+
+      - name: Test
+        run: task test
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: go-task/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cache the tool binaries
+        uses: actions/cache@v6
+        with:
+          path: bin
+          key: tools-${{ runner.os }}-${{ hashFiles('Taskfile.yml') }}
+
+      - name: Lint
+        run: task lint
+
+      - name: Format
+        run: task fmt
+
+      - name: Modernize
+        run: task fix
+
+      - name: Make sure that the format and the modernizers change nothing
+        run: git diff --exit-code

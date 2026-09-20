@@ -84,6 +84,19 @@ plus a set of stricter ones, and `gofumpt` and `goimports` as formatters.
   there comes back after every upgrade, so fix it again.
 - `golangci-lint run` includes `govet`. Do not add a separate `go vet` step.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs two jobs on every push to main and on every
+pull request. The build job runs `task build` and `task test`. The lint job
+runs `task lint`, `task fmt` and `task fix`.
+
+Both jobs end with `git diff --exit-code`. A pull request fails when the
+generated templ code, the format or the modernizers produce a change. Run
+`task build`, `task fmt` and `task fix` and commit the result before you push.
+
+The jobs cache `./bin` under a key that holds the hash of `Taskfile.yml`, so a
+version change in that file downloads the tools again.
+
 ## Development container
 
 `.devcontainer/devcontainer.json` uses the Go 1.27 image and runs

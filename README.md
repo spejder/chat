@@ -80,6 +80,12 @@ task fmt
 
 Run `task` alone to see all tasks.
 
+## Continuous integration
+
+GitHub Actions builds and tests the project, and runs the linter, on every
+push to main and on every pull request. The workflow calls the same tasks that
+you call, so a green build on your machine means a green build there.
+
 ## Add a component
 
 ```
