@@ -43,12 +43,18 @@ linters:
     generated: lax
     rules:
       # The code under internal/components and internal/utils comes from the
-      # shadcn-templ registry. An upgrade overwrites it, so a fix of a
-      # comment or a name there does not survive.
+      # shadcn-templ registry, and part of it is generated. An upgrade
+      # overwrites it, so a fix there does not survive. The findings are
+      # style and false positives, for example a long string in the icon data
+      # that gosec reads as a password.
       - path: internal/(components|utils)/
         linters:
-          - revive
+          - errcheck
           - gocritic
+          - gosec
+          - nilerr
+          - revive
+          - staticcheck
           - unparam
       # cmd/renderhtml is a tool that a developer runs by hand. The output
       # directory comes from the command line, which gosec reads as a path
@@ -63,3 +69,7 @@ formatters:
     - goimports
   exclusions:
     generated: lax
+    # The registry owns the shape of its own files.
+    paths:
+      - internal/components/
+      - internal/utils/
