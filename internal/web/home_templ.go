@@ -68,9 +68,9 @@ func Home() templ.Component {
 			})
 			templ_7745c5c3_Err = button.Button(button.Props{
 				Attributes: templ.Attributes{
-					"hx-post":   "/greet",
-					"hx-target": "#greeting",
-					"hx-swap":   "innerHTML",
+					"data-hx-post":   "/greet",
+					"data-hx-target": "#greeting",
+					"data-hx-swap":   "innerHTML",
 				},
 			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {

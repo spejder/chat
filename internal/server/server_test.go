@@ -31,8 +31,8 @@ func TestRoutes(t *testing.T) {
 			wantStatus: http.StatusOK,
 			wantBody: []string{
 				"Hello world",
-				`hx-post="/greet"`,
-				`hx-target="#greeting"`,
+				`data-hx-post="/greet"`,
+				`data-hx-target="#greeting"`,
 				`id="greeting"`,
 				"/assets/js/htmx.min.js",
 				"/assets/dist/styles.css",

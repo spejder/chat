@@ -1,6 +1,17 @@
 {
   "extends": ["html-validate:recommended"],
   "rules": {
-    "doctype-style": "off"
-  }
+    "doctype-style": "off",
+    "no-unknown-attributes": "error"
+  },
+  "elements": [
+    "html5",
+    {
+      "link": {
+        "attributes": {
+          "type": {}
+        }
+      }
+    }
+  ]
 }

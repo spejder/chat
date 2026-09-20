@@ -52,6 +52,10 @@ shadcn-templ copies into the project.
 
 - The version is 4.0.0, vendored in `assets/js/htmx.min.js`. The file name
   carries no version.
+- Write every attribute with the `data-` prefix: `data-hx-post`, not
+  `hx-post`. htmx 4 reads both, and `data-*` is part of the HTML standard, so
+  the markup passes a validator. Every example on the htmx site uses the short
+  form, so translate a snippet before you paste it.
 - htmx 4 removed implicit attribute inheritance. Put every `hx-` attribute on
   the element that sends the request, or use the `:inherited` suffix.
 - Event names changed to `htmx:before:request` and `htmx:before:swap`. Do not
@@ -66,8 +70,8 @@ set of web features that every major browser supports.
   and the matching `<input type="...">`.
 - Do not add a polyfill. If a feature sits outside the target, write the
   fallback by hand or leave the feature out.
-- Do not use `hx-on`. It turns a string into code, and the Content Security
-  Policy blocks that.
+- Do not use `data-hx-on`. It turns a string into code, and the Content
+  Security Policy blocks that.
 - Do not rewrite the markup of a registry component. Wrap it instead.
 - The guidance comes from the Chrome plugin `modern-web-guidance`. Follow it
   where it does not fight templ or shadcn-templ.
@@ -164,9 +168,11 @@ them with html-validate.
   newer Node than the development container holds.
 - `.htmlvalidate.json` turns `doctype-style` off. templ writes
   `<!doctype html>` in lower case, which is valid, and templ owns that output.
-- The rule `no-unknown-attributes` stays off. It reports every `hx-` attribute,
-  and the element metadata of html-validate has no pattern that covers all
-  elements at once.
+- The rule `no-unknown-attributes` is on, which is the reason for the `data-`
+  prefix on the htmx attributes. The rule reports an invented attribute such as
+  `clas` or `foo`, which a browser would silently ignore.
+- The configuration adds `type` to the `link` element. The attribute is part of
+  the HTML standard, but the metadata of html-validate misses it.
 - `cmd/renderhtml` wraps a fragment in a small document, because a validator
   reads a file as a whole document.
 
