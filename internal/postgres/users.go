@@ -32,11 +32,12 @@ func NewUserStore(pool *pgxpool.Pool) *UserStore {
 //
 // The application gives no visitor a way to create a user. The seed and the
 // tests use this method.
-func (s *UserStore) Create(ctx context.Context, fullName, email string) (user.User, error) {
+func (s *UserStore) Create(ctx context.Context, fullName, email, phoneNumber string) (user.User, error) {
 	row, err := s.queries.CreateUser(ctx, db.CreateUserParams{
-		ID:       uuid.NewV7(),
-		FullName: fullName,
-		Email:    email,
+		ID:          uuid.NewV7(),
+		FullName:    fullName,
+		Email:       email,
+		PhoneNumber: phoneNumber,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -45,6 +46,21 @@ func (s *UserStore) Create(ctx context.Context, fullName, email string) (user.Us
 		}
 
 		return user.User{}, fmt.Errorf("create the user: %w", err)
+	}
+
+	return toUser(row), nil
+}
+
+// SetPhoneNumber writes a new phone number. The seed uses it, so the two
+// development users can receive a code.
+func (s *UserStore) SetPhoneNumber(ctx context.Context, id uuid.UUID, phoneNumber string) (user.User, error) {
+	row, err := s.queries.SetUserPhone(ctx, db.SetUserPhoneParams{ID: id, PhoneNumber: phoneNumber})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user.User{}, user.ErrNotFound
+		}
+
+		return user.User{}, fmt.Errorf("set the phone number: %w", err)
 	}
 
 	return toUser(row), nil
@@ -97,10 +113,11 @@ func (s *UserStore) List(ctx context.Context) ([]user.User, error) {
 // uses.
 func toUser(row db.User) user.User {
 	return user.User{
-		ID:        row.ID,
-		FullName:  row.FullName,
-		Email:     row.Email,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:          row.ID,
+		FullName:    row.FullName,
+		Email:       row.Email,
+		PhoneNumber: row.PhoneNumber,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
 	}
 }

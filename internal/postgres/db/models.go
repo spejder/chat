@@ -7,13 +7,48 @@ package db
 import (
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"uuid"
 )
 
-type User struct {
-	ID        uuid.UUID
-	FullName  string
-	Email     string
+type OtpCode struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	CodeHash   []byte
+	Attempts   int32
+	ExpiresAt  time.Time
+	ConsumedAt pgtype.Timestamptz
+	CreatedAt  time.Time
+}
+
+type Session struct {
+	TokenHash []byte
+	UserID    uuid.UUID
 	CreatedAt time.Time
-	UpdatedAt time.Time
+	ExpiresAt time.Time
+}
+
+type User struct {
+	ID          uuid.UUID
+	FullName    string
+	Email       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	PhoneNumber string
+}
+
+type WebauthnChallenge struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Purpose   string
+	Data      []byte
+	ExpiresAt time.Time
+}
+
+type WebauthnCredential struct {
+	CredentialID []byte
+	UserID       uuid.UUID
+	Data         []byte
+	CreatedAt    time.Time
+	LastUsedAt   pgtype.Timestamptz
 }

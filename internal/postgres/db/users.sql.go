@@ -12,21 +12,27 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, full_name, email)
-VALUES ($1, $2, $3)
-RETURNING id, full_name, email, created_at, updated_at
+INSERT INTO users (id, full_name, email, phone_number)
+VALUES ($1, $2, $3, $4)
+RETURNING id, full_name, email, created_at, updated_at, phone_number
 `
 
 type CreateUserParams struct {
-	ID       uuid.UUID
-	FullName string
-	Email    string
+	ID          uuid.UUID
+	FullName    string
+	Email       string
+	PhoneNumber string
 }
 
 // CreateUser writes one user. The application has no way for a visitor to
 // create a user yet, so the tests and the seed use this query.
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.ID, arg.FullName, arg.Email)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
+		arg.FullName,
+		arg.Email,
+		arg.PhoneNumber,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -34,12 +40,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PhoneNumber,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, full_name, email, created_at, updated_at FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
 WHERE id = $1
 `
 
@@ -52,12 +59,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PhoneNumber,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, full_name, email, created_at, updated_at FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
 WHERE lower(email) = lower($1::text)
 `
 
@@ -70,12 +78,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PhoneNumber,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, full_name, email, created_at, updated_at FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
 ORDER BY id
 `
 
@@ -96,6 +105,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Email,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PhoneNumber,
 		); err != nil {
 			return nil, err
 		}
@@ -105,4 +115,32 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setUserPhone = `-- name: SetUserPhone :one
+UPDATE users
+SET phone_number = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, full_name, email, created_at, updated_at, phone_number
+`
+
+type SetUserPhoneParams struct {
+	ID          uuid.UUID
+	PhoneNumber string
+}
+
+// SetUserPhone fixes the number of a user. The seed uses it, because a
+// migration cannot know the numbers.
+func (q *Queries) SetUserPhone(ctx context.Context, arg SetUserPhoneParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserPhone, arg.ID, arg.PhoneNumber)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PhoneNumber,
+	)
+	return i, err
 }

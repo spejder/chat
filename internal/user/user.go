@@ -12,9 +12,14 @@ import (
 type User struct {
 	// ID is a UUID version 7. Such an identifier starts with the time of
 	// creation, so a list in identifier order is a list in creation order.
-	ID        uuid.UUID
-	FullName  string
-	Email     string
+	ID       uuid.UUID
+	FullName string
+	Email    string
+
+	// PhoneNumber is where a sign in code goes. It is in the international
+	// form, for example +4521650113.
+	PhoneNumber string
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

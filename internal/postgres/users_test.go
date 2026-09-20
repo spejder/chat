@@ -17,7 +17,7 @@ func TestCreateAndRead(t *testing.T) {
 
 	store := postgres.NewUserStore(postgrestest.New(t))
 
-	created, err := store.Create(t.Context(), "Ada Lovelace", "ada@example.com")
+	created, err := store.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4500000001")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestGetByEmailIgnoresCase(t *testing.T) {
 
 	store := postgres.NewUserStore(postgrestest.New(t))
 
-	created, err := store.Create(t.Context(), "Grace Hopper", "grace@example.com")
+	created, err := store.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4500000002")
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -88,11 +88,11 @@ func TestDuplicateEmail(t *testing.T) {
 
 	store := postgres.NewUserStore(postgrestest.New(t))
 
-	if _, err := store.Create(t.Context(), "Alan Turing", "alan@example.com"); err != nil {
+	if _, err := store.Create(t.Context(), "Alan Turing", "alan@example.com", "+4500000003"); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 
-	_, err := store.Create(t.Context(), "Alan T", "ALAN@example.com")
+	_, err := store.Create(t.Context(), "Alan T", "ALAN@example.com", "+4500000004")
 	if !errors.Is(err, user.ErrDuplicateEmail) {
 		t.Errorf("error = %v, want %v", err, user.ErrDuplicateEmail)
 	}
@@ -107,7 +107,7 @@ func TestListIsInCreationOrder(t *testing.T) {
 
 	names := []string{"First", "Second", "Third"}
 	for i, name := range names {
-		if _, err := store.Create(t.Context(), name, name+"@example.com"); err != nil {
+		if _, err := store.Create(t.Context(), name, name+"@example.com", "+4500000005"); err != nil {
 			t.Fatalf("create %d: %v", i, err)
 		}
 	}
