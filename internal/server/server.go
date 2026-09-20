@@ -10,18 +10,38 @@ import (
 	"github.com/a-h/templ"
 
 	"github.com/spejder/chat/assets"
+	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/web"
 )
 
+// Config holds what the routes need from the outside.
+type Config struct {
+	// Auth signs people in and out.
+	Auth *auth.Service
+
+	// SecureCookies belongs to a site on HTTPS. A browser drops a secure
+	// cookie over plain HTTP, which is how development runs.
+	SecureCookies bool
+}
+
 // New returns the handler with every route of the application.
-func New() http.Handler {
+func New(config Config) http.Handler {
+	handlers := &authHandlers{service: config.Auth, secureCookies: config.SecureCookies}
+
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", static(http.FileServerFS(assets.FS))))
 	mux.Handle("GET /{$}", templ.Handler(web.Home()))
 	mux.HandleFunc("POST /greet", greet)
 
-	return secure(compress(mux))
+	mux.HandleFunc("GET /login", handlers.page)
+	mux.HandleFunc("POST /login", handlers.start)
+	mux.HandleFunc("POST /login/code", handlers.code)
+	mux.HandleFunc("POST /login/passkey", handlers.passkeyLogin)
+	mux.HandleFunc("POST /login/passkey/register", handlers.passkeyRegister)
+	mux.HandleFunc("POST /logout", handlers.logout)
+
+	return secure(compress(handlers.authenticate(mux)))
 }
 
 // greet answers the htmx request with the greeting fragment.

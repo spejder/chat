@@ -1,6 +1,10 @@
 package web
 
-import "github.com/spejder/chat/assets"
+import (
+	"github.com/spejder/chat/assets"
+	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/components/button"
+)
 
 // Layout renders the HTML shell that every page shares.
 templ Layout(title, description string) {
@@ -20,8 +24,40 @@ templ Layout(title, description string) {
 			/>
 			<script src={ assets.URL("js/htmx.min.js") } integrity={ assets.Integrity("js/htmx.min.js") } defer></script>
 		</head>
-		<body class="h-full bg-background text-foreground antialiased">
-			{ children... }
+		<body class="flex h-full flex-col bg-background text-foreground antialiased">
+			@header()
+			<div class="flex-1">
+				{ children... }
+			</div>
 		</body>
 	</html>
+}
+
+// header shows who is signed in, and the way in or out.
+templ header() {
+	<header class="flex items-center justify-between gap-4 border-b px-6 py-3">
+		<a href="/" class="text-sm font-semibold tracking-tight">Chat</a>
+		if person, ok := auth.UserFrom(ctx); ok {
+			<div class="flex items-center gap-3">
+				<span class="text-sm text-muted-foreground">{ person.FullName }</span>
+				<form method="post" action="/logout">
+					@button.Button(button.Props{
+						Type:    button.TypeSubmit,
+						Variant: button.VariantOutline,
+						Size:    button.SizeSm,
+					}) {
+						Sign out
+					}
+				</form>
+			</div>
+		} else {
+			@button.Button(button.Props{
+				Href:    "/login",
+				Variant: button.VariantOutline,
+				Size:    button.SizeSm,
+			}) {
+				Sign in
+			}
+		}
+	</header>
 }

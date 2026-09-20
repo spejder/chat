@@ -1,0 +1,166 @@
+package web
+
+import (
+	"github.com/spejder/chat/assets"
+	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/input"
+	"github.com/spejder/chat/internal/components/label"
+)
+
+// Login renders the sign in page around one of the panels.
+templ Login(panel templ.Component) {
+	@Layout("Sign in to Chat", "Sign in to Chat with a passkey or a code from an SMS.") {
+		<main class="flex items-center justify-center p-6">
+			<div class="flex w-full max-w-md flex-col gap-6 rounded-xl border bg-card p-8 text-card-foreground shadow-sm">
+				<h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
+				<div id="auth-panel" class="flex flex-col gap-6">
+					@panel
+				</div>
+			</div>
+		</main>
+		<script src={ assets.URL("js/auth.js") } integrity={ assets.Integrity("js/auth.js") } defer></script>
+	}
+}
+
+// EmailPanel asks for the email address.
+templ EmailPanel(email, message string) {
+	<form
+		class="flex flex-col gap-4"
+		method="post"
+		action="/login"
+		data-hx-post="/login"
+		data-hx-target="#auth-panel"
+		data-hx-swap="innerHTML"
+	>
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: "email"}) {
+				Email address
+			}
+			@input.Input(input.Props{
+				ID:          "email",
+				Name:        "email",
+				Type:        "email",
+				Value:       email,
+				Required:    true,
+				Placeholder: "you@example.com",
+				Attributes: templ.Attributes{
+					"autocomplete": "username webauthn",
+					"autofocus":    true,
+				},
+			})
+		</div>
+		@errorMessage(message)
+		@button.Button(button.Props{Type: button.TypeSubmit}) {
+			Continue
+		}
+	</form>
+}
+
+// PasskeyPanel asks the browser for a passkey. The script reads the options
+// from the data attributes, so the page needs no inline script.
+templ PasskeyPanel(email, options, challenge string) {
+	<div
+		class="flex flex-col gap-4"
+		data-passkey-login
+		data-options={ options }
+		data-challenge={ challenge }
+	>
+		<p class="text-sm text-muted-foreground">
+			Use the passkey for { email }.
+		</p>
+		@errorMessage("")
+		@button.Button(button.Props{
+			Attributes: templ.Attributes{"data-passkey-start": true},
+		}) {
+			Use passkey
+		}
+		<form method="post" action="/login" data-hx-post="/login" data-hx-target="#auth-panel" data-hx-swap="innerHTML">
+			<input type="hidden" name="email" value={ email }/>
+			<input type="hidden" name="method" value="code"/>
+			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantGhost, Size: button.SizeSm}) {
+				Send a code instead
+			}
+		</form>
+	</div>
+}
+
+// CodePanel asks for the six digits from the message.
+templ CodePanel(email, message string) {
+	<form
+		class="flex flex-col gap-4"
+		method="post"
+		action="/login/code"
+		data-hx-post="/login/code"
+		data-hx-target="#auth-panel"
+		data-hx-swap="innerHTML"
+	>
+		<p class="text-sm text-muted-foreground">
+			If { email } belongs to an account, a code is on its way by SMS. It works for 10 minutes.
+		</p>
+		<input type="hidden" name="email" value={ email }/>
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: "code"}) {
+				Six digit code
+			}
+			@input.Input(input.Props{
+				ID:       "code",
+				Name:     "code",
+				Type:     "text",
+				Required: true,
+				Attributes: templ.Attributes{
+					"autocomplete": "one-time-code",
+					"inputmode":    "numeric",
+					"pattern":      "[0-9]{6}",
+					"maxlength":    "6",
+					"autofocus":    true,
+					"data-otp":     true,
+				},
+			})
+		</div>
+		@errorMessage(message)
+		@button.Button(button.Props{Type: button.TypeSubmit}) {
+			Sign in
+		}
+	</form>
+}
+
+// PasskeyOffer asks the signed in person to create a passkey, so the next
+// sign in needs no message.
+templ PasskeyOffer(options, challenge string) {
+	<div
+		class="flex flex-col gap-4"
+		data-passkey-create
+		data-options={ options }
+		data-challenge={ challenge }
+	>
+		<p class="text-sm text-muted-foreground">
+			You are signed in. Create a passkey, and the next sign in needs no SMS.
+		</p>
+		@errorMessage("")
+		@button.Button(button.Props{
+			Attributes: templ.Attributes{"data-passkey-start": true},
+		}) {
+			Create a passkey
+		}
+		@button.Button(button.Props{Href: "/", Variant: button.VariantGhost, Size: button.SizeSm}) {
+			Not now
+		}
+	</div>
+}
+
+// SignedIn is the answer when the person is signed in and needs no passkey
+// step.
+templ SignedIn() {
+	<div class="flex flex-col gap-4">
+		<p class="text-sm text-muted-foreground">You are signed in.</p>
+		@button.Button(button.Props{Href: "/"}) {
+			Go to the start page
+		}
+	</div>
+}
+
+// errorMessage shows what went wrong, and stays empty otherwise. The script
+// writes into it as well.
+templ errorMessage(message string) {
+	<p class="min-h-5 text-sm text-destructive" data-error aria-live="polite">{ message }</p>
+}

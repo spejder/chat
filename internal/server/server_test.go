@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/spejder/chat/assets"
-	"github.com/spejder/chat/internal/server"
 )
 
 // TestRoutes sends one request per route and reads the answer.
@@ -73,7 +72,7 @@ func TestRoutes(t *testing.T) {
 		},
 	}
 
-	handler := server.New()
+	handler, _, _ := newHandler(t)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -103,7 +102,7 @@ func TestGreetingIsAFragment(t *testing.T) {
 	t.Parallel()
 
 	recorder := httptest.NewRecorder()
-	server.New().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/greet", nil))
+	newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/greet", nil))
 
 	body := recorder.Body.String()
 	for _, unwanted := range []string{"<html", "<body", "<!doctype"} {
@@ -152,7 +151,7 @@ func TestAssetCacheHeaders(t *testing.T) {
 		},
 	}
 
-	handler := server.New()
+	handler, _, _ := newHandler(t)
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -186,7 +185,7 @@ func TestAKnownAssetIsNotSentTwice(t *testing.T) {
 	request.Header.Set("If-None-Match", strconv.Quote(hash))
 
 	recorder := httptest.NewRecorder()
-	server.New().ServeHTTP(recorder, request)
+	newTestHandler(t).ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusNotModified {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusNotModified)
@@ -203,7 +202,7 @@ func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 
 	recorder := httptest.NewRecorder()
-	server.New().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+	newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 	want := map[string]string{
 		"X-Content-Type-Options": "nosniff",
@@ -242,7 +241,7 @@ func TestCompression(t *testing.T) {
 		request.Header.Set("Accept-Encoding", "gzip")
 
 		recorder := httptest.NewRecorder()
-		server.New().ServeHTTP(recorder, request)
+		newTestHandler(t).ServeHTTP(recorder, request)
 
 		if got := recorder.Header().Get("Content-Encoding"); got != "gzip" {
 			t.Fatalf("Content-Encoding = %q, want %q", got, "gzip")
@@ -271,7 +270,7 @@ func TestCompression(t *testing.T) {
 		t.Parallel()
 
 		recorder := httptest.NewRecorder()
-		server.New().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+		newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
 
 		if got := recorder.Header().Get("Content-Encoding"); got != "" {
 			t.Errorf("Content-Encoding = %q, want none", got)

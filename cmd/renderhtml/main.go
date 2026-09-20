@@ -14,6 +14,8 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/user"
 	"github.com/spejder/chat/internal/web"
 )
 
@@ -47,11 +49,27 @@ func run() error {
 	at := time.Date(2026, time.September, 20, 13, 45, 7, 0, time.UTC)
 
 	pages := map[string]templ.Component{
-		"home.html": web.Home(),
+		"home.html":  web.Home(),
+		"login.html": web.Login(web.EmailPanel("", "")),
 	}
 
 	fragments := map[string]templ.Component{
-		"greeting.html": web.Greeting(at),
+		"greeting.html":      web.Greeting(at),
+		"login-code.html":    web.CodePanel("ada@example.com", "That code is wrong. Try again."),
+		"login-passkey.html": web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
+		"login-offer.html":   web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
+	}
+
+	// The page with somebody signed in shows the header with the name.
+	signedIn := auth.WithUser(context.Background(), user.User{FullName: "Ada Lovelace", Email: "ada@example.com"})
+
+	markup, err := renderWith(signedIn, web.Home())
+	if err != nil {
+		return fmt.Errorf("render home-signed-in.html: %w", err)
+	}
+
+	if err := write(filepath.Join(dir, "home-signed-in.html"), markup); err != nil {
+		return err
 	}
 
 	for name, page := range pages {
@@ -81,9 +99,15 @@ func run() error {
 
 // render turns a component into markup.
 func render(component templ.Component) (string, error) {
+	return renderWith(context.Background(), component)
+}
+
+// renderWith turns a component into markup with a context, which the header
+// reads to learn who is signed in.
+func renderWith(ctx context.Context, component templ.Component) (string, error) {
 	var out strings.Builder
 
-	if err := component.Render(context.Background(), &out); err != nil {
+	if err := component.Render(ctx, &out); err != nil {
 		return "", err
 	}
 
