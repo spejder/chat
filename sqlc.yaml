@@ -1,0 +1,19 @@
+version: "2"
+
+sql:
+  - engine: "postgresql"
+    # sqlc reads the goose migrations and ignores the down parts.
+    schema: "internal/postgres/migrations"
+    queries: "internal/postgres/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/postgres/db"
+        sql_package: "pgx/v5"
+        overrides:
+          # Every time column is NOT NULL, so the plain time type fits.
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          # The standard library of Go 1.27 carries the UUID type.
+          - db_type: "uuid"
+            go_type: "uuid.UUID"
