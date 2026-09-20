@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/server"
 	"github.com/spejder/chat/internal/sms"
@@ -81,8 +82,10 @@ func run() error {
 		return nil
 	}
 
+	users := postgres.NewUserStore(pool)
+
 	signIn, err := auth.New(
-		postgres.NewUserStore(pool),
+		users,
 		postgres.NewAuthStore(pool),
 		sms.StdoutSender{},
 		*origin,
@@ -91,6 +94,8 @@ func run() error {
 		return err
 	}
 
+	conversations := chat.New(postgres.NewChatStore(pool))
+
 	slog.Info("the sign in is ready", "origin", *origin)
 	slog.Info("this is chat", "version", version, "commit", commit, "date", date)
 
@@ -98,6 +103,8 @@ func run() error {
 		Addr: *addr,
 		Handler: server.New(server.Config{
 			Auth:          signIn,
+			Chat:          conversations,
+			Users:         users,
 			SecureCookies: strings.HasPrefix(*origin, "https://"),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

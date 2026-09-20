@@ -1,0 +1,89 @@
+package web
+
+import (
+	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/input"
+	"github.com/spejder/chat/internal/components/label"
+	"github.com/spejder/chat/internal/components/textarea"
+	"github.com/spejder/chat/internal/user"
+)
+
+// NewConversation renders the form that starts a conversation. The people are
+// fixed when the conversation starts, so the form asks for them here.
+templ NewConversation(people []user.User, subject, body, message string) {
+	@Layout("Start a conversation", "Start a conversation in Chat.") {
+		<main class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+			<div class="flex flex-col gap-1">
+				<a href="/conversations" class="text-sm text-muted-foreground hover:underline">Back to the list</a>
+				<h1 class="text-2xl font-semibold tracking-tight">Start a conversation</h1>
+			</div>
+			<form class="flex flex-col gap-6" method="post" action="/conversations">
+				<div class="flex flex-col gap-2">
+					@label.Label(label.Props{For: "subject"}) {
+						Subject
+					}
+					@input.Input(input.Props{
+						ID:       "subject",
+						Name:     "subject",
+						Type:     "text",
+						Value:    subject,
+						Required: true,
+						Attributes: templ.Attributes{
+							"maxlength": "200",
+							"autofocus": true,
+						},
+					})
+				</div>
+				<fieldset class="flex flex-col gap-3">
+					<legend class="pb-2 text-sm font-medium">Who takes part</legend>
+					if len(people) == 0 {
+						<p class="text-sm text-muted-foreground">There is nobody else to write to yet.</p>
+					}
+					for _, person := range people {
+						<div class="flex items-center gap-2">
+							// A native checkbox, because it works with the
+							// keyboard and without any script. The component
+							// of the registry hides the real input from the
+							// keyboard and needs its script.
+							<input
+								type="checkbox"
+								id={ "person-" + person.ID.String() }
+								name="person"
+								value={ person.ID.String() }
+								class="size-4 rounded border-input accent-primary"
+							/>
+							@label.Label(label.Props{For: "person-" + person.ID.String()}) {
+								{ person.FullName }
+							}
+						</div>
+					}
+				</fieldset>
+				<div class="flex flex-col gap-2">
+					@label.Label(label.Props{For: "body"}) {
+						First message
+					}
+					@textarea.Textarea(textarea.Props{
+						ID:          "body",
+						Name:        "body",
+						Value:       body,
+						Rows:        4,
+						Placeholder: "Write the first message",
+						Attributes: templ.Attributes{
+							"required":  true,
+							"maxlength": "4000",
+						},
+					})
+				</div>
+				@errorMessage(message)
+				<div class="flex justify-end gap-2">
+					@button.Button(button.Props{Href: "/conversations", Variant: button.VariantGhost}) {
+						Cancel
+					}
+					@button.Button(button.Props{Type: button.TypeSubmit}) {
+						Start
+					}
+				</div>
+			</form>
+		</main>
+	}
+}

@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/a-h/templ"
 
 	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/user"
 	"github.com/spejder/chat/internal/web"
 )
@@ -48,9 +50,27 @@ func run() error {
 	// The time is fixed, so two runs write the same bytes.
 	at := time.Date(2026, time.September, 20, 13, 45, 7, 0, time.UTC)
 
+	conversation := chat.Conversation{
+		ID:        uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162ad"),
+		Subject:   "Lunch",
+		CreatedAt: at,
+	}
+
+	people := []user.User{
+		{ID: uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162ae"), FullName: "Ada Lovelace"},
+		{ID: uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162af"), FullName: "Grace Hopper"},
+	}
+
+	messages := []chat.Message{
+		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Are you in?", CreatedAt: at},
+	}
+
 	pages := map[string]templ.Component{
-		"home.html":  web.Home(),
-		"login.html": web.Login(web.EmailPanel("", "")),
+		"home.html":             web.Home(),
+		"login.html":            web.Login(web.EmailPanel("", "")),
+		"conversations.html":    web.Conversations([]chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}),
+		"conversation.html":     web.ConversationPage(conversation, people, messages, people[0]),
+		"new-conversation.html": web.NewConversation(people, "Lunch", "Are you in?", ""),
 	}
 
 	fragments := map[string]templ.Component{

@@ -53,6 +53,7 @@ templ header() {
 		<a href="/" class="text-sm font-semibold tracking-tight">Chat</a>
 		if person, ok := auth.UserFrom(ctx); ok {
 			<div class="flex items-center gap-3">
+				<a href="/conversations" class="text-sm hover:underline">Conversations</a>
 				<span class="text-sm text-muted-foreground">{ person.FullName }</span>
 				<form method="post" action="/logout">
 					@button.Button(button.Props{

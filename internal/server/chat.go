@@ -1,0 +1,272 @@
+package server
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"slices"
+	"strings"
+	"uuid"
+
+	"github.com/a-h/templ"
+
+	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/user"
+	"github.com/spejder/chat/internal/web"
+)
+
+// Users lists the people that a conversation can reach.
+type Users interface {
+	List(ctx context.Context) ([]user.User, error)
+}
+
+// chatHandlers holds the routes of the conversations.
+type chatHandlers struct {
+	service *chat.Service
+	users   Users
+}
+
+// list shows every conversation of the person who is signed in.
+func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	summaries, err := h.service.List(r.Context(), person)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.Conversations(summaries))
+}
+
+// listFragment answers the poll of the list page.
+func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	summaries, err := h.service.List(r.Context(), person)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.ConversationList(summaries))
+}
+
+// newForm shows the form that starts a conversation.
+func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	others, err := h.others(r.Context(), person)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.NewConversation(others, "", "", ""))
+}
+
+// start opens a conversation and sends the browser into it.
+func (h *chatHandlers) start(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	if err := r.ParseForm(); err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	subject := r.FormValue("subject")
+	body := r.FormValue("body")
+
+	chosen := make([]uuid.UUID, 0, len(r.Form["person"]))
+
+	for _, value := range r.Form["person"] {
+		id, err := uuid.Parse(strings.TrimSpace(value))
+		if err != nil {
+			continue
+		}
+
+		chosen = append(chosen, id)
+	}
+
+	conversation, err := h.service.Start(r.Context(), person, subject, chosen, body)
+	if err != nil {
+		if message, ok := readableError(err); ok {
+			others, listErr := h.others(r.Context(), person)
+			if listErr != nil {
+				h.fail(w, r, listErr)
+
+				return
+			}
+
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			h.render(w, r, web.NewConversation(others, subject, body, message))
+
+			return
+		}
+
+		h.fail(w, r, err)
+
+		return
+	}
+
+	http.Redirect(w, r, "/conversations/"+conversation.ID.String(), http.StatusSeeOther)
+}
+
+// show draws one conversation.
+func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	conversation, messages, err := h.service.Read(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	people, err := h.service.Participants(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.ConversationPage(conversation, people, messages, person))
+}
+
+// messages answers the poll of a conversation.
+func (h *chatHandlers) messages(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	messages, err := h.service.Messages(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.Messages(messages, person))
+}
+
+// write adds a message and answers with the whole list.
+func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	messages, err := h.service.Write(r.Context(), person, id, r.FormValue("body"))
+	if err != nil {
+		if _, readable := readableError(err); readable {
+			// The browser keeps the text, because htmx swaps nothing when the
+			// answer is not a success.
+			http.Error(w, "the message did not go out", http.StatusUnprocessableEntity)
+
+			return
+		}
+
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	h.render(w, r, web.Messages(messages, person))
+}
+
+// others lists everybody except the person who is signed in.
+func (h *chatHandlers) others(ctx context.Context, person user.User) ([]user.User, error) {
+	people, err := h.users.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return slices.DeleteFunc(people, func(other user.User) bool {
+		return other.ID == person.ID
+	}), nil
+}
+
+// render writes a component.
+func (h *chatHandlers) render(w http.ResponseWriter, r *http.Request, component templ.Component) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := component.Render(r.Context(), w); err != nil {
+		slog.Error("could not render the page", "error", err)
+	}
+}
+
+// chatError answers a missing conversation with 404. A conversation of other
+// people gives the same answer, so the page says nothing about what exists.
+func (h *chatHandlers) chatError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, chat.ErrNotFound) {
+		http.NotFound(w, r)
+
+		return
+	}
+
+	h.fail(w, r, err)
+}
+
+// fail answers a fault on our side.
+func (h *chatHandlers) fail(w http.ResponseWriter, _ *http.Request, err error) {
+	slog.Error("the conversation broke", "error", err)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+// conversationID reads the identifier out of the path.
+func conversationID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+
+		return uuid.Nil(), false
+	}
+
+	return id, true
+}
+
+// readableError turns a rule of internal/chat into a line for the page. The
+// second value is false for every other error.
+func readableError(err error) (string, bool) {
+	switch {
+	case errors.Is(err, chat.ErrNoSubject):
+		return "Write a subject.", true
+	case errors.Is(err, chat.ErrNoParticipants):
+		return "Choose at least one other person.", true
+	case errors.Is(err, chat.ErrEmptyMessage):
+		return "Write a message.", true
+	case errors.Is(err, chat.ErrTooLong):
+		return "That text is too long.", true
+	default:
+		return "", false
+	}
+}
+
+// requireUser sends a visitor without a session to the sign in page.
+func requireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := auth.UserFrom(r.Context()); !ok {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

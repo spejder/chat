@@ -1,0 +1,107 @@
+package web
+
+import (
+	"github.com/spejder/chat/assets"
+	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/textarea"
+	"github.com/spejder/chat/internal/user"
+)
+
+// ConversationPage renders one conversation with its messages and the field
+// to write in it.
+templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User) {
+	@Layout(conversation.Subject, "A conversation in Chat.") {
+		{{ chatIntegrity := assets.Integrity("js/chat.js") }}
+		<main class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-6">
+			<div class="flex flex-col gap-1">
+				<a href="/conversations" class="text-sm text-muted-foreground hover:underline">Back to the list</a>
+				<h1 class="text-2xl font-semibold tracking-tight">{ conversation.Subject }</h1>
+				<p class="text-sm text-muted-foreground">{ names(people) }</p>
+			</div>
+			<div
+				id="messages"
+				class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4"
+				data-hx-get={ "/conversations/" + conversation.ID.String() + "/messages" }
+				data-hx-trigger="every 3s"
+				data-hx-swap="innerHTML"
+			>
+				@Messages(messages, reader)
+			</div>
+			@WriteForm(conversation, "")
+		</main>
+		<script src={ assets.URL("js/chat.js") } if chatIntegrity != "" {
+	integrity={ chatIntegrity }
+} defer></script>
+	}
+}
+
+// Messages renders the lines of one conversation. The page asks for this
+// again every few seconds.
+templ Messages(messages []chat.Message, reader user.User) {
+	if len(messages) == 0 {
+		<p class="text-sm text-muted-foreground">No messages yet. Write the first one.</p>
+	}
+	for _, message := range messages {
+		<article class="flex flex-col gap-1">
+			<header class="flex items-baseline gap-2">
+				<span class="text-sm font-medium">
+					if message.AuthorID == reader.ID {
+						You
+					} else {
+						{ message.AuthorName }
+					}
+				</span>
+				<span class="text-xs text-muted-foreground">{ shortTime(message.CreatedAt) }</span>
+			</header>
+			<p class="text-sm whitespace-pre-wrap">{ message.Body }</p>
+		</article>
+	}
+}
+
+// WriteForm renders the field that writes a message. The answer holds the
+// whole message list, so the new message appears at once.
+templ WriteForm(conversation chat.Conversation, message string) {
+	<form
+		id="write"
+		class="flex flex-col gap-2"
+		method="post"
+		action={ templ.SafeURL("/conversations/" + conversation.ID.String() + "/messages") }
+		data-hx-post={ "/conversations/" + conversation.ID.String() + "/messages" }
+		data-hx-target="#messages"
+		data-hx-swap="innerHTML"
+	>
+		@textarea.Textarea(textarea.Props{
+			ID:          "body",
+			Name:        "body",
+			Rows:        3,
+			Placeholder: "Write a message",
+			Attributes: templ.Attributes{
+				"required":  true,
+				"maxlength": "4000",
+				"autofocus": true,
+			},
+		})
+		@errorMessage(message)
+		<div class="flex justify-end">
+			@button.Button(button.Props{Type: button.TypeSubmit}) {
+				Send
+			}
+		</div>
+	</form>
+}
+
+// names writes the people of a conversation in one line.
+func names(people []user.User) string {
+	out := ""
+
+	for i, person := range people {
+		if i > 0 {
+			out += ", "
+		}
+
+		out += person.FullName
+	}
+
+	return out
+}

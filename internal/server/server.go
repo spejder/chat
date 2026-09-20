@@ -11,6 +11,7 @@ import (
 
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components"
 	"github.com/spejder/chat/internal/web"
 )
@@ -20,6 +21,12 @@ type Config struct {
 	// Auth signs people in and out.
 	Auth *auth.Service
 
+	// Chat holds the conversations.
+	Chat *chat.Service
+
+	// Users lists the people that a conversation can reach.
+	Users Users
+
 	// SecureCookies belongs to a site on HTTPS. A browser drops a secure
 	// cookie over plain HTTP, which is how development runs.
 	SecureCookies bool
@@ -28,6 +35,7 @@ type Config struct {
 // New returns the handler with every route of the application.
 func New(config Config) http.Handler {
 	handlers := &authHandlers{service: config.Auth, secureCookies: config.SecureCookies}
+	conversations := &chatHandlers{service: config.Chat, users: config.Users}
 
 	mux := http.NewServeMux()
 
@@ -42,6 +50,15 @@ func New(config Config) http.Handler {
 	mux.HandleFunc("POST /login/passkey", handlers.passkeyLogin)
 	mux.HandleFunc("POST /login/passkey/register", handlers.passkeyRegister)
 	mux.HandleFunc("POST /logout", handlers.logout)
+
+	// Every conversation route needs a person behind it.
+	mux.Handle("GET /conversations", requireUser(http.HandlerFunc(conversations.list)))
+	mux.Handle("GET /conversations/list", requireUser(http.HandlerFunc(conversations.listFragment)))
+	mux.Handle("GET /conversations/new", requireUser(http.HandlerFunc(conversations.newForm)))
+	mux.Handle("POST /conversations", requireUser(http.HandlerFunc(conversations.start)))
+	mux.Handle("GET /conversations/{id}", requireUser(http.HandlerFunc(conversations.show)))
+	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
+	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
 
 	return secure(compress(handlers.authenticate(mux)))
 }

@@ -1,0 +1,62 @@
+package web
+
+import (
+	"strconv"
+
+	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/components/badge"
+	"github.com/spejder/chat/internal/components/button"
+)
+
+// Conversations renders the list page. The list asks for itself again every
+// ten seconds, so a new message raises the count without a reload.
+templ Conversations(summaries []chat.Summary) {
+	@Layout("Conversations", "Every conversation you take part in.") {
+		<main class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
+			<div class="flex items-center justify-between gap-4">
+				<h1 class="text-2xl font-semibold tracking-tight">Conversations</h1>
+				@button.Button(button.Props{Href: "/conversations/new"}) {
+					Start a conversation
+				}
+			</div>
+			<div
+				id="conversation-list"
+				class="flex flex-col gap-2"
+				data-hx-get="/conversations/list"
+				data-hx-trigger="every 10s"
+				data-hx-swap="innerHTML"
+			>
+				@ConversationList(summaries)
+			</div>
+		</main>
+	}
+}
+
+// ConversationList renders the lines alone, which is what the page asks for
+// every ten seconds.
+templ ConversationList(summaries []chat.Summary) {
+	if len(summaries) == 0 {
+		<p class="text-sm text-muted-foreground">
+			You take part in no conversation yet.
+		</p>
+	}
+	for _, summary := range summaries {
+		<a
+			href={ templ.SafeURL("/conversations/" + summary.ID.String()) }
+			class="flex items-center justify-between gap-4 rounded-lg border bg-card p-4 text-card-foreground hover:bg-muted"
+		>
+			<span class="flex min-w-0 flex-col gap-1">
+				<span class="truncate font-medium">{ summary.Subject }</span>
+				<span class="truncate text-sm text-muted-foreground">{ summary.Others }</span>
+			</span>
+			<span class="flex shrink-0 items-center gap-3">
+				if summary.Unread > 0 {
+					@badge.Badge() {
+						{ strconv.Itoa(summary.Unread) } new
+					}
+				}
+				<span class="text-sm text-muted-foreground">{ shortTime(summary.LastMessageAt) }</span>
+			</span>
+		</a>
+	}
+}
