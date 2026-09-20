@@ -11,6 +11,28 @@ import (
 	"uuid"
 )
 
+type Conversation struct {
+	ID        uuid.UUID
+	Subject   string
+	CreatedBy uuid.UUID
+	CreatedAt time.Time
+}
+
+type ConversationParticipant struct {
+	ConversationID uuid.UUID
+	UserID         uuid.UUID
+	AddedAt        time.Time
+	LastReadAt     pgtype.Timestamptz
+}
+
+type Message struct {
+	ID             uuid.UUID
+	ConversationID uuid.UUID
+	AuthorID       uuid.UUID
+	Body           string
+	CreatedAt      time.Time
+}
+
 type OtpCode struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
