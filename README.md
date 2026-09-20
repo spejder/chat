@@ -18,6 +18,9 @@ button sends a request, and the server answers with an HTML fragment.
 | Browser updates | htmx         | 4.0.0   |
 | Linting         | golangci-lint | 2.13.2 |
 | Markup check    | html-validate | 10      |
+| Database        | PostgreSQL   | 18      |
+| Queries         | sqlc and pgx | 1.31.1  |
+| Migrations      | goose        | 3       |
 
 The file `assets/js/htmx.min.js` is htmx 4.0.0. The name carries no version, so
 read the version here. htmx 4 is not the default version on npm, so every
@@ -55,6 +58,12 @@ ports 8080 and 7331.
 With the devcontainer you can skip the next section.
 
 ## Development
+
+Start the database:
+
+```
+task db:up
+```
 
 Start the server and the file watchers:
 
