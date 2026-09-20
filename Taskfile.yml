@@ -9,6 +9,7 @@ vars:
   SQLC_VERSION: 1.31.1
   SQLC: ./bin/sqlc
   DATABASE_URL: '{{.DATABASE_URL | default "postgres://chat:chat@localhost:5432/chat?sslmode=disable"}}'
+  ORIGIN: '{{.ORIGIN | default "http://localhost:8080"}}'
   CSS_IN: assets/css/globals.css
   CSS_OUT: assets/dist/styles.css
 
@@ -135,12 +136,19 @@ tasks:
   dev:
     desc: Run the server and rebuild on every change
     deps: [tools:tailwind, generate, css]
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+      ORIGIN: "{{.ORIGIN}}"
     cmds:
       - |
+        # The reload proxy owns port 8080, the port that the browser uses,
+        # and the server itself sits behind it on 8081. A passkey belongs to
+        # the address in the address bar, so the proxy must own that port.
         go tool templ generate --watch \
-          --proxy=http://localhost:8080 \
+          --proxy=http://localhost:8081 \
+          --proxyport=8080 \
           --open-browser=false \
-          --cmd="go run ./cmd/chat" &
+          --cmd="go run ./cmd/chat -addr :8081" &
         {{.TAILWIND}} --input {{.CSS_IN}} --output {{.CSS_OUT}} --watch &
         wait
 

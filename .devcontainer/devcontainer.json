@@ -12,16 +12,16 @@
   "postCreateCommand": "./.devcontainer/post-create.sh",
   "forwardPorts": [
     5432,
-    7331,
-    8080
+    8080,
+    8081
   ],
   "portsAttributes": {
-    "7331": {
-      "label": "templ proxy, reloads the browser",
+    "8080": {
+      "label": "chat, through the reload proxy",
       "onAutoForward": "notify"
     },
-    "8080": {
-      "label": "chat server",
+    "8081": {
+      "label": "chat server itself",
       "onAutoForward": "silent"
     },
     "5432": {

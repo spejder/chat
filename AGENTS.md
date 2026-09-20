@@ -106,6 +106,11 @@ passkey.
 - The session cookie is `chat_session`. It is HttpOnly, SameSite=Lax, and
   Secure as soon as the origin is HTTPS. The table holds the hash of the
   token.
+- During `task dev` the reload proxy of templ owns port 8080 and the server
+  sits on 8081 behind it. The browser therefore stays on 8080, which is what
+  `ORIGIN` says, because a passkey belongs to the address in the address bar.
+  Every task that starts Go code passes `DATABASE_URL` and `ORIGIN` through
+  its `env` block.
 - `-origin`, or the `ORIGIN` environment variable, names the address of the
   site. A passkey belongs to one host, so a wrong value breaks every passkey
   with an unclear browser error.
@@ -272,8 +277,8 @@ The `tools` task reads `uname` and downloads the Tailwind binary for the
 current operating system and processor. Keep it that way. A container on an
 Apple computer runs on arm64.
 
-Forwarded ports: 8080 is the server, 7331 is the templ proxy that reloads the
-browser during `task dev`, and 5432 is Postgres.
+Forwarded ports: 8080 is the address that the browser uses, 8081 is the server
+behind the reload proxy during `task dev`, and 5432 is Postgres.
 
 `.devcontainer/devcontainer-lock.json` pins the feature to one digest. The
 devcontainer command writes it. Commit every change of the file.
