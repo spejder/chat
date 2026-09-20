@@ -37,6 +37,21 @@ The templ command is a Go tool of this module, so `go tool templ` always uses
 the version in `go.mod`. The Tailwind command is downloaded to `./bin` by the
 `tools` task, and git ignores that directory.
 
+## Development container
+
+The repository holds a devcontainer. Open the folder in an editor that supports
+devcontainers, or start it from the command line:
+
+```
+devcontainer up --workspace-folder .
+```
+
+The container is the Go 1.27 image. It installs `task` and `shadcn-templ`,
+downloads the module dependencies and the Tailwind binary, and forwards the
+ports 8080 and 7331.
+
+With the devcontainer you can skip the next section.
+
 ## Development
 
 Start the server and the file watchers:

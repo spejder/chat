@@ -1,4 +1,7 @@
-@import "tailwindcss";
+/* source(none) turns the automatic file search off. Without it Tailwind
+   scans the whole repository, and words in the Markdown files end up as
+   class names in the output. */
+@import "tailwindcss" source(none);
 @import "./tw-animate.css";
 @import "./shadcn-tailwind.css";
 

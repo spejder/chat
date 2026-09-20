@@ -1,0 +1,42 @@
+{
+  "name": "chat",
+  "image": "mcr.microsoft.com/devcontainers/go:1.27-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "./.devcontainer/post-create.sh",
+  "forwardPorts": [7331, 8080],
+  "portsAttributes": {
+    "7331": {
+      "label": "templ proxy, reloads the browser",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "chat server",
+      "onAutoForward": "silent"
+    }
+  },
+  "remoteUser": "vscode",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.Go",
+        "a-h.templ",
+        "bradlc.vscode-tailwindcss",
+        "task.vscode-task"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": false,
+        "[templ]": {
+          "editor.defaultFormatter": "a-h.templ"
+        },
+        "tailwindCSS.includeLanguages": {
+          "templ": "html"
+        },
+        "files.associations": {
+          "*.templ": "templ"
+        }
+      }
+    }
+  }
+}

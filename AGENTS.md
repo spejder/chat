@@ -62,8 +62,28 @@ shadcn-templ copies into the project.
   `assets/dist/.gitkeep` keeps the embed pattern valid on a fresh clone.
 - Build the CSS before `go build`, or the binary holds an old stylesheet. The
   `build` task does this in the right order.
-- Tailwind scans the paths in the `@source` lines of `assets/css/globals.css`.
-  Add a line when you put templ files outside `internal`.
+- The CSS entry file starts with `@import "tailwindcss" source(none);`, so the
+  automatic file search is off. Tailwind reads only the `@source` lines of
+  `assets/css/globals.css`. Add a line when you put templ files outside
+  `internal`. With the automatic search on, words from the Markdown files
+  become class names and the output changes from machine to machine.
+
+## Development container
+
+`.devcontainer/devcontainer.json` uses the Go 1.27 image and runs
+`.devcontainer/post-create.sh` once. The script installs `task` and
+`shadcn-templ`, downloads the dependencies and calls `task tools`.
+
+The `tools` task reads `uname` and downloads the Tailwind binary for the
+current operating system and processor. Keep it that way. A container on an
+Apple computer runs on arm64.
+
+Forwarded ports: 8080 is the server, 7331 is the templ proxy that reloads the
+browser during `task dev`.
+
+Do not mount a named volume on `/go/pkg/mod`. The image has no such directory,
+so Docker creates it and gives it to root, and `go install` then fails with
+`mkdir /go/pkg/mod/cache: permission denied`.
 
 ## Verification
 

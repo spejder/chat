@@ -19,7 +19,16 @@ tasks:
       - test -x {{.TAILWIND}}
     cmds:
       - mkdir -p bin
-      - curl -fsSL -o {{.TAILWIND}} https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/tailwindcss-linux-x64
+      - |
+        case "$(uname -s)-$(uname -m)" in
+          Linux-x86_64) asset=tailwindcss-linux-x64 ;;
+          Linux-aarch64) asset=tailwindcss-linux-arm64 ;;
+          Darwin-x86_64) asset=tailwindcss-macos-x64 ;;
+          Darwin-arm64) asset=tailwindcss-macos-arm64 ;;
+          *) echo "No Tailwind binary for $(uname -s) $(uname -m)." >&2; exit 1 ;;
+        esac
+        curl -fsSL -o {{.TAILWIND}} \
+          "https://github.com/tailwindlabs/tailwindcss/releases/download/v{{.TAILWIND_VERSION}}/${asset}"
       - chmod +x {{.TAILWIND}}
 
   generate:
