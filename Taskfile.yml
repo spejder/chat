@@ -98,6 +98,13 @@ tasks:
     cmds:
       - docker compose down --volumes
 
+  migrate:
+    desc: Apply the migrations to the database in DATABASE_URL
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+    cmds:
+      - go run ./cmd/chat -migrate-only
+
   generate:
     desc: Generate Go code from the templ files and the SQL queries
     deps: [tools:sqlc]

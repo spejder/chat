@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/server"
 )
 
@@ -24,16 +25,39 @@ func main() {
 
 func run() error {
 	addr := flag.String("addr", defaultAddr(), "address the server listens on")
+	databaseURL := flag.String("database-url", os.Getenv("DATABASE_URL"), "address of the PostgreSQL server")
+	migrateOnly := flag.Bool("migrate-only", false, "apply the migrations and stop")
 	flag.Parse()
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if *databaseURL == "" {
+		return errors.New("no database address, set DATABASE_URL or pass -database-url")
+	}
+
+	pool, err := postgres.Open(ctx, *databaseURL)
+	if err != nil {
+		return err
+	}
+
+	defer pool.Close()
+
+	if err := postgres.Migrate(ctx, pool); err != nil {
+		return err
+	}
+
+	slog.Info("the database is ready")
+
+	if *migrateOnly {
+		return nil
+	}
 
 	srv := &http.Server{
 		Addr:              *addr,
 		Handler:           server.New(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	errs := make(chan error, 1)
 
