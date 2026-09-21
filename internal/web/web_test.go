@@ -53,7 +53,7 @@ func TestTheShellHoldsThePersonAndTheList(t *testing.T) {
 		Unread:        2,
 	}}
 
-	body := render(t, web.Shell(summaries, conversation.ID, "Lunch", true), web.Conversations())
+	body := render(t, web.Shell(summaries, conversation.ID, "Lunch", true, "abc123"), web.Conversations())
 
 	for _, want := range []string{
 		"Ada Lovelace",
@@ -63,7 +63,8 @@ func TestTheShellHoldsThePersonAndTheList(t *testing.T) {
 		"Grace Hopper",
 		"2 new",
 		"Start a conversation",
-		`data-hx-get="/conversations/list?current=` + conversation.ID.String() + `"`,
+		`data-hx-get="/conversations/list?v=abc123&amp;current=` + conversation.ID.String() + `"`,
+		`data-unread="2"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page misses %q", want)
@@ -84,7 +85,7 @@ func TestTheOpenConversationIsMarked(t *testing.T) {
 		{Conversation: other, Others: "Alan Turing"},
 	}
 
-	body := render(t, web.ConversationList(summaries, open.ID), nil)
+	body := render(t, web.ConversationList(summaries, open.ID, "abc123"), nil)
 
 	if !strings.Contains(body, `aria-current="page"`) {
 		t.Errorf("the open conversation carries no mark: %s", body)

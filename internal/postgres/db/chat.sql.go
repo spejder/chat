@@ -199,8 +199,14 @@ SELECT
 FROM messages m
 JOIN users u ON u.id = m.author_id
 WHERE m.conversation_id = $1
-ORDER BY m.created_at, m.id
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $2
 `
+
+type ListMessagesParams struct {
+	ConversationID uuid.UUID
+	Limit          int32
+}
 
 type ListMessagesRow struct {
 	ID         uuid.UUID
@@ -210,8 +216,10 @@ type ListMessagesRow struct {
 	CreatedAt  time.Time
 }
 
-func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([]ListMessagesRow, error) {
-	rows, err := q.db.Query(ctx, listMessages, conversationID)
+// ListMessages reads the newest part of a conversation. The store turns the
+// rows back into time order.
+func (q *Queries) ListMessages(ctx context.Context, arg ListMessagesParams) ([]ListMessagesRow, error) {
+	rows, err := q.db.Query(ctx, listMessages, arg.ConversationID, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +227,66 @@ func (q *Queries) ListMessages(ctx context.Context, conversationID uuid.UUID) ([
 	var items []ListMessagesRow
 	for rows.Next() {
 		var i ListMessagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.Body,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMessagesBefore = `-- name: ListMessagesBefore :many
+SELECT
+    m.id,
+    m.author_id,
+    u.full_name AS author_name,
+    m.body,
+    m.created_at
+FROM messages m
+JOIN users u ON u.id = m.author_id
+WHERE m.conversation_id = $1
+  AND (m.created_at, m.id) < (
+      (SELECT before.created_at FROM messages AS before WHERE before.id = $2),
+      $2
+  )
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $3
+`
+
+type ListMessagesBeforeParams struct {
+	ConversationID uuid.UUID
+	ID             uuid.UUID
+	Limit          int32
+}
+
+type ListMessagesBeforeRow struct {
+	ID         uuid.UUID
+	AuthorID   uuid.UUID
+	AuthorName string
+	Body       string
+	CreatedAt  time.Time
+}
+
+// ListMessagesBefore reads the part in front of one message, which is what
+// the button for the older messages asks for.
+func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]ListMessagesBeforeRow, error) {
+	rows, err := q.db.Query(ctx, listMessagesBefore, arg.ConversationID, arg.ID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMessagesBeforeRow
+	for rows.Next() {
+		var i ListMessagesBeforeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.AuthorID,

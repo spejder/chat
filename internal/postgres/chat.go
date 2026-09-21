@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 	"uuid"
 
@@ -132,9 +133,12 @@ func (s *ChatStore) List(ctx context.Context, userID uuid.UUID) ([]chat.Summary,
 	return summaries, nil
 }
 
-// Messages reads one conversation in time order.
-func (s *ChatStore) Messages(ctx context.Context, conversationID uuid.UUID) ([]chat.Message, error) {
-	rows, err := s.queries.ListMessages(ctx, conversationID)
+// Messages reads the newest part of a conversation, in time order.
+func (s *ChatStore) Messages(ctx context.Context, conversationID uuid.UUID, limit int) ([]chat.Message, error) {
+	rows, err := s.queries.ListMessages(ctx, db.ListMessagesParams{
+		ConversationID: conversationID,
+		Limit:          int32(limit), //nolint:gosec // the limit comes from a constant in internal/chat.
+	})
 	if err != nil {
 		return nil, fmt.Errorf("read the messages: %w", err)
 	}
@@ -150,7 +154,40 @@ func (s *ChatStore) Messages(ctx context.Context, conversationID uuid.UUID) ([]c
 		})
 	}
 
-	return messages, nil
+	return inTimeOrder(messages), nil
+}
+
+// MessagesBefore reads the part in front of one message, in time order.
+func (s *ChatStore) MessagesBefore(ctx context.Context, conversationID, before uuid.UUID, limit int) ([]chat.Message, error) {
+	rows, err := s.queries.ListMessagesBefore(ctx, db.ListMessagesBeforeParams{
+		ConversationID: conversationID,
+		ID:             before,
+		Limit:          int32(limit), //nolint:gosec // the limit comes from a constant in internal/chat.
+	})
+	if err != nil {
+		return nil, fmt.Errorf("read the older messages: %w", err)
+	}
+
+	messages := make([]chat.Message, 0, len(rows))
+	for _, row := range rows {
+		messages = append(messages, chat.Message{
+			ID:         row.ID,
+			AuthorID:   row.AuthorID,
+			AuthorName: row.AuthorName,
+			Body:       row.Body,
+			CreatedAt:  row.CreatedAt,
+		})
+	}
+
+	return inTimeOrder(messages), nil
+}
+
+// inTimeOrder turns the newest first, which the database gives, into the
+// order a reader expects.
+func inTimeOrder(messages []chat.Message) []chat.Message {
+	slices.Reverse(messages)
+
+	return messages
 }
 
 // AddMessage writes one message.

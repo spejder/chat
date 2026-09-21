@@ -3,6 +3,7 @@ package web
 import (
 	"uuid"
 
+	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components/breadcrumb"
@@ -16,7 +17,8 @@ import (
 // Shell wraps every page that a signed in person sees: a narrow rail with the
 // mark and the person, the conversations next to it, and the page itself in
 // the rest of the room.
-templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarOpen bool) {
+templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarOpen bool, version string) {
+	{{ appIntegrity := assets.Integrity("js/app.js") }}
 	@Layout(heading, "Conversations in Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
 			// The height of the window, so a page inside can fill it and
@@ -36,8 +38,11 @@ templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebar
 				Class: "overflow-hidden *:data-[sidebar=sidebar]:flex-row [&_[data-tui-sidebar-content]]:flex-row",
 			}) {
 				@rail()
-				@conversationSidebar(summaries, current)
+				@conversationSidebar(summaries, current, version)
 			}
+			<script src={ assets.URL("js/app.js") } if appIntegrity != "" {
+	integrity={ appIntegrity }
+} defer></script>
 			@sidebar.Inset() {
 				<header class="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
 					@sidebar.Trigger(sidebar.TriggerProps{Class: "-ml-1"})
@@ -177,7 +182,7 @@ templ personMenu() {
 
 // conversationSidebar holds the list, which asks for itself every ten seconds
 // so the unread counts stay fresh on every page.
-templ conversationSidebar(summaries []chat.Summary, current uuid.UUID) {
+templ conversationSidebar(summaries []chat.Summary, current uuid.UUID, version string) {
 	@sidebar.Sidebar(sidebar.Props{
 		ID:          "conversations",
 		Collapsible: sidebar.CollapsibleNone,
@@ -200,29 +205,12 @@ templ conversationSidebar(summaries []chat.Summary, current uuid.UUID) {
 		}
 		@sidebar.Content() {
 			@sidebar.Group(sidebar.GroupProps{Class: "px-0"}) {
-				@sidebar.GroupContent(sidebar.GroupContentProps{
-					ID: "conversation-list",
-					Attributes: templ.Attributes{
-						"data-hx-get":     listURL(current),
-						"data-hx-trigger": "every 10s",
-						"data-hx-swap":    "innerHTML",
-					},
-				}) {
-					@ConversationList(summaries, current)
+				@sidebar.GroupContent() {
+					@ConversationList(summaries, current, version)
 				}
 			}
 		}
 	}
-}
-
-// listURL points the poll at the list, and names the open conversation so the
-// mark survives the swap.
-func listURL(current uuid.UUID) string {
-	if current == uuid.Nil() {
-		return "/conversations/list"
-	}
-
-	return "/conversations/list?current=" + current.String()
 }
 
 // initials writes the first letters of a name, for the round mark.

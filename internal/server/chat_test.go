@@ -1,13 +1,23 @@
 package server_test
 
 import (
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/spejder/chat/internal/chat"
 )
+
+// listVersionInPage reads the version of the sidebar out of the page.
+var listVersionInPage = regexp.MustCompile(`/conversations/list\?v=([^"&]+)`)
+
+// olderAddress reads the address behind the button for the older messages.
+var olderAddress = regexp.MustCompile(`/conversations/[a-f0-9-]+/older\?before=[a-f0-9-]+`)
 
 // versionInPage reads the version of the list out of the page.
 var versionInPage = regexp.MustCompile(`/messages\?v=([^"&]+)`)
@@ -346,5 +356,98 @@ func TestAReadChangesTheVersion(t *testing.T) {
 
 	if !strings.Contains(answer.Body.String(), "Read") {
 		t.Errorf("the answer carries no mark: %s", answer.Body.String())
+	}
+}
+
+// TestTheSidebarAnswersNothingChanged makes sure that the list stops
+// replacing itself every ten seconds when nothing moves.
+func TestTheSidebarAnswersNothingChanged(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the user: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	page := get(t, handler, "/conversations", session)
+
+	found := listVersionInPage.FindStringSubmatch(page.Body.String())
+	if found == nil {
+		t.Fatalf("the page holds no version for the list: %s", page.Body.String())
+	}
+
+	same := get(t, handler, "/conversations/list?v="+url.QueryEscape(found[1]), session)
+	if same.Code != http.StatusNoContent {
+		t.Errorf("the quiet poll gave %d, want %d", same.Code, http.StatusNoContent)
+	}
+
+	old := get(t, handler, "/conversations/list?v=nothing", session)
+	if old.Code != http.StatusOK {
+		t.Errorf("the poll with an old version gave %d, want %d", old.Code, http.StatusOK)
+	}
+}
+
+// TestAConversationComesInPages makes sure that a long conversation shows its
+// newest part with a way back to the older messages.
+func TestAConversationComesInPages(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the first user: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the second user: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"message 1"},
+	}, session)
+
+	path := started.Header().Get("Location")
+
+	// One more than a page holds, so the oldest one falls off the page.
+	for i := 2; i <= chat.MessagePage+1; i++ {
+		answer := postAs(t, handler, path+"/messages", url.Values{"body": {"message " + strconv.Itoa(i)}}, session)
+		if answer.Code != http.StatusOK {
+			t.Fatalf("write %d: status %d", i, answer.Code)
+		}
+	}
+
+	page := get(t, handler, path, session)
+	body := page.Body.String()
+
+	if strings.Contains(body, "message 1<") {
+		t.Error("the page holds the oldest message although it is one page behind")
+	}
+
+	if !strings.Contains(body, "Show older messages") {
+		t.Error("the page offers no way to the older messages")
+	}
+
+	older := olderAddress.FindStringSubmatch(body)
+	if older == nil {
+		t.Fatalf("the button holds no address: %s", body)
+	}
+
+	block := get(t, handler, html.UnescapeString(older[0]), session)
+	if block.Code != http.StatusOK {
+		t.Fatalf("the older block gave %d, want %d", block.Code, http.StatusOK)
+	}
+
+	if !strings.Contains(block.Body.String(), "message 1") {
+		t.Errorf("the older block misses the oldest message: %s", block.Body.String())
 	}
 }

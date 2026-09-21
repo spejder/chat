@@ -212,6 +212,24 @@ thread or room.
   other people. Only the number of people who have read that message belongs
   in the version, never the raw times: every poll writes a reading time, and
   the answer would never be 204 again.
+- `assets/js/app.js` belongs to the shell, so it runs on every page of a
+  signed in person. It writes the number of unread messages into the tab
+  title, which it reads from `data-unread` on the sidebar list, and it slows
+  both polls to one every thirty seconds while the tab is hidden. It remembers
+  the pace the server asked for in `data-awake`, and never remembers the slow
+  one, or a swap while the tab is hidden would keep the page slow for good.
+- The sidebar list carries a version too and answers 204 the same way. Its
+  version is a hash over every line: the conversation, the time of its newest
+  message and the unread count.
+- A conversation comes in pages of `chat.MessagePage`. The newest page lives
+  in `#message-list`, which the poll replaces. Everything the reader asked to
+  see lives above it in `#older`, which nothing else touches. That is why the
+  two boxes are separate.
+- An older block renders with `Panel.History`, so it carries neither the line
+  for the unread messages nor the read mark. Both belong to the newest page.
+- An unsent message lives in the browser under `chat:draft:<conversation>`,
+  and `chat:sent` clears it. Every read and write sits in a try and catch,
+  because a private window refuses the store.
 - The poll sends the version it holds in `v`. When that version still stands,
   the server answers 204 and htmx swaps nothing, which keeps the scrolling,
   the selected text and the work in the browser. The version is the number of

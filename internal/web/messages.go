@@ -52,6 +52,11 @@ type Panel struct {
 	// People counts everybody in the conversation. With two of them the
 	// names above the groups disappear, because the side says who wrote it.
 	People int
+
+	// History marks an older block, which the reader asked for. Such a block
+	// carries neither the line for the unread messages nor the read mark,
+	// because both belong to the newest page.
+	History bool
 }
 
 // bubbles turns the messages into the rows that the page draws. A group
@@ -63,7 +68,7 @@ func bubbles(messages []chat.Message, panel Panel) []bubble {
 
 	reader := panel.Reader
 	since := panel.Since
-	marked := since.IsZero()
+	marked := since.IsZero() || panel.History
 
 	for i, message := range messages {
 		row := bubble{
@@ -107,7 +112,9 @@ func bubbles(messages []chat.Message, panel Panel) []bubble {
 		rows = append(rows, row)
 	}
 
-	markRead(rows, panel)
+	if !panel.History {
+		markRead(rows, panel)
+	}
 
 	return rows
 }

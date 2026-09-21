@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,7 +39,8 @@ func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
 	h.shell(w, r, uuid.Nil(), "All conversations", web.Conversations())
 }
 
-// listFragment answers the poll of the sidebar.
+// listFragment answers the poll of the sidebar. It answers 204 when the list
+// still stands, so the sidebar stops replacing itself every ten seconds.
 func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 	person, _ := auth.UserFrom(r.Context())
 
@@ -48,12 +51,33 @@ func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	version := listVersion(summaries)
+	if r.URL.Query().Get("v") == version {
+		w.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
 	current, err := uuid.Parse(r.URL.Query().Get("current"))
 	if err != nil {
 		current = uuid.Nil()
 	}
 
-	h.render(w, r, web.ConversationList(summaries, current))
+	h.render(w, r, web.ConversationList(summaries, current, version))
+}
+
+// listVersion names the state of the sidebar: which conversations there are,
+// how new each of them is, and how much of each one this person has not read.
+func listVersion(summaries []chat.Summary) string {
+	var out strings.Builder
+
+	for _, summary := range summaries {
+		fmt.Fprintf(&out, "%s:%d:%d;", summary.ID, summary.LastMessageAt.Unix(), summary.Unread)
+	}
+
+	sum := sha256.Sum256([]byte(out.String()))
+
+	return hex.EncodeToString(sum[:8])
 }
 
 // shell draws a page inside the sidebar, which every page of a signed in
@@ -73,7 +97,9 @@ func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, current uui
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	if err := web.Shell(summaries, current, heading, sidebarOpen(r)).Render(ctx, w); err != nil {
+	shell := web.Shell(summaries, current, heading, sidebarOpen(r), listVersion(summaries))
+
+	if err := shell.Render(ctx, w); err != nil {
 		slog.Error("could not render the page", "error", err)
 	}
 }
@@ -149,7 +175,7 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conversation, messages, since, err := h.service.Read(r.Context(), person, id)
+	opened, err := h.service.Read(r.Context(), person, id)
 	if err != nil {
 		h.chatError(w, r, err)
 
@@ -163,18 +189,23 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	readers, err := h.service.Readers(r.Context(), person, id)
-	if err != nil {
-		h.chatError(w, r, err)
-
+	panel, version, ok := h.panel(w, r, person, id, opened.Since, opened.Messages)
+	if !ok {
 		return
 	}
 
-	panel := web.Panel{Reader: person, Since: since, Readers: readers, People: len(people)}
+	panel.People = len(people)
 
-	page := web.ConversationPage(conversation, people, messages, panel, messagesVersion(messages, readers, person))
+	page := web.ConversationPage(
+		opened.Conversation,
+		people,
+		opened.Messages,
+		panel,
+		version,
+		opened.HasOlder,
+	)
 
-	h.shell(w, r, conversation.ID, conversation.Subject, page)
+	h.shell(w, r, opened.Conversation.ID, opened.Conversation.Subject, page)
 }
 
 // messages answers the poll of a conversation.
@@ -294,14 +325,55 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 
 // conversation reads one conversation for a person who takes part in it.
 func (h *chatHandlers) conversation(w http.ResponseWriter, r *http.Request, person user.User, id uuid.UUID) (chat.Conversation, bool) {
-	conversation, _, _, err := h.service.Read(r.Context(), person, id)
+	opened, err := h.service.Read(r.Context(), person, id)
 	if err != nil {
 		h.chatError(w, r, err)
 
 		return chat.Conversation{}, false
 	}
 
-	return conversation, true
+	return opened.Conversation, true
+}
+
+// older answers the button above a conversation with the block in front of
+// the message it names.
+func (h *chatHandlers) older(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	before, err := uuid.Parse(r.URL.Query().Get("before"))
+	if err != nil {
+		http.NotFound(w, r)
+
+		return
+	}
+
+	conversation, ok := h.conversation(w, r, person, id)
+	if !ok {
+		return
+	}
+
+	messages, more, err := h.service.Older(r.Context(), person, id, before)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	people, err := h.service.Participants(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	panel := web.Panel{Reader: person, People: len(people), History: true}
+
+	h.render(w, r, web.OlderBlock(conversation, messages, panel, more))
 }
 
 // messagesVersion names the state of a conversation. A new message changes

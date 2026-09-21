@@ -21,6 +21,10 @@ const (
 
 	// MaxBody is the longest message.
 	MaxBody = 4000
+
+	// MessagePage is how many messages a page holds. The reader asks for the
+	// older ones when they want them.
+	MessagePage = 50
 )
 
 var (
@@ -90,7 +94,8 @@ type Store interface {
 	Get(ctx context.Context, id uuid.UUID) (Conversation, bool, error)
 	IsParticipant(ctx context.Context, conversationID, userID uuid.UUID) (bool, error)
 	List(ctx context.Context, userID uuid.UUID) ([]Summary, error)
-	Messages(ctx context.Context, conversationID uuid.UUID) ([]Message, error)
+	Messages(ctx context.Context, conversationID uuid.UUID, limit int) ([]Message, error)
+	MessagesBefore(ctx context.Context, conversationID, before uuid.UUID, limit int) ([]Message, error)
 	AddMessage(ctx context.Context, conversationID, authorID uuid.UUID, body string) (Message, error)
 	// MarkRead notes the reading and returns the time it replaces. The
 	// second value is false when that person had read nothing yet.

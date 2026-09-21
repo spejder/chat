@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/url"
 	"strconv"
 	"uuid"
 
@@ -22,9 +23,24 @@ templ Conversations() {
 	</div>
 }
 
-// ConversationList renders the lines of the sidebar. The page asks for them
-// again every ten seconds.
-templ ConversationList(summaries []chat.Summary, current uuid.UUID) {
+// ConversationList renders the lines of the sidebar. It replaces itself every
+// ten seconds, so the answer carries the next version, and it holds the total
+// of unread messages, which the tab title reads.
+templ ConversationList(summaries []chat.Summary, current uuid.UUID, version string) {
+	<div
+		id="conversation-list"
+		class="flex flex-col"
+		data-unread={ strconv.Itoa(unreadTotal(summaries)) }
+		data-hx-get={ listURL(current, version) }
+		data-hx-trigger="every 10s"
+		data-hx-swap="outerHTML"
+	>
+		@conversationLines(summaries, current)
+	</div>
+}
+
+// conversationLines draws one line per conversation.
+templ conversationLines(summaries []chat.Summary, current uuid.UUID) {
 	if len(summaries) == 0 {
 		<p class="p-4 text-sm text-muted-foreground">
 			You take part in no conversation yet.
@@ -55,4 +71,29 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID) {
 			</span>
 		</a>
 	}
+}
+
+// unreadTotal counts the messages that this person has not read, over every
+// conversation.
+func unreadTotal(summaries []chat.Summary) int {
+	total := 0
+
+	for _, summary := range summaries {
+		total += summary.Unread
+	}
+
+	return total
+}
+
+// listURL points the poll at the list. It names the open conversation, so the
+// mark survives the swap, and the version, so the server can answer that
+// nothing changed.
+func listURL(current uuid.UUID, version string) string {
+	address := "/conversations/list?v=" + url.QueryEscape(version)
+
+	if current != uuid.Nil() {
+		address += "&current=" + current.String()
+	}
+
+	return address
 }

@@ -53,6 +53,7 @@ func New(config Config) http.Handler {
 	mux.Handle("POST /conversations", requireUser(http.HandlerFunc(conversations.start)))
 	mux.Handle("GET /conversations/{id}", requireUser(http.HandlerFunc(conversations.show)))
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
+	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
 
 	return secure(compress(handlers.authenticate(mux)))

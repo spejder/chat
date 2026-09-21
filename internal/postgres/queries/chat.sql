@@ -54,6 +54,8 @@ JOIN users ON users.id = conversation_participants.user_id
 WHERE conversation_participants.conversation_id = $1
 ORDER BY users.full_name;
 
+-- ListMessages reads the newest part of a conversation. The store turns the
+-- rows back into time order.
 -- name: ListMessages :many
 SELECT
     m.id,
@@ -64,7 +66,27 @@ SELECT
 FROM messages m
 JOIN users u ON u.id = m.author_id
 WHERE m.conversation_id = $1
-ORDER BY m.created_at, m.id;
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $2;
+
+-- ListMessagesBefore reads the part in front of one message, which is what
+-- the button for the older messages asks for.
+-- name: ListMessagesBefore :many
+SELECT
+    m.id,
+    m.author_id,
+    u.full_name AS author_name,
+    m.body,
+    m.created_at
+FROM messages m
+JOIN users u ON u.id = m.author_id
+WHERE m.conversation_id = $1
+  AND (m.created_at, m.id) < (
+      (SELECT before.created_at FROM messages AS before WHERE before.id = $2),
+      $2
+  )
+ORDER BY m.created_at DESC, m.id DESC
+LIMIT $3;
 
 -- name: CreateMessage :one
 INSERT INTO messages (id, conversation_id, author_id, body)

@@ -1,10 +1,12 @@
 package postgres_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 	"uuid"
 
+	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/postgres/postgrestest"
 	"github.com/spejder/chat/internal/user"
@@ -60,7 +62,7 @@ func TestCreateAndReadAConversation(t *testing.T) {
 		}
 	}
 
-	messages, err := store.Messages(t.Context(), conversation.ID)
+	messages, err := store.Messages(t.Context(), conversation.ID, 50)
 	if err != nil {
 		t.Fatalf("messages: %v", err)
 	}
@@ -284,4 +286,52 @@ func TestReadersGivesTheTimes(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestMessagesComeInPages makes sure that a long conversation gives its
+// newest part first and the older part on demand, both in time order.
+func TestMessagesComeInPages(t *testing.T) {
+	t.Parallel()
+
+	store, users := newChatStore(t)
+	ada, grace := twoPeople(t, users)
+
+	conversation, err := store.Create(t.Context(), "Lunch", ada.ID, []uuid.UUID{ada.ID, grace.ID}, "1")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	for i := 2; i <= 6; i++ {
+		if _, err := store.AddMessage(t.Context(), conversation.ID, ada.ID, strconv.Itoa(i)); err != nil {
+			t.Fatalf("add message %d: %v", i, err)
+		}
+	}
+
+	newest, err := store.Messages(t.Context(), conversation.ID, 2)
+	if err != nil {
+		t.Fatalf("messages: %v", err)
+	}
+
+	if len(newest) != 2 || newest[0].Body != "5" || newest[1].Body != "6" {
+		t.Fatalf("the newest page is %v, want 5 and 6", bodies(newest))
+	}
+
+	older, err := store.MessagesBefore(t.Context(), conversation.ID, newest[0].ID, 3)
+	if err != nil {
+		t.Fatalf("messages before: %v", err)
+	}
+
+	if len(older) != 3 || older[0].Body != "2" || older[2].Body != "4" {
+		t.Fatalf("the older block is %v, want 2, 3 and 4", bodies(older))
+	}
+}
+
+// bodies writes the texts of some messages, for a message when a test fails.
+func bodies(messages []chat.Message) []string {
+	out := make([]string, 0, len(messages))
+	for _, message := range messages {
+		out = append(out, message.Body)
+	}
+
+	return out
 }

@@ -15,7 +15,7 @@ import (
 
 // ConversationPage renders one conversation with its messages and the field
 // to write in it.
-templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, panel Panel, version string) {
+templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, panel Panel, version string, hasOlder bool) {
 	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
 	// The column fills the room. Only the messages scroll, which needs
 	// min-h-0, because a flex child otherwise refuses to shrink.
@@ -25,6 +25,13 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 			<p class="text-sm text-muted-foreground">{ names(people) }</p>
 		</div>
 		<div id="messages" class="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+			// The older messages live in their own box, so a poll of the
+			// newest ones can never throw away what the reader asked to see.
+			<div id="older" class="flex flex-col gap-1">
+				if hasOlder && len(messages) > 0 {
+					@OlderButton(conversation, messages[0].ID)
+				}
+			</div>
 			@MessageList(conversation, messages, panel, version)
 		</div>
 		// One sentence for a screen reader when a message arrives. A live
@@ -73,6 +80,28 @@ templ MessageList(conversation chat.Conversation, messages []chat.Message, panel
 	>
 		@Messages(messages, panel)
 	</div>
+}
+
+// OlderButton asks for the messages in front of the ones on the page. It
+// swaps itself for the answer, which brings the next button with it.
+templ OlderButton(conversation chat.Conversation, before uuid.UUID) {
+	<button
+		type="button"
+		class="mx-auto my-2 rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
+		data-hx-get={ olderURL(conversation.ID, before) }
+		data-hx-swap="outerHTML"
+	>
+		Show older messages
+	</button>
+}
+
+// OlderBlock is the answer to that button: the next button, and then the
+// block of older messages.
+templ OlderBlock(conversation chat.Conversation, messages []chat.Message, panel Panel, hasOlder bool) {
+	if hasOlder && len(messages) > 0 {
+		@OlderButton(conversation, messages[0].ID)
+	}
+	@Messages(messages, panel)
 }
 
 // Messages renders one conversation as bubbles: the reader on the right,
@@ -134,6 +163,7 @@ templ Messages(messages []chat.Message, panel Panel) {
 templ WriteForm(conversation chat.Conversation, since time.Time, message string) {
 	<form
 		id="write"
+		data-conversation={ conversation.ID.String() }
 		class="flex flex-col gap-2 border-t p-4"
 		method="post"
 		action={ templ.SafeURL("/conversations/" + conversation.ID.String() + "/messages") }
@@ -202,4 +232,9 @@ func authorLabel(row bubble) string {
 	}
 
 	return row.Message.AuthorName
+}
+
+// olderURL points the button at the messages in front of one message.
+func olderURL(conversationID, before uuid.UUID) string {
+	return "/conversations/" + conversationID.String() + "/older?before=" + before.String()
 }

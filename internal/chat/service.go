@@ -65,41 +65,53 @@ func (s *Service) List(ctx context.Context, person user.User) ([]Summary, error)
 	return summaries, nil
 }
 
-// Read returns a conversation with its messages, and notes that this person
+// Opened is a conversation as the page draws it the first time.
+type Opened struct {
+	Conversation Conversation
+
+	// Messages is the newest page of the conversation.
+	Messages []Message
+
+	// Since is the moment this person last looked. The page draws the line
+	// for the unread messages from it, and it is the zero time the first time
+	// somebody opens the conversation.
+	Since time.Time
+
+	// HasOlder says that messages exist in front of this page.
+	HasOlder bool
+}
+
+// Read returns the newest part of a conversation, and notes that this person
 // has seen it.
-//
-// The third value is the moment this person last looked at the conversation.
-// The page draws the line for the unread messages from it. It is the zero
-// time when this person opens the conversation for the first time.
-func (s *Service) Read(ctx context.Context, person user.User, id uuid.UUID) (Conversation, []Message, time.Time, error) {
+func (s *Service) Read(ctx context.Context, person user.User, id uuid.UUID) (Opened, error) {
 	conversation, err := s.find(ctx, person, id)
 	if err != nil {
-		return Conversation{}, nil, time.Time{}, err
+		return Opened{}, err
 	}
 
-	messages, err := s.store.Messages(ctx, id)
+	messages, more, err := s.page(ctx, id)
 	if err != nil {
-		return Conversation{}, nil, time.Time{}, fmt.Errorf("read the messages: %w", err)
+		return Opened{}, err
 	}
 
 	since, _, err := s.store.MarkRead(ctx, id, person.ID)
 	if err != nil {
-		return Conversation{}, nil, time.Time{}, fmt.Errorf("note the reading: %w", err)
+		return Opened{}, fmt.Errorf("note the reading: %w", err)
 	}
 
-	return conversation, messages, since, nil
+	return Opened{Conversation: conversation, Messages: messages, Since: since, HasOlder: more}, nil
 }
 
-// Messages returns the messages alone, which is what the page asks for every
-// few seconds. It also notes that this person has seen them.
+// Messages returns the newest part of a conversation, which is what the page
+// asks for every few seconds. It also notes that this person has seen it.
 func (s *Service) Messages(ctx context.Context, person user.User, id uuid.UUID) ([]Message, error) {
 	if _, err := s.find(ctx, person, id); err != nil {
 		return nil, err
 	}
 
-	messages, err := s.store.Messages(ctx, id)
+	messages, _, err := s.page(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("read the messages: %w", err)
+		return nil, err
 	}
 
 	if _, _, err := s.store.MarkRead(ctx, id, person.ID); err != nil {
@@ -107,6 +119,43 @@ func (s *Service) Messages(ctx context.Context, person user.User, id uuid.UUID) 
 	}
 
 	return messages, nil
+}
+
+// Older returns the part in front of one message, which the reader asks for
+// with the button above the conversation. The second value says whether even
+// older messages exist.
+func (s *Service) Older(ctx context.Context, person user.User, id, before uuid.UUID) ([]Message, bool, error) {
+	if _, err := s.find(ctx, person, id); err != nil {
+		return nil, false, err
+	}
+
+	messages, err := s.store.MessagesBefore(ctx, id, before, MessagePage+1)
+	if err != nil {
+		return nil, false, fmt.Errorf("read the older messages: %w", err)
+	}
+
+	return cutPage(messages)
+}
+
+// page reads the newest messages and says whether older ones exist.
+func (s *Service) page(ctx context.Context, id uuid.UUID) ([]Message, bool, error) {
+	messages, err := s.store.Messages(ctx, id, MessagePage+1)
+	if err != nil {
+		return nil, false, fmt.Errorf("read the messages: %w", err)
+	}
+
+	return cutPage(messages)
+}
+
+// cutPage asks for one message more than a page holds, which answers whether
+// more exist, and hands back the page itself.
+func cutPage(messages []Message) ([]Message, bool, error) {
+	if len(messages) <= MessagePage {
+		return messages, false, nil
+	}
+
+	// The extra message is the oldest one, which the store puts first.
+	return messages[len(messages)-MessagePage:], true, nil
 }
 
 // Write adds a message and returns the conversation as it now stands.

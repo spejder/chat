@@ -102,8 +102,36 @@ func (f *fakeStore) List(_ context.Context, userID uuid.UUID) ([]Summary, error)
 	return summaries, nil
 }
 
-func (f *fakeStore) Messages(_ context.Context, conversationID uuid.UUID) ([]Message, error) {
-	return slices.Clone(f.messages[conversationID]), nil
+func (f *fakeStore) Messages(_ context.Context, conversationID uuid.UUID, limit int) ([]Message, error) {
+	all := slices.Clone(f.messages[conversationID])
+
+	if len(all) > limit {
+		all = all[len(all)-limit:]
+	}
+
+	return all, nil
+}
+
+func (f *fakeStore) MessagesBefore(_ context.Context, conversationID, before uuid.UUID, limit int) ([]Message, error) {
+	all := f.messages[conversationID]
+
+	cut := len(all)
+
+	for i, message := range all {
+		if message.ID == before {
+			cut = i
+
+			break
+		}
+	}
+
+	older := slices.Clone(all[:cut])
+
+	if len(older) > limit {
+		older = older[len(older)-limit:]
+	}
+
+	return older, nil
 }
 
 func (f *fakeStore) AddMessage(_ context.Context, conversationID, authorID uuid.UUID, body string) (Message, error) {

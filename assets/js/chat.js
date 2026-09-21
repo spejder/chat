@@ -113,6 +113,50 @@
 		field.style.height = "";
 	};
 
+	// The draft of an unsent message lives in this browser only, under one
+	// key per conversation.
+	const draftKey = () => {
+		const form = document.getElementById("write");
+
+		return form && form.dataset.conversation ? "chat:draft:" + form.dataset.conversation : "";
+	};
+
+	const readDraft = () => {
+		const key = draftKey();
+
+		if (!key) {
+			return "";
+		}
+
+		try {
+			return window.localStorage.getItem(key) || "";
+		} catch {
+			// A private window refuses the store, and a draft is not worth a
+			// broken page.
+			return "";
+		}
+	};
+
+	const writeDraft = (text) => {
+		const key = draftKey();
+
+		if (!key) {
+			return;
+		}
+
+		try {
+			if (text) {
+				window.localStorage.setItem(key, text);
+			} else {
+				window.localStorage.removeItem(key);
+			}
+		} catch {
+			// See readDraft.
+		}
+	};
+
+	let draftTimer = 0;
+
 	const wireField = () => {
 		const field = document.querySelector("[data-grow]");
 
@@ -122,7 +166,19 @@
 
 		field.dataset.wired = "true";
 
-		field.addEventListener("input", () => grow(field));
+		const draft = readDraft();
+
+		if (draft && !field.value) {
+			field.value = draft;
+			grow(field);
+		}
+
+		field.addEventListener("input", () => {
+			grow(field);
+
+			window.clearTimeout(draftTimer);
+			draftTimer = window.setTimeout(() => writeDraft(field.value), 300);
+		});
 
 		field.addEventListener("keydown", (event) => {
 			// Shift and Enter writes a new line, and a keyboard that builds a
@@ -226,6 +282,8 @@
 			line.textContent = "";
 		}
 
+		window.clearTimeout(draftTimer);
+		writeDraft("");
 		form.reset();
 
 		const field = form.querySelector("[data-grow]");

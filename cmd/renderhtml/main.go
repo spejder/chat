@@ -88,13 +88,14 @@ func run() error {
 	pages := map[string]templ.Component{
 		"login.html":            web.Login(web.EmailPanel("", "")),
 		"conversations.html":    inShell(summaries, uuid.Nil(), "All conversations", web.Conversations()),
-		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, panel, "4-none-0-2026-09-21")),
+		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, panel, "4-none-0-2026-09-21", true)),
 		"new-conversation.html": inShell(summaries, uuid.Nil(), "Start a conversation", web.NewConversation(people, "Lunch", "Are you in?", "")),
 	}
 
 	fragments := map[string]templ.Component{
-		"conversation-list.html": web.ConversationList(summaries, conversation.ID),
+		"conversation-list.html": web.ConversationList(summaries, conversation.ID, "abc123"),
 		"messages.html":          web.Messages(messages, panel),
+		"older-block.html":       web.OlderBlock(conversation, messages, web.Panel{Reader: people[0], People: 2, History: true}, true),
 		"login-code.html":        web.CodePanel("ada@example.com", "That code is wrong. Try again."),
 		"login-passkey.html":     web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
 		"login-offer.html":       web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
@@ -136,7 +137,7 @@ var signedIn = auth.WithUser(context.Background(), user.User{
 // inShell puts a page into the sidebar, the way the server does.
 func inShell(summaries []chat.Summary, current uuid.UUID, heading string, main templ.Component) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		return web.Shell(summaries, current, heading, true).Render(templ.WithChildren(ctx, main), w)
+		return web.Shell(summaries, current, heading, true, "abc123").Render(templ.WithChildren(ctx, main), w)
 	})
 }
 
