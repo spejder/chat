@@ -1,6 +1,7 @@
 package web
 
 import (
+	"strings"
 	"time"
 
 	"github.com/spejder/chat/internal/chat"
@@ -31,16 +32,37 @@ type bubble struct {
 	// FirstUnread marks the first message that the reader had not seen when
 	// they opened the conversation. The page draws a line above it.
 	FirstUnread bool
+
+	// ReadMark is not empty on the newest message of the reader when
+	// somebody else has read it.
+	ReadMark string
+}
+
+// Panel holds what the message list needs besides the messages themselves.
+type Panel struct {
+	// Reader is the person who looks at the page.
+	Reader user.User
+
+	// Since is the moment that person last looked. A zero time means never.
+	Since time.Time
+
+	// Readers are the people of the conversation with their reading times.
+	Readers []chat.Reader
+
+	// People counts everybody in the conversation. With two of them the
+	// names above the groups disappear, because the side says who wrote it.
+	People int
 }
 
 // bubbles turns the messages into the rows that the page draws. A group
 // breaks when the writer changes, when the day changes, or when the silence
 // between two messages grows past groupGap.
-// The time since says when the reader last looked at the conversation. A zero
-// time means they never did, and then no line is drawn.
-func bubbles(messages []chat.Message, reader user.User, since time.Time) []bubble {
+// bubbles turns the messages into the rows that the page draws.
+func bubbles(messages []chat.Message, panel Panel) []bubble {
 	rows := make([]bubble, 0, len(messages))
 
+	reader := panel.Reader
+	since := panel.Since
 	marked := since.IsZero()
 
 	for i, message := range messages {
@@ -69,8 +91,9 @@ func bubbles(messages []chat.Message, reader user.User, since time.Time) []bubbl
 			row.ShowTime = startsGroup(message, messages[i+1])
 		}
 
-		// The side already says who wrote it.
-		if row.Mine {
+		// The side already says who wrote it, and in a conversation of two
+		// there is nobody else to name.
+		if row.Mine || panel.People <= 2 {
 			row.ShowName = false
 		}
 
@@ -84,7 +107,53 @@ func bubbles(messages []chat.Message, reader user.User, since time.Time) []bubbl
 		rows = append(rows, row)
 	}
 
+	markRead(rows, panel)
+
 	return rows
+}
+
+// markRead writes the mark on the newest message of the reader, the way a
+// phone does. Nothing is marked when nobody else has read it yet.
+func markRead(rows []bubble, panel Panel) {
+	newest := -1
+
+	for i, row := range rows {
+		if row.Mine {
+			newest = i
+		}
+	}
+
+	if newest < 0 {
+		return
+	}
+
+	written := rows[newest].Message.CreatedAt
+
+	var (
+		others int
+		names  []string
+	)
+
+	for _, reader := range panel.Readers {
+		if reader.ID == panel.Reader.ID {
+			continue
+		}
+
+		others++
+
+		if reader.LastReadAt.After(written) {
+			names = append(names, reader.Name)
+		}
+	}
+
+	switch {
+	case len(names) == 0:
+		return
+	case len(names) == others:
+		rows[newest].ReadMark = "Read"
+	default:
+		rows[newest].ReadMark = "Read by " + strings.Join(names, ", ")
+	}
 }
 
 // startsGroup answers whether the second message opens a new group.

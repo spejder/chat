@@ -141,3 +141,21 @@ func (f *fakeStore) Participants(_ context.Context, conversationID uuid.UUID) ([
 
 	return people, nil
 }
+
+func (f *fakeStore) Readers(_ context.Context, conversationID uuid.UUID) ([]Reader, error) {
+	var readers []Reader
+
+	for _, person := range f.people {
+		if !slices.Contains(f.participants[conversationID], person.ID) {
+			continue
+		}
+
+		readers = append(readers, Reader{
+			ID:         person.ID,
+			Name:       person.FullName,
+			LastReadAt: f.read[conversationID][person.ID],
+		})
+	}
+
+	return readers, nil
+}

@@ -139,13 +139,13 @@ func TestTheSidesOfAConversation(t *testing.T) {
 	}
 
 	var out strings.Builder
-	if err := web.Messages(messages, reader, time.Time{}).Render(context.Background(), &out); err != nil {
+	if err := web.Messages(messages, web.Panel{Reader: reader, People: 3}).Render(context.Background(), &out); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 
 	body := out.String()
 
-	for _, want := range []string{"justify-start", "justify-end", "break-words", other.FullName} {
+	for _, want := range []string{"justify-start", "justify-end", "break-words", other.FullName, "title="} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the markup misses %q", want)
 		}

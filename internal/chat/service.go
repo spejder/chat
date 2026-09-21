@@ -141,6 +141,21 @@ func (s *Service) Participants(ctx context.Context, person user.User, id uuid.UU
 	return people, nil
 }
 
+// Readers gives the people of a conversation with the time each of them last
+// read it. The page marks a message as read from these times.
+func (s *Service) Readers(ctx context.Context, person user.User, id uuid.UUID) ([]Reader, error) {
+	if _, err := s.find(ctx, person, id); err != nil {
+		return nil, err
+	}
+
+	readers, err := s.store.Readers(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("read the reading times: %w", err)
+	}
+
+	return readers, nil
+}
+
 // find reads a conversation that this person takes part in. A conversation
 // that does not exist and one that belongs to other people give the same
 // answer.

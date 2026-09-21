@@ -75,6 +75,14 @@ type Message struct {
 	CreatedAt  time.Time
 }
 
+// Reader is one person in a conversation with the time they last read it.
+// The zero time means they never opened it.
+type Reader struct {
+	ID         uuid.UUID
+	Name       string
+	LastReadAt time.Time
+}
+
 // Store keeps the conversations. The store in internal/postgres carries it
 // out. A lookup that finds nothing returns false, not an error.
 type Store interface {
@@ -88,4 +96,5 @@ type Store interface {
 	// second value is false when that person had read nothing yet.
 	MarkRead(ctx context.Context, conversationID, userID uuid.UUID) (time.Time, bool, error)
 	Participants(ctx context.Context, conversationID uuid.UUID) ([]user.User, error)
+	Readers(ctx context.Context, conversationID uuid.UUID) ([]Reader, error)
 }

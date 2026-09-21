@@ -73,16 +73,28 @@ func run() error {
 
 	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}
 
+	// The second person has read everything, so the newest own message
+	// carries its mark.
+	panel := web.Panel{
+		Reader: people[0],
+		Since:  at.Add(-time.Hour),
+		People: len(people),
+		Readers: []chat.Reader{
+			{ID: people[0].ID, Name: people[0].FullName, LastReadAt: at},
+			{ID: people[1].ID, Name: people[1].FullName, LastReadAt: at.Add(time.Hour)},
+		},
+	}
+
 	pages := map[string]templ.Component{
 		"login.html":            web.Login(web.EmailPanel("", "")),
 		"conversations.html":    inShell(summaries, uuid.Nil(), "All conversations", web.Conversations()),
-		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, people[0], at.Add(-time.Hour), "3-none-2026-09-21")),
+		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, panel, "4-none-0-2026-09-21")),
 		"new-conversation.html": inShell(summaries, uuid.Nil(), "Start a conversation", web.NewConversation(people, "Lunch", "Are you in?", "")),
 	}
 
 	fragments := map[string]templ.Component{
 		"conversation-list.html": web.ConversationList(summaries, conversation.ID),
-		"messages.html":          web.Messages(messages, people[0], at.Add(-time.Hour)),
+		"messages.html":          web.Messages(messages, panel),
 		"login-code.html":        web.CodePanel("ada@example.com", "That code is wrong. Try again."),
 		"login-passkey.html":     web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
 		"login-offer.html":       web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),

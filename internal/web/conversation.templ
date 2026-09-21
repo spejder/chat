@@ -15,7 +15,7 @@ import (
 
 // ConversationPage renders one conversation with its messages and the field
 // to write in it.
-templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User, since time.Time, version string) {
+templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, panel Panel, version string) {
 	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
 	// The column fills the room. Only the messages scroll, which needs
 	// min-h-0, because a flex child otherwise refuses to shrink.
@@ -25,8 +25,19 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 			<p class="text-sm text-muted-foreground">{ names(people) }</p>
 		</div>
 		<div id="messages" class="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-			@MessageList(conversation, messages, reader, since, version)
+			@MessageList(conversation, messages, panel, version)
 		</div>
+		// One sentence for a screen reader when a message arrives. A live
+		// region on the list itself would read the whole list after a swap.
+		<p id="announce" class="sr-only" aria-live="polite"></p>
+		// The notice appears when the line to the server is down.
+		<p
+			id="offline"
+			hidden
+			class="border-t bg-destructive/10 px-4 py-2 text-center text-xs text-destructive"
+		>
+			The connection is down. Trying again.
+		</p>
 		// The button appears when a message arrives while the reader looks
 		// further up.
 		// relative and z-10, because the message list above is positioned and
@@ -41,7 +52,7 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 				New messages
 			</button>
 		</div>
-		@WriteForm(conversation, since, "")
+		@WriteForm(conversation, panel.Since, "")
 	</div>
 	<script src={ assets.URL("js/chat.js") } if chatIntegrity != "" {
 	integrity={ chatIntegrity }
@@ -51,25 +62,26 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 // MessageList holds the messages and the poll. It replaces itself, so the
 // answer carries the next version and the page keeps the mark for the unread
 // messages.
-templ MessageList(conversation chat.Conversation, messages []chat.Message, reader user.User, since time.Time, version string) {
+templ MessageList(conversation chat.Conversation, messages []chat.Message, panel Panel, version string) {
 	<div
 		id="message-list"
+		role="log"
 		class="flex flex-col gap-1"
-		data-hx-get={ messagesURL(conversation.ID, since, version) }
+		data-hx-get={ messagesURL(conversation.ID, panel.Since, version) }
 		data-hx-trigger="every 3s"
 		data-hx-swap="outerHTML"
 	>
-		@Messages(messages, reader, since)
+		@Messages(messages, panel)
 	</div>
 }
 
 // Messages renders one conversation as bubbles: the reader on the right,
 // everybody else on the left.
-templ Messages(messages []chat.Message, reader user.User, since time.Time) {
+templ Messages(messages []chat.Message, panel Panel) {
 	if len(messages) == 0 {
 		<p class="text-sm text-muted-foreground">No messages yet. Write the first one.</p>
 	}
-	for _, row := range bubbles(messages, reader, since) {
+	for _, row := range bubbles(messages, panel) {
 		if row.FirstUnread {
 			<div class="flex items-center gap-2 py-2">
 				<span class="h-px flex-1 bg-destructive/40"></span>
@@ -89,9 +101,12 @@ templ Messages(messages []chat.Message, reader user.User, since time.Time) {
 		}
 		<div
 			data-message
+			data-mine?={ row.Mine }
+			data-author={ authorLabel(row) }
 			class={ "flex w-full", templ.KV("justify-end", row.Mine), templ.KV("justify-start", !row.Mine) }
 		>
 			<div
+				title={ fullTime(row.Message.CreatedAt) }
 				class={
 					"max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap",
 					templ.KV("bg-primary text-primary-foreground", row.Mine),
@@ -100,7 +115,7 @@ templ Messages(messages []chat.Message, reader user.User, since time.Time) {
 					templ.KV("rounded-bl-sm", !row.Mine && row.ShowTime),
 				}
 			>
-				{ row.Message.Body }
+				<span data-body>{ row.Message.Body }</span>
 				if row.ShowTime {
 					<span class="mt-1 block text-right text-xs opacity-70">
 						{ clock(row.Message.CreatedAt) }
@@ -108,6 +123,9 @@ templ Messages(messages []chat.Message, reader user.User, since time.Time) {
 				}
 			</div>
 		</div>
+		if row.ReadMark != "" {
+			<span class="px-1 text-right text-xs text-muted-foreground">{ row.ReadMark }</span>
+		}
 	}
 }
 
@@ -174,4 +192,14 @@ func messagesURL(conversationID uuid.UUID, since time.Time, version string) stri
 	}
 
 	return address
+}
+
+// authorLabel names the writer of a message for the hidden line that a screen
+// reader hears.
+func authorLabel(row bubble) string {
+	if row.Mine {
+		return "You"
+	}
+
+	return row.Message.AuthorName
 }

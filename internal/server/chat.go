@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -162,7 +163,16 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page := web.ConversationPage(conversation, people, messages, person, since, messagesVersion(messages))
+	readers, err := h.service.Readers(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	panel := web.Panel{Reader: person, Since: since, Readers: readers, People: len(people)}
+
+	page := web.ConversationPage(conversation, people, messages, panel, messagesVersion(messages, readers, person))
 
 	h.shell(w, r, conversation.ID, conversation.Subject, page)
 }
@@ -192,14 +202,45 @@ func (h *chatHandlers) messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	version := messagesVersion(messages)
+	panel, version, ok := h.panel(w, r, person, id, readMark(r.URL.Query().Get("since")), messages)
+	if !ok {
+		return
+	}
+
 	if r.URL.Query().Get("v") == version {
 		w.WriteHeader(http.StatusNoContent)
 
 		return
 	}
 
-	h.render(w, r, web.MessageList(conversation, messages, person, readMark(r.URL.Query().Get("since")), version))
+	h.render(w, r, web.MessageList(conversation, messages, panel, version))
+}
+
+// panel reads what the list needs besides the messages: who takes part and
+// when each of them last read the conversation.
+func (h *chatHandlers) panel(
+	w http.ResponseWriter,
+	r *http.Request,
+	person user.User,
+	id uuid.UUID,
+	since time.Time,
+	messages []chat.Message,
+) (web.Panel, string, bool) {
+	readers, err := h.service.Readers(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return web.Panel{}, "", false
+	}
+
+	panel := web.Panel{
+		Reader:  person,
+		Since:   since,
+		Readers: readers,
+		People:  len(readers),
+	}
+
+	return panel, messagesVersion(messages, readers, person), true
 }
 
 // write adds a message and answers with the whole list.
@@ -218,10 +259,19 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 
 	messages, err := h.service.Write(r.Context(), person, id, r.FormValue("body"))
 	if err != nil {
-		if _, readable := readableError(err); readable {
-			// The browser keeps the text, because htmx swaps nothing when the
-			// answer is not a success.
-			http.Error(w, "the message did not go out", http.StatusUnprocessableEntity)
+		if message, readable := readableError(err); readable {
+			// No body, because htmx swaps whatever comes back and would wipe
+			// the conversation. The reason travels in a header instead, and
+			// the page writes it under the field.
+			trigger, marshalErr := json.Marshal(map[string]string{"chat:error": message})
+			if marshalErr != nil {
+				h.fail(w, r, marshalErr)
+
+				return
+			}
+
+			w.Header().Set("HX-Trigger", string(trigger))
+			w.WriteHeader(http.StatusNoContent)
 
 			return
 		}
@@ -231,7 +281,15 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.MessageList(conversation, messages, person, readMark(r.FormValue("since")), messagesVersion(messages)))
+	panel, version, ok := h.panel(w, r, person, id, readMark(r.FormValue("since")), messages)
+	if !ok {
+		return
+	}
+
+	// The page empties the write field when it hears this.
+	w.Header().Set("HX-Trigger", "chat:sent")
+
+	h.render(w, r, web.MessageList(conversation, messages, panel, version))
 }
 
 // conversation reads one conversation for a person who takes part in it.
@@ -247,15 +305,51 @@ func (h *chatHandlers) conversation(w http.ResponseWriter, r *http.Request, pers
 }
 
 // messagesVersion names the state of a conversation. A new message changes
-// the count and the newest identifier, and the date belongs in it because the
-// date lines read Today and Yesterday.
-func messagesVersion(messages []chat.Message) string {
+// the count and the newest identifier. The newest reading time belongs in it
+// as well, or a message would never gain its Read mark, because the answer
+// would stay 204. The date belongs in it because the date lines read Today
+// and Yesterday.
+func messagesVersion(messages []chat.Message, readers []chat.Reader, reader user.User) string {
 	newest := "none"
 	if len(messages) > 0 {
 		newest = messages[len(messages)-1].ID.String()
 	}
 
-	return fmt.Sprintf("%d-%s-%s", len(messages), newest, time.Now().Local().Format("2006-01-02"))
+	return fmt.Sprintf(
+		"%d-%s-%d-%s",
+		len(messages),
+		newest,
+		readersOfNewest(messages, readers, reader),
+		time.Now().Local().Format("2006-01-02"),
+	)
+}
+
+// readersOfNewest counts the other people who have read the newest message of
+// this reader. Only that number can change the Read mark, so only that number
+// belongs in the version. The plain reading times would not do: every poll
+// writes one, and the answer would never be 204 again.
+func readersOfNewest(messages []chat.Message, readers []chat.Reader, reader user.User) int {
+	var written time.Time
+
+	for _, message := range messages {
+		if message.AuthorID == reader.ID {
+			written = message.CreatedAt
+		}
+	}
+
+	if written.IsZero() {
+		return 0
+	}
+
+	count := 0
+
+	for _, other := range readers {
+		if other.ID != reader.ID && other.LastReadAt.After(written) {
+			count++
+		}
+	}
+
+	return count
 }
 
 // readMark reads the moment the reader last looked, which the page carries

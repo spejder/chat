@@ -198,6 +198,20 @@ thread or room.
   every ten. The list is `#message-list`, and it replaces itself with
   `outerHTML`, so every answer carries the next version and the mark for the
   unread messages.
+- A message that the server refuses answers 204 with the reason in an
+  `HX-Trigger` header, and a message that goes out answers with the list and
+  the header `chat:sent`. htmx 4 swaps whatever comes back, including the body
+  of an error, so an error body would wipe the conversation.
+- `assets/js/chat.js` shows a notice and asks again by itself when no answer
+  has arrived for ten seconds. htmx stops polling after a failed request, and
+  without this the conversation freezes with no sign.
+- A hidden line with `aria-live` carries one sentence for a screen reader when
+  a message arrives. A live region on the list itself would read the whole
+  conversation after every swap.
+- The mark under the newest own message comes from the reading times of the
+  other people. Only the number of people who have read that message belongs
+  in the version, never the raw times: every poll writes a reading time, and
+  the answer would never be 204 again.
 - The poll sends the version it holds in `v`. When that version still stands,
   the server answers 204 and htmx swaps nothing, which keeps the scrolling,
   the selected text and the work in the browser. The version is the number of

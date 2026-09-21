@@ -207,6 +207,26 @@ func (s *ChatStore) Participants(ctx context.Context, conversationID uuid.UUID) 
 	return people, nil
 }
 
+// Readers gives the people of a conversation with the time each of them last
+// read it.
+func (s *ChatStore) Readers(ctx context.Context, conversationID uuid.UUID) ([]chat.Reader, error) {
+	rows, err := s.queries.ListReaders(ctx, conversationID)
+	if err != nil {
+		return nil, fmt.Errorf("read the reading times: %w", err)
+	}
+
+	readers := make([]chat.Reader, 0, len(rows))
+	for _, row := range rows {
+		readers = append(readers, chat.Reader{
+			ID:         row.ID,
+			Name:       row.FullName,
+			LastReadAt: row.LastReadAt.Time,
+		})
+	}
+
+	return readers, nil
+}
+
 // toConversation turns a row into the type that the rest of the application
 // uses.
 func toConversation(row db.Conversation) chat.Conversation {

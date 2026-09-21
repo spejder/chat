@@ -245,3 +245,43 @@ func TestMarkReadReturnsTheTimeItReplaces(t *testing.T) {
 		t.Errorf("the earlier time is %v, want a moment in the past", previous)
 	}
 }
+
+// TestReadersGivesTheTimes makes sure that the page can tell who has read a
+// conversation.
+func TestReadersGivesTheTimes(t *testing.T) {
+	t.Parallel()
+
+	store, users := newChatStore(t)
+	ada, grace := twoPeople(t, users)
+
+	conversation, err := store.Create(t.Context(), "Lunch", ada.ID, []uuid.UUID{ada.ID, grace.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, _, err := store.MarkRead(t.Context(), conversation.ID, grace.ID); err != nil {
+		t.Fatalf("mark read: %v", err)
+	}
+
+	readers, err := store.Readers(t.Context(), conversation.ID)
+	if err != nil {
+		t.Fatalf("readers: %v", err)
+	}
+
+	if len(readers) != 2 {
+		t.Fatalf("the conversation holds %d people, want 2", len(readers))
+	}
+
+	for _, reader := range readers {
+		switch reader.ID {
+		case grace.ID:
+			if reader.LastReadAt.IsZero() {
+				t.Error("the person who read the conversation carries no time")
+			}
+		case ada.ID:
+			if !reader.LastReadAt.IsZero() {
+				t.Error("the person who never read it carries a time")
+			}
+		}
+	}
+}

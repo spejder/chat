@@ -290,3 +290,61 @@ func TestThePollAnswersNothingChanged(t *testing.T) {
 		t.Errorf("the answer misses the messages: %s", old.Body.String())
 	}
 }
+
+// TestAReadChangesTheVersion makes sure that the mark under a message can
+// appear at all. A version that ignored the reading would answer 204 forever.
+func TestAReadChangesTheVersion(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the first user: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the second user: %v", err)
+	}
+
+	adaSession := signIn(t, handler, messages, ada)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, adaSession)
+
+	path := started.Header().Get("Location")
+
+	page := get(t, handler, path, adaSession)
+
+	found := versionInPage.FindStringSubmatch(page.Body.String())
+	if found == nil {
+		t.Fatalf("the page holds no version: %s", page.Body.String())
+	}
+
+	version := found[1]
+
+	// Nothing has happened, so the poll keeps the page as it is.
+	if answer := get(t, handler, path+"/messages?v="+url.QueryEscape(version), adaSession); answer.Code != http.StatusNoContent {
+		t.Fatalf("the quiet poll gave %d, want %d", answer.Code, http.StatusNoContent)
+	}
+
+	// The other person reads the conversation.
+	graceSession := signIn(t, handler, messages, grace)
+
+	if answer := get(t, handler, path, graceSession); answer.Code != http.StatusOK {
+		t.Fatalf("the other person could not read the conversation: %d", answer.Code)
+	}
+
+	answer := get(t, handler, path+"/messages?v="+url.QueryEscape(version), adaSession)
+	if answer.Code != http.StatusOK {
+		t.Fatalf("the poll after the reading gave %d, want %d", answer.Code, http.StatusOK)
+	}
+
+	if !strings.Contains(answer.Body.String(), "Read") {
+		t.Errorf("the answer carries no mark: %s", answer.Body.String())
+	}
+}

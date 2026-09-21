@@ -37,7 +37,7 @@ func TestBubbles(t *testing.T) {
 		message(other, base.Add(time.Hour), "Much later"),
 	}
 
-	rows := bubbles(messages, reader, time.Time{})
+	rows := bubbles(messages, Panel{Reader: reader, People: 3})
 
 	if len(rows) != len(messages) {
 		t.Fatalf("the list holds %d rows, want %d", len(rows), len(messages))
@@ -97,7 +97,7 @@ func TestADayChangeBreaksTheGroup(t *testing.T) {
 		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "New", CreatedAt: time.Now()},
 	}
 
-	rows := bubbles(messages, reader, time.Time{})
+	rows := bubbles(messages, Panel{Reader: reader, People: 3})
 
 	if rows[0].DateLabel != "Yesterday" {
 		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "Yesterday")
@@ -146,7 +146,7 @@ func TestTheLineForTheUnreadMessages(t *testing.T) {
 		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "Newer", CreatedAt: since.Add(3 * time.Minute)},
 	}
 
-	rows := bubbles(messages, reader, since)
+	rows := bubbles(messages, Panel{Reader: reader, Since: since, People: 3})
 
 	if rows[0].FirstUnread || rows[1].FirstUnread || rows[3].FirstUnread {
 		t.Error("the line stands in the wrong place")
@@ -157,9 +157,83 @@ func TestTheLineForTheUnreadMessages(t *testing.T) {
 	}
 
 	// A reader who never looked gets no line.
-	for i, row := range bubbles(messages, reader, time.Time{}) {
+	for i, row := range bubbles(messages, Panel{Reader: reader, People: 3}) {
 		if row.FirstUnread {
 			t.Errorf("row %d carries the line although the reader never looked", i)
 		}
+	}
+}
+
+// TestTheReadMark makes sure that the mark sits on the newest message of the
+// reader and says who has read it.
+func TestTheReadMark(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: uuid.NewV7(), FullName: "Ada Lovelace"}
+	grace := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+	alan := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
+
+	base := time.Now().Add(-time.Hour)
+
+	messages := []chat.Message{
+		{ID: uuid.NewV7(), AuthorID: reader.ID, Body: "First", CreatedAt: base},
+		{ID: uuid.NewV7(), AuthorID: grace.ID, AuthorName: grace.FullName, Body: "Answer", CreatedAt: base.Add(time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: reader.ID, Body: "Second", CreatedAt: base.Add(2 * time.Minute)},
+	}
+
+	panel := Panel{
+		Reader: reader,
+		People: 3,
+		Readers: []chat.Reader{
+			{ID: reader.ID, Name: reader.FullName, LastReadAt: time.Now()},
+			{ID: grace.ID, Name: grace.FullName, LastReadAt: base.Add(3 * time.Minute)},
+			{ID: alan.ID, Name: alan.FullName, LastReadAt: base},
+		},
+	}
+
+	rows := bubbles(messages, panel)
+
+	if rows[0].ReadMark != "" || rows[1].ReadMark != "" {
+		t.Error("a mark sits on a message that is not the newest of the reader")
+	}
+
+	if rows[2].ReadMark != "Read by Grace Hopper" {
+		t.Errorf("the mark is %q, want %q", rows[2].ReadMark, "Read by Grace Hopper")
+	}
+
+	// Everybody has read it now.
+	panel.Readers[2].LastReadAt = base.Add(4 * time.Minute)
+
+	if mark := bubbles(messages, panel)[2].ReadMark; mark != "Read" {
+		t.Errorf("the mark is %q, want %q", mark, "Read")
+	}
+
+	// Nobody has read it.
+	panel.Readers[1].LastReadAt = base
+	panel.Readers[2].LastReadAt = base
+
+	if mark := bubbles(messages, panel)[2].ReadMark; mark != "" {
+		t.Errorf("the mark is %q, want none", mark)
+	}
+}
+
+// TestTwoPeopleNeedNoNames makes sure that the name above a group disappears
+// when only two people take part.
+func TestTwoPeopleNeedNoNames(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: uuid.NewV7(), FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+
+	messages := []chat.Message{
+		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "Hello", CreatedAt: time.Now()},
+	}
+
+	if bubbles(messages, Panel{Reader: reader, People: 2})[0].ShowName {
+		t.Error("a conversation of two names the other person")
+	}
+
+	if !bubbles(messages, Panel{Reader: reader, People: 3})[0].ShowName {
+		t.Error("a conversation of three does not name the writer")
 	}
 }

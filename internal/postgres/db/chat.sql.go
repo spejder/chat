@@ -270,6 +270,42 @@ func (q *Queries) ListParticipants(ctx context.Context, conversationID uuid.UUID
 	return items, nil
 }
 
+const listReaders = `-- name: ListReaders :many
+SELECT users.id, users.full_name, conversation_participants.last_read_at
+FROM conversation_participants
+JOIN users ON users.id = conversation_participants.user_id
+WHERE conversation_participants.conversation_id = $1
+ORDER BY users.full_name
+`
+
+type ListReadersRow struct {
+	ID         uuid.UUID
+	FullName   string
+	LastReadAt pgtype.Timestamptz
+}
+
+// ListReaders gives the people of a conversation with the time each of them
+// last read it. The page marks a message as read from these times.
+func (q *Queries) ListReaders(ctx context.Context, conversationID uuid.UUID) ([]ListReadersRow, error) {
+	rows, err := q.db.Query(ctx, listReaders, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListReadersRow
+	for rows.Next() {
+		var i ListReadersRow
+		if err := rows.Scan(&i.ID, &i.FullName, &i.LastReadAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markRead = `-- name: MarkRead :one
 WITH previous AS (
     SELECT before.last_read_at

@@ -13,14 +13,22 @@
 	// The write field grows to this height and then scrolls.
 	const maxFieldPixels = 192;
 
+	// The line counts as down when no answer has arrived for this long.
+	const silenceMs = 10000;
+
 	const messages = () => document.getElementById("messages");
 	const jump = () => document.getElementById("jump");
+	const offline = () => document.getElementById("offline");
+	const announcer = () => document.getElementById("announce");
+	const list = () => document.getElementById("message-list");
+	const errorLine = () => document.querySelector("#write [data-error]");
 	const countMessages = () => document.querySelectorAll("#messages [data-message]").length;
 
 	let follow = true;
 	let keepTop = 0;
 	let counted = 0;
 	let waiting = 0;
+	let lastAnswer = Date.now();
 
 	const atBottom = (list) =>
 		list.scrollHeight - list.scrollTop - list.clientHeight < nearBottomPixels;
@@ -52,6 +60,46 @@
 
 		button.textContent = waiting === 1 ? "1 new message" : waiting + " new messages";
 		button.hidden = false;
+	};
+
+	const showOffline = (down) => {
+		const notice = offline();
+
+		if (notice) {
+			notice.hidden = !down;
+		}
+	};
+
+	// announce says one sentence to a screen reader. A live region on the
+	// list itself would read the whole conversation after every swap.
+	const announce = () => {
+		const line = announcer();
+		const newest = [...document.querySelectorAll("#messages [data-message]")].pop();
+
+		if (!line || !newest || newest.hasAttribute("data-mine")) {
+			return;
+		}
+
+		const body = newest.querySelector("[data-body]");
+
+		line.textContent = (newest.dataset.author || "") + ": " + (body ? body.textContent : "");
+	};
+
+	// askAgain takes over when htmx gives up after a failed request.
+	const askAgain = () => {
+		const element = list();
+
+		if (!element || !window.htmx) {
+			return;
+		}
+
+		const address = element.getAttribute("data-hx-get");
+
+		if (!address) {
+			return;
+		}
+
+		window.htmx.ajax("GET", address, { target: "#message-list", swap: "outerHTML" });
 	};
 
 	// grow lets the field follow the text instead of scrolling from the first
@@ -131,6 +179,10 @@
 		const arrived = Math.max(now - counted, 0);
 		counted = now;
 
+		if (arrived > 0) {
+			announce();
+		}
+
 		if (follow) {
 			hideJump();
 			toNewest();
@@ -153,25 +205,68 @@
 		}
 	});
 
-	document.addEventListener("htmx:after:request", (event) => {
-		const form = event.target;
+	// Any answer at all means the line is up again.
+	document.addEventListener("htmx:after:request", () => {
+		lastAnswer = Date.now();
+		showOffline(false);
+	});
 
-		if (!form || form.id !== "write") {
+	// The server says with a header that the message went out, and the field
+	// empties. A refused message never swaps, so the text stays.
+	document.addEventListener("chat:sent", () => {
+		const form = document.getElementById("write");
+
+		if (!form) {
 			return;
 		}
 
-		const answer = event.detail && event.detail.xhr ? event.detail.xhr : event.detail.response;
+		const line = errorLine();
 
-		if (!answer || answer.status === undefined || answer.status < 400) {
-			form.reset();
+		if (line) {
+			line.textContent = "";
+		}
 
-			const field = form.querySelector("[data-grow]");
+		form.reset();
 
-			if (field) {
-				resetField(field);
-			}
+		const field = form.querySelector("[data-grow]");
+
+		if (field) {
+			resetField(field);
 		}
 	});
+
+	// The server says with a header why it refused a message.
+	document.addEventListener("chat:error", (event) => {
+		const line = errorLine();
+
+		if (!line) {
+			return;
+		}
+
+		const detail = event.detail;
+		const message = detail && typeof detail === "object" ? detail.value : detail;
+
+		line.textContent = message || "The message did not go out.";
+	});
+
+	// htmx stops asking after a failed request, so the page says so and takes
+	// over the asking itself.
+	document.addEventListener("htmx:error", () => {
+		showOffline(true);
+	});
+
+	setInterval(() => {
+		if (!list()) {
+			return;
+		}
+
+		if (Date.now() - lastAnswer < silenceMs) {
+			return;
+		}
+
+		showOffline(true);
+		askAgain();
+	}, 5000);
 
 	document.addEventListener(
 		"scroll",

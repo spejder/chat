@@ -106,6 +106,10 @@ func TestAStrangerGetsNothing(t *testing.T) {
 	if _, err := service.Participants(t.Context(), stranger, conversation.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("participants: error = %v, want %v", err, ErrNotFound)
 	}
+
+	if _, err := service.Readers(t.Context(), stranger, conversation.ID); !errors.Is(err, ErrNotFound) {
+		t.Errorf("readers: error = %v, want %v", err, ErrNotFound)
+	}
 }
 
 // TestWriteAddsToTheEnd makes sure that a message lands after the first one

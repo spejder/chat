@@ -84,3 +84,12 @@ UPDATE conversation_participants AS now_read
 SET last_read_at = now()
 WHERE now_read.conversation_id = $1 AND now_read.user_id = $2
 RETURNING (SELECT previous.last_read_at FROM previous) AS previous_read_at;
+
+-- ListReaders gives the people of a conversation with the time each of them
+-- last read it. The page marks a message as read from these times.
+-- name: ListReaders :many
+SELECT users.id, users.full_name, conversation_participants.last_read_at
+FROM conversation_participants
+JOIN users ON users.id = conversation_participants.user_id
+WHERE conversation_participants.conversation_id = $1
+ORDER BY users.full_name;
