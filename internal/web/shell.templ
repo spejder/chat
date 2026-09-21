@@ -1,0 +1,238 @@
+package web
+
+import (
+	"uuid"
+
+	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/components/breadcrumb"
+	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/dropdownmenu"
+	"github.com/spejder/chat/internal/components/icon"
+	"github.com/spejder/chat/internal/components/separator"
+	"github.com/spejder/chat/internal/components/sidebar"
+)
+
+// Shell wraps every page that a signed in person sees: a narrow rail with the
+// mark and the person, the conversations next to it, and the page itself in
+// the rest of the room.
+templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarOpen bool) {
+	@Layout(heading, "Conversations in Chat.") {
+		@sidebar.Provider(sidebar.ProviderProps{
+			// The script writes the sidebar_state cookie, and the server
+			// reads it, so the page comes back the way the reader left it.
+			DisableDefaultOpen: !sidebarOpen,
+			// The two widths belong together: the rail is one icon wide and
+			// the list takes the rest.
+			Attributes: templ.Attributes{"style": "--sidebar-width: 340px; --sidebar-width-icon: 3rem;"},
+		}) {
+			@sidebar.Sidebar(sidebar.Props{
+				Collapsible: sidebar.CollapsibleIcon,
+				// The two sidebars stand side by side. The second class
+				// reaches the wrapper that templ adds around the children.
+				Class: "overflow-hidden *:data-[sidebar=sidebar]:flex-row [&_[data-tui-sidebar-content]]:flex-row",
+			}) {
+				@rail()
+				@conversationSidebar(summaries, current)
+			}
+			@sidebar.Inset() {
+				<header class="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
+					@sidebar.Trigger(sidebar.TriggerProps{Class: "-ml-1"})
+					@separator.Separator(separator.Props{
+						Orientation: separator.OrientationVertical,
+						Class:       "mr-2 data-vertical:h-4 data-vertical:self-auto",
+					})
+					@breadcrumb.Breadcrumb() {
+						@breadcrumb.List() {
+							@breadcrumb.Item(breadcrumb.ItemProps{Class: "hidden md:block"}) {
+								@breadcrumb.Link(breadcrumb.LinkProps{Href: "/conversations"}) {
+									Conversations
+								}
+							}
+							@breadcrumb.Separator(breadcrumb.SeparatorProps{Class: "hidden md:block"})
+							@breadcrumb.Item() {
+								@breadcrumb.Page() {
+									{ heading }
+								}
+							}
+						}
+					}
+				</header>
+				{ children... }
+			}
+		}
+	}
+}
+
+// rail is the narrow sidebar: the mark at the top, the person at the bottom.
+templ rail() {
+	@sidebar.Sidebar(sidebar.Props{
+		ID:          "rail",
+		Collapsible: sidebar.CollapsibleNone,
+		Class:       "w-[calc(var(--sidebar-width-icon)+1px)]! border-r",
+	}) {
+		@sidebar.Header() {
+			@sidebar.Menu() {
+				@sidebar.MenuItem() {
+					@sidebar.MenuButton(sidebar.MenuButtonProps{
+						Size:  sidebar.MenuButtonSizeLg,
+						Class: "md:h-8 md:p-0",
+						Href:  "/conversations",
+					}) {
+						<div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+							@icon.MessagesSquare(icon.Props{Class: "size-4"})
+						</div>
+						<div class="grid flex-1 text-left text-sm leading-tight">
+							<span class="truncate font-medium">Chat</span>
+						</div>
+					}
+				}
+			}
+		}
+		@sidebar.Content() {
+			@sidebar.Group() {
+				@sidebar.GroupContent(sidebar.GroupContentProps{Class: "px-1.5 md:px-0"}) {
+					@sidebar.Menu() {
+						@sidebar.MenuItem() {
+							@sidebar.MenuButton(sidebar.MenuButtonProps{
+								Tooltip: "Start a conversation",
+								Href:    "/conversations/new",
+								Class:   "px-2.5 md:px-2",
+							}) {
+								@icon.SquarePen()
+								<span>Start a conversation</span>
+							}
+						}
+					}
+				}
+			}
+		}
+		@sidebar.Footer() {
+			@personMenu()
+		}
+	}
+}
+
+// personMenu shows who is signed in and the way out. The menu needs a script,
+// so a plain form sits behind it for a browser without one.
+templ personMenu() {
+	{{ person, signedIn := auth.UserFrom(ctx) }}
+	if signedIn {
+		@sidebar.Menu() {
+			@sidebar.MenuItem() {
+				@dropdownmenu.DropdownMenu() {
+					@sidebar.MenuButton(sidebar.MenuButtonProps{
+						Size:       sidebar.MenuButtonSizeLg,
+						Class:      "md:h-8 md:p-0 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground",
+						Attributes: dropdownmenu.Trigger(ctx),
+					}) {
+						// The initials stand in a span, because a button may
+						// hold no div, and the avatar component brings one.
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-xs font-medium">
+							{ initials(person.FullName) }
+						</span>
+						<span class="grid flex-1 text-left text-sm leading-tight">
+							<span class="truncate font-medium">{ person.FullName }</span>
+							<span class="truncate text-xs">{ person.Email }</span>
+						</span>
+						@icon.ChevronsUpDown(icon.Props{Class: "ml-auto size-4"})
+					}
+					@dropdownmenu.Content(dropdownmenu.ContentProps{
+						Class:      "min-w-56 rounded-lg",
+						Side:       dropdownmenu.SideRight,
+						Align:      dropdownmenu.AlignEnd,
+						MobileSide: dropdownmenu.SideBottom,
+						SideOffset: 4,
+					}) {
+						@dropdownmenu.Label(dropdownmenu.LabelProps{Class: "font-normal"}) {
+							<div class="grid flex-1 text-left text-sm leading-tight">
+								<span class="truncate font-medium">{ person.FullName }</span>
+								<span class="truncate text-xs">{ person.Email }</span>
+							</div>
+						}
+						@dropdownmenu.Separator()
+						// A form, not a menu item: a plain submit works with
+						// the keyboard, with no script, and without htmx. The
+						// menu item swallowed the click before htmx saw it.
+						<form method="post" action="/logout" class="p-1">
+							@button.Button(button.Props{
+								Type:    button.TypeSubmit,
+								Variant: button.VariantGhost,
+								Size:    button.SizeSm,
+								Class:   "w-full justify-start gap-2",
+							}) {
+								@icon.LogOut()
+								Sign out
+							}
+						</form>
+					}
+				}
+			}
+		}
+	}
+}
+
+// conversationSidebar holds the list, which asks for itself every ten seconds
+// so the unread counts stay fresh on every page.
+templ conversationSidebar(summaries []chat.Summary, current uuid.UUID) {
+	@sidebar.Sidebar(sidebar.Props{
+		ID:          "conversations",
+		Collapsible: sidebar.CollapsibleNone,
+		// The block hides this list on a small screen, where the mail app
+		// shows the mail itself. Here the list is the only way to reach a
+		// conversation, so it stays.
+		Class: "flex flex-1",
+	}) {
+		@sidebar.Header(sidebar.HeaderProps{Class: "gap-3.5 border-b p-4"}) {
+			<div class="flex w-full items-center justify-between">
+				<div class="text-base font-medium text-foreground">Conversations</div>
+				@button.Button(button.Props{
+					Href:    "/conversations/new",
+					Variant: button.VariantOutline,
+					Size:    button.SizeSm,
+				}) {
+					New
+				}
+			</div>
+		}
+		@sidebar.Content() {
+			@sidebar.Group(sidebar.GroupProps{Class: "px-0"}) {
+				@sidebar.GroupContent(sidebar.GroupContentProps{
+					ID: "conversation-list",
+					Attributes: templ.Attributes{
+						"data-hx-get":     listURL(current),
+						"data-hx-trigger": "every 10s",
+						"data-hx-swap":    "innerHTML",
+					},
+				}) {
+					@ConversationList(summaries, current)
+				}
+			}
+		}
+	}
+}
+
+// listURL points the poll at the list, and names the open conversation so the
+// mark survives the swap.
+func listURL(current uuid.UUID) string {
+	if current == uuid.Nil() {
+		return "/conversations/list"
+	}
+
+	return "/conversations/list?current=" + current.String()
+}
+
+// initials writes the first letters of a name, for the round mark.
+func initials(name string) string {
+	out := ""
+
+	for _, part := range splitName(name) {
+		out += string([]rune(part)[0])
+
+		if len(out) == 2 {
+			break
+		}
+	}
+
+	return out
+}

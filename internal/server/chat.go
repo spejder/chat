@@ -28,21 +28,12 @@ type chatHandlers struct {
 	users   Users
 }
 
-// list shows every conversation of the person who is signed in.
+// list shows the room beside the sidebar when no conversation is open.
 func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
-	person, _ := auth.UserFrom(r.Context())
-
-	summaries, err := h.service.List(r.Context(), person)
-	if err != nil {
-		h.fail(w, r, err)
-
-		return
-	}
-
-	h.render(w, r, web.Conversations(summaries))
+	h.shell(w, r, uuid.Nil(), "All conversations", web.Conversations())
 }
 
-// listFragment answers the poll of the list page.
+// listFragment answers the poll of the sidebar.
 func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 	person, _ := auth.UserFrom(r.Context())
 
@@ -53,7 +44,34 @@ func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.ConversationList(summaries))
+	current, err := uuid.Parse(r.URL.Query().Get("current"))
+	if err != nil {
+		current = uuid.Nil()
+	}
+
+	h.render(w, r, web.ConversationList(summaries, current))
+}
+
+// shell draws a page inside the sidebar, which every page of a signed in
+// person needs.
+func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, current uuid.UUID, heading string, main templ.Component) {
+	person, _ := auth.UserFrom(r.Context())
+
+	summaries, err := h.service.List(r.Context(), person)
+	if err != nil {
+		h.fail(w, r, err)
+
+		return
+	}
+
+	// The page itself arrives as the children of the shell.
+	ctx := templ.WithChildren(r.Context(), main)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := web.Shell(summaries, current, heading, sidebarOpen(r)).Render(ctx, w); err != nil {
+		slog.Error("could not render the page", "error", err)
+	}
 }
 
 // newForm shows the form that starts a conversation.
@@ -67,7 +85,7 @@ func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.NewConversation(others, "", "", ""))
+	h.shell(w, r, uuid.Nil(), "Start a conversation", web.NewConversation(others, "", "", ""))
 }
 
 // start opens a conversation and sends the browser into it.
@@ -105,7 +123,7 @@ func (h *chatHandlers) start(w http.ResponseWriter, r *http.Request) {
 			}
 
 			w.WriteHeader(http.StatusUnprocessableEntity)
-			h.render(w, r, web.NewConversation(others, subject, body, message))
+			h.shell(w, r, uuid.Nil(), "Start a conversation", web.NewConversation(others, subject, body, message))
 
 			return
 		}
@@ -141,7 +159,7 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.ConversationPage(conversation, people, messages, person))
+	h.shell(w, r, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, person))
 }
 
 // messages answers the poll of a conversation.
@@ -227,6 +245,17 @@ func (h *chatHandlers) chatError(w http.ResponseWriter, r *http.Request, err err
 func (h *chatHandlers) fail(w http.ResponseWriter, _ *http.Request, err error) {
 	slog.Error("the conversation broke", "error", err)
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+// sidebarOpen reads the cookie that the sidebar writes. A browser that has
+// never touched it gets the sidebar open.
+func sidebarOpen(r *http.Request) bool {
+	cookie, err := r.Cookie("sidebar_state")
+	if err != nil {
+		return true
+	}
+
+	return cookie.Value != "false"
 }
 
 // conversationID reads the identifier out of the path.

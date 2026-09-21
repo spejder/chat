@@ -24,26 +24,22 @@ func TestRoutes(t *testing.T) {
 		wantBody   []string
 	}{
 		{
-			name:       "the page holds the greeting target and the htmx script",
+			name:       "the start page sends a visitor to the sign in",
 			method:     http.MethodGet,
 			target:     "/",
+			wantStatus: http.StatusSeeOther,
+		},
+		{
+			name:       "the sign in page asks for an address",
+			method:     http.MethodGet,
+			target:     "/login",
 			wantStatus: http.StatusOK,
 			wantBody: []string{
-				"Hello world",
-				`data-hx-post="/greet"`,
-				`data-hx-target="#greeting"`,
-				`id="greeting"`,
+				`name="email"`,
 				"/assets/js/htmx.min.js",
 				"/assets/dist/styles.css",
 				`integrity="sha256-`,
 			},
-		},
-		{
-			name:       "the greeting is a fragment without a page around it",
-			method:     http.MethodPost,
-			target:     "/greet",
-			wantStatus: http.StatusOK,
-			wantBody:   []string{"Hello from the server at "},
 		},
 		{
 			name:       "the htmx file is served from the binary",
@@ -59,15 +55,9 @@ func TestRoutes(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 		{
-			name:       "the page does not answer a post",
+			name:       "the start page does not answer a post",
 			method:     http.MethodPost,
 			target:     "/",
-			wantStatus: http.StatusMethodNotAllowed,
-		},
-		{
-			name:       "the greeting does not answer a get",
-			method:     http.MethodGet,
-			target:     "/greet",
 			wantStatus: http.StatusMethodNotAllowed,
 		},
 	}
@@ -92,27 +82,6 @@ func TestRoutes(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestGreetingIsAFragment makes sure that the htmx answer carries no page
-// shell. A full document in the answer would replace the target with a second
-// copy of the page.
-func TestGreetingIsAFragment(t *testing.T) {
-	t.Parallel()
-
-	recorder := httptest.NewRecorder()
-	newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/greet", nil))
-
-	body := recorder.Body.String()
-	for _, unwanted := range []string{"<html", "<body", "<!doctype"} {
-		if strings.Contains(strings.ToLower(body), unwanted) {
-			t.Errorf("the fragment holds %q\nbody: %s", unwanted, body)
-		}
-	}
-
-	if got := recorder.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
-		t.Errorf("Content-Type = %q, want %q", got, "text/html; charset=utf-8")
 	}
 }
 
@@ -237,7 +206,7 @@ func TestCompression(t *testing.T) {
 	t.Run("the page goes out packed", func(t *testing.T) {
 		t.Parallel()
 
-		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
 		request.Header.Set("Accept-Encoding", "gzip")
 
 		recorder := httptest.NewRecorder()
@@ -261,7 +230,7 @@ func TestCompression(t *testing.T) {
 			t.Fatalf("unpack the answer: %v", err)
 		}
 
-		if !strings.Contains(string(body), "Hello world") {
+		if !strings.Contains(string(body), "Sign in") {
 			t.Errorf("the unpacked answer misses the page: %s", body)
 		}
 	})
@@ -270,13 +239,13 @@ func TestCompression(t *testing.T) {
 		t.Parallel()
 
 		recorder := httptest.NewRecorder()
-		newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+		newTestHandler(t).ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil))
 
 		if got := recorder.Header().Get("Content-Encoding"); got != "" {
 			t.Errorf("Content-Encoding = %q, want none", got)
 		}
 
-		if !strings.Contains(recorder.Body.String(), "Hello world") {
+		if !strings.Contains(recorder.Body.String(), "Sign in") {
 			t.Error("the answer misses the page")
 		}
 	})

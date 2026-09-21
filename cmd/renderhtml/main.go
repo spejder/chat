@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,31 +66,20 @@ func run() error {
 		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Are you in?", CreatedAt: at},
 	}
 
+	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}
+
 	pages := map[string]templ.Component{
-		"home.html":             web.Home(),
 		"login.html":            web.Login(web.EmailPanel("", "")),
-		"conversations.html":    web.Conversations([]chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}),
-		"conversation.html":     web.ConversationPage(conversation, people, messages, people[0]),
-		"new-conversation.html": web.NewConversation(people, "Lunch", "Are you in?", ""),
+		"conversations.html":    inShell(summaries, uuid.Nil(), "All conversations", web.Conversations()),
+		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, people[0])),
+		"new-conversation.html": inShell(summaries, uuid.Nil(), "Start a conversation", web.NewConversation(people, "Lunch", "Are you in?", "")),
 	}
 
 	fragments := map[string]templ.Component{
-		"greeting.html":      web.Greeting(at),
-		"login-code.html":    web.CodePanel("ada@example.com", "That code is wrong. Try again."),
-		"login-passkey.html": web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
-		"login-offer.html":   web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
-	}
-
-	// The page with somebody signed in shows the header with the name.
-	signedIn := auth.WithUser(context.Background(), user.User{FullName: "Ada Lovelace", Email: "ada@example.com"})
-
-	markup, err := renderWith(signedIn, web.Home())
-	if err != nil {
-		return fmt.Errorf("render home-signed-in.html: %w", err)
-	}
-
-	if err := write(filepath.Join(dir, "home-signed-in.html"), markup); err != nil {
-		return err
+		"conversation-list.html": web.ConversationList(summaries, conversation.ID),
+		"login-code.html":        web.CodePanel("ada@example.com", "That code is wrong. Try again."),
+		"login-passkey.html":     web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
+		"login-offer.html":       web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
 	}
 
 	for name, page := range pages {
@@ -117,9 +107,24 @@ func run() error {
 	return nil
 }
 
+// signedIn is the context of a page that somebody reads while signed in. The
+// sidebar reads the person out of it.
+var signedIn = auth.WithUser(context.Background(), user.User{
+	ID:       uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162ae"),
+	FullName: "Ada Lovelace",
+	Email:    "ada@example.com",
+})
+
+// inShell puts a page into the sidebar, the way the server does.
+func inShell(summaries []chat.Summary, current uuid.UUID, heading string, main templ.Component) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		return web.Shell(summaries, current, heading, true).Render(templ.WithChildren(ctx, main), w)
+	})
+}
+
 // render turns a component into markup.
 func render(component templ.Component) (string, error) {
-	return renderWith(context.Background(), component)
+	return renderWith(signedIn, component)
 }
 
 // renderWith turns a component into markup with a context, which the header

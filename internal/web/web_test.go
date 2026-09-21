@@ -5,50 +5,93 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"uuid"
 
 	"github.com/a-h/templ"
 
+	"github.com/spejder/chat/internal/auth"
+	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/user"
 	"github.com/spejder/chat/internal/web"
 )
 
-// TestGreetingShowsTheTime makes sure that the fragment prints the time it
-// receives, because the changing text is the visible proof of the swap.
-func TestGreetingShowsTheTime(t *testing.T) {
+// render turns a component into markup for a reader who is signed in.
+func render(t *testing.T, component templ.Component, children templ.Component) string {
+	t.Helper()
+
+	ctx := auth.WithUser(context.Background(), user.User{
+		ID:       uuid.NewV7(),
+		FullName: "Ada Lovelace",
+		Email:    "ada@example.com",
+	})
+
+	if children != nil {
+		ctx = templ.WithChildren(ctx, children)
+	}
+
+	var out strings.Builder
+
+	if err := component.Render(ctx, &out); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	return out.String()
+}
+
+// TestTheShellHoldsThePersonAndTheList makes sure that every page of a signed
+// in person carries the sidebar.
+func TestTheShellHoldsThePersonAndTheList(t *testing.T) {
 	t.Parallel()
 
 	at := time.Date(2026, time.September, 20, 13, 45, 7, 0, time.UTC)
+	conversation := chat.Conversation{ID: uuid.NewV7(), Subject: "Lunch", CreatedAt: at}
 
-	var out strings.Builder
-	if err := web.Greeting(at).Render(context.Background(), &out); err != nil {
-		t.Fatalf("render: %v", err)
-	}
+	summaries := []chat.Summary{{
+		Conversation:  conversation,
+		Others:        "Grace Hopper",
+		LastMessageAt: at,
+		Unread:        2,
+	}}
 
-	if !strings.Contains(out.String(), "13:45:07") {
-		t.Errorf("the fragment does not hold the time: %s", out.String())
+	body := render(t, web.Shell(summaries, conversation.ID, "Lunch", true), web.Conversations())
+
+	for _, want := range []string{
+		"Ada Lovelace",
+		"ada@example.com",
+		"Sign out",
+		"Lunch",
+		"Grace Hopper",
+		"2 new",
+		"Start a conversation",
+		`data-hx-get="/conversations/list?current=` + conversation.ID.String() + `"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page misses %q", want)
+		}
 	}
 }
 
-// TestHomeIsAWholeDocument makes sure that the page carries the shell from the
-// layout.
-func TestHomeIsAWholeDocument(t *testing.T) {
+// TestTheOpenConversationIsMarked makes sure that the list shows which
+// conversation the reader has open.
+func TestTheOpenConversationIsMarked(t *testing.T) {
 	t.Parallel()
 
-	var out strings.Builder
-	if err := web.Home().Render(context.Background(), &out); err != nil {
-		t.Fatalf("render: %v", err)
+	open := chat.Conversation{ID: uuid.NewV7(), Subject: "Lunch"}
+	other := chat.Conversation{ID: uuid.NewV7(), Subject: "Holiday"}
+
+	summaries := []chat.Summary{
+		{Conversation: open, Others: "Grace Hopper"},
+		{Conversation: other, Others: "Alan Turing"},
 	}
 
-	body := out.String()
-	for _, want := range []string{
-		"<!doctype html>",
-		"<title>Chat</title>",
-		`<meta name="description"`,
-		`<link rel="icon"`,
-		"</html>",
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("the page does not hold %q", want)
-		}
+	body := render(t, web.ConversationList(summaries, open.ID), nil)
+
+	if !strings.Contains(body, `aria-current="page"`) {
+		t.Errorf("the open conversation carries no mark: %s", body)
+	}
+
+	if strings.Count(body, `aria-current="page"`) != 1 {
+		t.Error("more than one line carries the mark")
 	}
 }
 
@@ -57,15 +100,8 @@ func TestHomeIsAWholeDocument(t *testing.T) {
 func TestLayoutPutsTheChildrenInTheBody(t *testing.T) {
 	t.Parallel()
 
-	var out strings.Builder
-	if err := web.Layout("Title", "Description").Render(
-		templ.WithChildren(context.Background(), templ.Raw("<span>marker</span>")),
-		&out,
-	); err != nil {
-		t.Fatalf("render: %v", err)
-	}
+	body := render(t, web.Layout("Title", "Description"), templ.Raw("<span>marker</span>"))
 
-	body := out.String()
 	if !strings.Contains(body, "<title>Title</title>") {
 		t.Errorf("the shell does not hold the title: %s", body)
 	}

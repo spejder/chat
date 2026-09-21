@@ -11,29 +11,26 @@ import (
 // ConversationPage renders one conversation with its messages and the field
 // to write in it.
 templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User) {
-	@Layout(conversation.Subject, "A conversation in Chat.") {
-		{{ chatIntegrity := assets.Integrity("js/chat.js") }}
-		<main class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-6">
-			<div class="flex flex-col gap-1">
-				<a href="/conversations" class="text-sm text-muted-foreground hover:underline">Back to the list</a>
-				<h1 class="text-2xl font-semibold tracking-tight">{ conversation.Subject }</h1>
-				<p class="text-sm text-muted-foreground">{ names(people) }</p>
-			</div>
-			<div
-				id="messages"
-				class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4"
-				data-hx-get={ "/conversations/" + conversation.ID.String() + "/messages" }
-				data-hx-trigger="every 3s"
-				data-hx-swap="innerHTML"
-			>
-				@Messages(messages, reader)
-			</div>
-			@WriteForm(conversation, "")
-		</main>
-		<script src={ assets.URL("js/chat.js") } if chatIntegrity != "" {
+	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
+	<div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-6">
+		<div class="flex flex-col gap-1">
+			<h1 class="text-2xl font-semibold tracking-tight">{ conversation.Subject }</h1>
+			<p class="text-sm text-muted-foreground">{ names(people) }</p>
+		</div>
+		<div
+			id="messages"
+			class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4"
+			data-hx-get={ "/conversations/" + conversation.ID.String() + "/messages" }
+			data-hx-trigger="every 3s"
+			data-hx-swap="innerHTML"
+		>
+			@Messages(messages, reader)
+		</div>
+		@WriteForm(conversation, "")
+	</div>
+	<script src={ assets.URL("js/chat.js") } if chatIntegrity != "" {
 	integrity={ chatIntegrity }
 } defer></script>
-	}
 }
 
 // Messages renders the lines of one conversation. The page asks for this

@@ -1,5 +1,7 @@
 {
-  "extends": ["html-validate:recommended"],
+  "extends": [
+    "html-validate:recommended"
+  ],
   "rules": {
     "doctype-style": "off",
     "no-unknown-attributes": "off",
@@ -7,8 +9,15 @@
     "form-dup-name": [
       "error",
       {
-        "shared": ["radio", "checkbox", "submit", "button", "reset"]
+        "shared": [
+          "radio",
+          "checkbox",
+          "submit",
+          "button",
+          "reset"
+        ]
       }
-    ]
+    ],
+    "prefer-native-element": "off"
   }
 }

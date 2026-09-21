@@ -120,8 +120,9 @@ address that the browser shows. The default is `http://localhost:8080`.
 ## Conversations
 
 A conversation carries a subject and a fixed set of people. A signed in person
-sees their conversations, starts a new one, reads it and writes in it. The list
-counts the messages that this person has not read.
+sees their conversations in the sidebar, starts a new one, reads it and writes
+in it. The list counts the messages that this person has not read, and the
+sidebar also holds the name and the way out.
 
 The page asks the server for new messages every three seconds, so an answer
 from somebody else appears without a reload.

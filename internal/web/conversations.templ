@@ -2,60 +2,56 @@ package web
 
 import (
 	"strconv"
+	"uuid"
 
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components/badge"
 	"github.com/spejder/chat/internal/components/button"
 )
 
-// Conversations renders the list page. The list asks for itself again every
-// ten seconds, so a new message raises the count without a reload.
-templ Conversations(summaries []chat.Summary) {
-	@Layout("Conversations", "Every conversation you take part in.") {
-		<main class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-			<div class="flex items-center justify-between gap-4">
-				<h1 class="text-2xl font-semibold tracking-tight">Conversations</h1>
-				@button.Button(button.Props{Href: "/conversations/new"}) {
-					Start a conversation
-				}
-			</div>
-			<div
-				id="conversation-list"
-				class="flex flex-col gap-2"
-				data-hx-get="/conversations/list"
-				data-hx-trigger="every 10s"
-				data-hx-swap="innerHTML"
-			>
-				@ConversationList(summaries)
-			</div>
-		</main>
-	}
+// Conversations is the page behind /conversations: the list lives in the
+// sidebar, so the room itself only says what to do next.
+templ Conversations() {
+	<div class="flex flex-1 flex-col items-start gap-4 p-6">
+		<p class="text-sm text-muted-foreground">
+			Pick a conversation on the left, or start a new one.
+		</p>
+		@button.Button(button.Props{Href: "/conversations/new"}) {
+			Start a conversation
+		}
+	</div>
 }
 
-// ConversationList renders the lines alone, which is what the page asks for
-// every ten seconds.
-templ ConversationList(summaries []chat.Summary) {
+// ConversationList renders the lines of the sidebar. The page asks for them
+// again every ten seconds.
+templ ConversationList(summaries []chat.Summary, current uuid.UUID) {
 	if len(summaries) == 0 {
-		<p class="text-sm text-muted-foreground">
+		<p class="p-4 text-sm text-muted-foreground">
 			You take part in no conversation yet.
 		</p>
 	}
 	for _, summary := range summaries {
 		<a
 			href={ templ.SafeURL("/conversations/" + summary.ID.String()) }
-			class="flex items-center justify-between gap-4 rounded-lg border bg-card p-4 text-card-foreground hover:bg-muted"
+			class="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight whitespace-nowrap last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+			data-active?={ summary.ID == current }
+			if summary.ID == current {
+				aria-current="page"
+			}
 		>
-			<span class="flex min-w-0 flex-col gap-1">
+			<span class="flex w-full items-center gap-2">
 				<span class="truncate font-medium">{ summary.Subject }</span>
-				<span class="truncate text-sm text-muted-foreground">{ summary.Others }</span>
+				<span class="ml-auto text-xs">{ shortTime(summary.LastMessageAt) }</span>
 			</span>
-			<span class="flex shrink-0 items-center gap-3">
+			<span class="flex w-full items-center gap-2">
+				<span class="truncate text-xs text-muted-foreground">{ summary.Others }</span>
 				if summary.Unread > 0 {
-					@badge.Badge() {
-						{ strconv.Itoa(summary.Unread) } new
-					}
+					<span class="ml-auto">
+						@badge.Badge() {
+							{ strconv.Itoa(summary.Unread) } new
+						}
+					</span>
 				}
-				<span class="text-sm text-muted-foreground">{ shortTime(summary.LastMessageAt) }</span>
 			</span>
 		</a>
 	}

@@ -151,6 +151,22 @@ thread or room.
 - `internal/chat` holds the rules and knows no SQL.
   `internal/postgres/chat.go` holds the queries, and `internal/server/chat.go`
   holds the routes.
+- `internal/web/shell.templ` wraps every page that a signed in person sees: a
+  narrow rail with the mark and the person, the conversation list beside it,
+  and the page itself in `sidebar.Inset`. A handler renders a page through
+  `chatHandlers.shell`, which hands the page to the shell as its children.
+- The inset is the `<main>` of the document, so a page inside it must not
+  bring one of its own.
+- A button may hold no `<div>`. The rail uses spans inside its menu buttons
+  for that reason.
+- The sidebar writes the cookie `sidebar_state`, and `sidebarOpen` in
+  `internal/server/chat.go` reads it, so the page comes back the way the
+  reader left it.
+- The list sidebar stays visible on a small screen, where the block hides it.
+  On a phone the sheet is the only way to reach a conversation.
+- The sign out in the rail is a plain form inside the menu, not a menu item. A
+  menu item swallowed the click before htmx saw it, and a form needs no script
+  at all.
 - Every read and every write asks first whether this person takes part. A
   conversation of other people answers 404, exactly like one that does not
   exist, so the answer never says what exists.
@@ -173,6 +189,12 @@ thread or room.
 `internal/postgres/postgrestest` creates a database for each test, applies the
 migrations, and drops the database when the test ends. A test without
 `DATABASE_URL` stops with a message that names `task db:up`.
+
+## The start page
+
+The address `/` holds no page. It sends a signed in person to
+`/conversations` and everybody else to `/login`. The hello world page and the
+`/greet` route that tested the stack are gone.
 
 ## Web platform rules
 
@@ -295,6 +317,8 @@ them with html-validate.
   HTML standard and other validators do read it.
 - The rule `form-dup-name` allows a shared name for checkboxes, which is how
   a group of checkboxes reaches the server as a list.
+- The rule `prefer-native-element` is off. The breadcrumb of the registry
+  renders a `<span role="link">`, which is registry markup that we do not own.
 - The rule `no-inline-style` is off. Registry components write a `style`
   attribute for values that a class cannot hold, which is also why the policy
   carries `style-src-attr`.

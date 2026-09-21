@@ -90,8 +90,8 @@ func TestSignInWithACode(t *testing.T) {
 		t.Errorf("the cookie is %+v, want HttpOnly and SameSite=Lax", session)
 	}
 
-	// The start page must now greet the person by name.
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+	// The conversations page must now name the person in the sidebar.
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/conversations", nil)
 	request.AddCookie(session)
 
 	start := httptest.NewRecorder()
@@ -112,11 +112,17 @@ func TestSignInWithACode(t *testing.T) {
 		t.Errorf("status = %d, want %d", out.Code, http.StatusSeeOther)
 	}
 
-	request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+	request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/conversations", nil)
 	request.AddCookie(session)
 
 	after := httptest.NewRecorder()
 	handler.ServeHTTP(after, request)
+
+	// Without a session the conversations are closed, so the answer is the
+	// way to the sign in page and holds no name.
+	if after.Code != http.StatusSeeOther {
+		t.Errorf("status = %d, want %d", after.Code, http.StatusSeeOther)
+	}
 
 	if strings.Contains(after.Body.String(), person.FullName) {
 		t.Error("the page still shows the name after the sign out")
