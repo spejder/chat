@@ -62,8 +62,13 @@ func run() error {
 		{ID: uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162af"), FullName: "Grace Hopper"},
 	}
 
+	// Two people across two days, so the markup holds a date line, both
+	// sides and a group that runs over more than one message.
 	messages := []chat.Message{
-		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Are you in?", CreatedAt: at},
+		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Are you in?", CreatedAt: at.AddDate(0, 0, -1)},
+		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "I am in", CreatedAt: at},
+		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "Twelve o'clock?", CreatedAt: at.Add(time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "See you there", CreatedAt: at.Add(2 * time.Minute)},
 	}
 
 	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}

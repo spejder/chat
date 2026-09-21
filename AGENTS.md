@@ -177,6 +177,23 @@ thread or room.
 - The unread count comes from `last_read_at` in
   `conversation_participants`. Every read of the messages writes that column,
   including the poll, so the count stays at zero while a page is open.
+- The conversation reads like a phone. `internal/web/messages.go` turns the
+  messages into bubbles: the reader on the right in the accent colour,
+  everybody else on the left. A group breaks when the writer changes, when the
+  day changes, or after fifteen minutes of silence. The name stands above the
+  first bubble of a group from another person, the clock inside the last one,
+  and a date line marks a new day. The rules live in Go, not in the template,
+  so a test can read them.
+- A bubble shows the clock alone, because the date line above it already says
+  which day it is.
+- The page is a column that fills the window: the provider carries `h-full`,
+  the page `flex-1 min-h-0`, and the message list `flex-1 min-h-0
+  overflow-y-auto`. Without `min-h-0` a flex child refuses to shrink and the
+  whole document grows instead of the list scrolling.
+- `assets/js/chat.js` follows the newest message only when the reader already
+  sits near the bottom, and puts them back where they were otherwise. A swap
+  empties the list for a moment, so the position must be read before the swap
+  and written after it.
 - The message list asks for itself every three seconds, and the list page
   every ten. This is the cheapest thing that works. Server-sent events are the
   next step when the cost of the poll begins to hurt.

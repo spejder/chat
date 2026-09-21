@@ -12,14 +12,16 @@ import (
 // to write in it.
 templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User) {
 	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
-	<div class="mx-auto flex w-full max-w-2xl flex-col gap-4 p-6">
-		<div class="flex flex-col gap-1">
-			<h1 class="text-2xl font-semibold tracking-tight">{ conversation.Subject }</h1>
+	// The column fills the room. Only the messages scroll, which needs
+	// min-h-0, because a flex child otherwise refuses to shrink.
+	<div class="flex min-h-0 flex-1 flex-col">
+		<div class="flex flex-col gap-1 border-b p-4">
+			<h1 class="text-lg font-semibold tracking-tight">{ conversation.Subject }</h1>
 			<p class="text-sm text-muted-foreground">{ names(people) }</p>
 		</div>
 		<div
 			id="messages"
-			class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto rounded-lg border bg-card p-4"
+			class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-4"
 			data-hx-get={ "/conversations/" + conversation.ID.String() + "/messages" }
 			data-hx-trigger="every 3s"
 			data-hx-swap="innerHTML"
@@ -33,26 +35,43 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 } defer></script>
 }
 
-// Messages renders the lines of one conversation. The page asks for this
-// again every few seconds.
+// Messages renders one conversation as bubbles: the reader on the right,
+// everybody else on the left. The page asks for this again every few seconds.
 templ Messages(messages []chat.Message, reader user.User) {
 	if len(messages) == 0 {
 		<p class="text-sm text-muted-foreground">No messages yet. Write the first one.</p>
 	}
-	for _, message := range messages {
-		<article class="flex flex-col gap-1">
-			<header class="flex items-baseline gap-2">
-				<span class="text-sm font-medium">
-					if message.AuthorID == reader.ID {
-						You
-					} else {
-						{ message.AuthorName }
-					}
+	for _, row := range bubbles(messages, reader) {
+		if row.DateLabel != "" {
+			<div class="flex justify-center py-2">
+				<span class="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+					{ row.DateLabel }
 				</span>
-				<span class="text-xs text-muted-foreground">{ shortTime(message.CreatedAt) }</span>
-			</header>
-			<p class="text-sm whitespace-pre-wrap">{ message.Body }</p>
-		</article>
+			</div>
+		}
+		if row.ShowName {
+			<span class="px-1 pt-2 text-xs text-muted-foreground">{ row.Message.AuthorName }</span>
+		}
+		<div
+			class={ "flex w-full", templ.KV("justify-end", row.Mine), templ.KV("justify-start", !row.Mine) }
+		>
+			<div
+				class={
+					"max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words whitespace-pre-wrap",
+					templ.KV("bg-primary text-primary-foreground", row.Mine),
+					templ.KV("bg-muted text-foreground", !row.Mine),
+					templ.KV("rounded-br-sm", row.Mine && row.ShowTime),
+					templ.KV("rounded-bl-sm", !row.Mine && row.ShowTime),
+				}
+			>
+				{ row.Message.Body }
+				if row.ShowTime {
+					<span class="mt-1 block text-right text-xs opacity-70">
+						{ clock(row.Message.CreatedAt) }
+					</span>
+				}
+			</div>
+		</div>
 	}
 }
 
@@ -61,7 +80,7 @@ templ Messages(messages []chat.Message, reader user.User) {
 templ WriteForm(conversation chat.Conversation, message string) {
 	<form
 		id="write"
-		class="flex flex-col gap-2"
+		class="flex flex-col gap-2 border-t p-4"
 		method="post"
 		action={ templ.SafeURL("/conversations/" + conversation.ID.String() + "/messages") }
 		data-hx-post={ "/conversations/" + conversation.ID.String() + "/messages" }

@@ -19,6 +19,9 @@ import (
 templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarOpen bool) {
 	@Layout(heading, "Conversations in Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
+			// The height of the window, so a page inside can fill it and
+			// scroll on its own instead of growing the whole document.
+			Class: "h-full",
 			// The script writes the sidebar_state cookie, and the server
 			// reads it, so the page comes back the way the reader left it.
 			DisableDefaultOpen: !sidebarOpen,

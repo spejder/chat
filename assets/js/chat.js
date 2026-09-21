@@ -9,6 +9,16 @@
 
 	const messages = () => document.getElementById("messages");
 
+	// A reader who sits this close to the bottom wants to follow the
+	// conversation. A reader who scrolled up wants to stay where they are.
+	const nearBottomPixels = 100;
+
+	let follow = true;
+	let keepTop = 0;
+
+	const atBottom = (list) =>
+		list.scrollHeight - list.scrollTop - list.clientHeight < nearBottomPixels;
+
 	const toNewest = () => {
 		const list = messages();
 
@@ -19,9 +29,35 @@
 
 	document.addEventListener("DOMContentLoaded", toNewest);
 
-	document.addEventListener("htmx:after:swap", (event) => {
+	// The answer of the poll replaces the whole list, so the decision must be
+	// made before the swap.
+	document.addEventListener("htmx:before:swap", (event) => {
 		if (event.target && event.target.id === "messages") {
+			follow = atBottom(event.target);
+			keepTop = event.target.scrollTop;
+		}
+	});
+
+	// A swap empties the list for a moment, and the browser forgets where the
+	// reader was. Follow the newest message, or put them back.
+	document.addEventListener("htmx:after:swap", (event) => {
+		if (!event.target || event.target.id !== "messages") {
+			return;
+		}
+
+		if (follow) {
 			toNewest();
+
+			return;
+		}
+
+		event.target.scrollTop = keepTop;
+	});
+
+	// A message that this reader sends always brings the newest into view.
+	document.addEventListener("htmx:before:request", (event) => {
+		if (event.target && event.target.id === "write") {
+			follow = true;
 		}
 	});
 

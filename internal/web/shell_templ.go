@@ -238,7 +238,7 @@ func Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarO
 									var templ_7745c5c3_Var12 string
 									templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(heading)
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 55, Col: 18}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 58, Col: 18}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 									if templ_7745c5c3_Err != nil {
@@ -285,6 +285,9 @@ func Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarO
 				return nil
 			})
 			templ_7745c5c3_Err = sidebar.Provider(sidebar.ProviderProps{
+				// The height of the window, so a page inside can fill it and
+				// scroll on its own instead of growing the whole document.
+				Class: "h-full",
 				// The script writes the sidebar_state cookie, and the server
 				// reads it, so the page comes back the way the reader left it.
 				DisableDefaultOpen: !sidebarOpen,
@@ -671,7 +674,7 @@ func personMenu() templ.Component {
 							var templ_7745c5c3_Var31 string
 							templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(initials(person.FullName))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 132, Col: 34}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 135, Col: 34}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 							if templ_7745c5c3_Err != nil {
@@ -684,7 +687,7 @@ func personMenu() templ.Component {
 							var templ_7745c5c3_Var32 string
 							templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(person.FullName)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 135, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 138, Col: 59}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 							if templ_7745c5c3_Err != nil {
@@ -697,7 +700,7 @@ func personMenu() templ.Component {
 							var templ_7745c5c3_Var33 string
 							templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(person.Email)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 136, Col: 52}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 139, Col: 52}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 							if templ_7745c5c3_Err != nil {
@@ -756,7 +759,7 @@ func personMenu() templ.Component {
 								var templ_7745c5c3_Var36 string
 								templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(person.FullName)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 149, Col: 60}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 152, Col: 60}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 								if templ_7745c5c3_Err != nil {
@@ -769,7 +772,7 @@ func personMenu() templ.Component {
 								var templ_7745c5c3_Var37 string
 								templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(person.Email)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 150, Col: 53}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 153, Col: 53}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 								if templ_7745c5c3_Err != nil {

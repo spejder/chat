@@ -111,3 +111,48 @@ func TestLayoutPutsTheChildrenInTheBody(t *testing.T) {
 		t.Errorf("the children are not inside the body: %s", body)
 	}
 }
+
+// TestTheSidesOfAConversation makes sure that the reader sits on one side and
+// everybody else on the other, and that a long word stays inside its bubble.
+func TestTheSidesOfAConversation(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: uuid.NewV7(), FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+
+	at := time.Now()
+
+	messages := []chat.Message{
+		{
+			ID:         uuid.NewV7(),
+			AuthorID:   other.ID,
+			AuthorName: other.FullName,
+			Body:       strings.Repeat("a", 200),
+			CreatedAt:  at,
+		},
+		{
+			ID:        uuid.NewV7(),
+			AuthorID:  reader.ID,
+			Body:      "Mine",
+			CreatedAt: at.Add(time.Minute),
+		},
+	}
+
+	var out strings.Builder
+	if err := web.Messages(messages, reader).Render(context.Background(), &out); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+
+	body := out.String()
+
+	for _, want := range []string{"justify-start", "justify-end", "break-words", other.FullName} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the markup misses %q", want)
+		}
+	}
+
+	// The reader needs no name, because the side says who wrote it.
+	if strings.Contains(body, reader.FullName) {
+		t.Error("the markup names the reader")
+	}
+}
