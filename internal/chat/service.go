@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 	"uuid"
 
@@ -66,18 +67,27 @@ func (s *Service) List(ctx context.Context, person user.User) ([]Summary, error)
 
 // Read returns a conversation with its messages, and notes that this person
 // has seen it.
-func (s *Service) Read(ctx context.Context, person user.User, id uuid.UUID) (Conversation, []Message, error) {
+//
+// The third value is the moment this person last looked at the conversation.
+// The page draws the line for the unread messages from it. It is the zero
+// time when this person opens the conversation for the first time.
+func (s *Service) Read(ctx context.Context, person user.User, id uuid.UUID) (Conversation, []Message, time.Time, error) {
 	conversation, err := s.find(ctx, person, id)
 	if err != nil {
-		return Conversation{}, nil, err
+		return Conversation{}, nil, time.Time{}, err
 	}
 
-	messages, err := s.Messages(ctx, person, id)
+	messages, err := s.store.Messages(ctx, id)
 	if err != nil {
-		return Conversation{}, nil, err
+		return Conversation{}, nil, time.Time{}, fmt.Errorf("read the messages: %w", err)
 	}
 
-	return conversation, messages, nil
+	since, _, err := s.store.MarkRead(ctx, id, person.ID)
+	if err != nil {
+		return Conversation{}, nil, time.Time{}, fmt.Errorf("note the reading: %w", err)
+	}
+
+	return conversation, messages, since, nil
 }
 
 // Messages returns the messages alone, which is what the page asks for every
@@ -92,7 +102,7 @@ func (s *Service) Messages(ctx context.Context, person user.User, id uuid.UUID) 
 		return nil, fmt.Errorf("read the messages: %w", err)
 	}
 
-	if err := s.store.MarkRead(ctx, id, person.ID); err != nil {
+	if _, _, err := s.store.MarkRead(ctx, id, person.ID); err != nil {
 		return nil, fmt.Errorf("note the reading: %w", err)
 	}
 

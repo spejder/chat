@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"uuid"
 )
 
@@ -269,10 +270,16 @@ func (q *Queries) ListParticipants(ctx context.Context, conversationID uuid.UUID
 	return items, nil
 }
 
-const markRead = `-- name: MarkRead :exec
-UPDATE conversation_participants
+const markRead = `-- name: MarkRead :one
+WITH previous AS (
+    SELECT before.last_read_at
+    FROM conversation_participants AS before
+    WHERE before.conversation_id = $1 AND before.user_id = $2
+)
+UPDATE conversation_participants AS now_read
 SET last_read_at = now()
-WHERE conversation_id = $1 AND user_id = $2
+WHERE now_read.conversation_id = $1 AND now_read.user_id = $2
+RETURNING (SELECT previous.last_read_at FROM previous) AS previous_read_at
 `
 
 type MarkReadParams struct {
@@ -280,8 +287,12 @@ type MarkReadParams struct {
 	UserID         uuid.UUID
 }
 
-// MarkRead notes that this person has seen the conversation up to now.
-func (q *Queries) MarkRead(ctx context.Context, arg MarkReadParams) error {
-	_, err := q.db.Exec(ctx, markRead, arg.ConversationID, arg.UserID)
-	return err
+// MarkRead notes that this person has seen the conversation up to now, and
+// gives back the time it replaces. The page draws the line for the unread
+// messages from that older time, so it must read the row before the update.
+func (q *Queries) MarkRead(ctx context.Context, arg MarkReadParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, markRead, arg.ConversationID, arg.UserID)
+	var previous_read_at pgtype.Timestamptz
+	err := row.Scan(&previous_read_at)
+	return previous_read_at, err
 }

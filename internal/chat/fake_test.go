@@ -119,14 +119,15 @@ func (f *fakeStore) AddMessage(_ context.Context, conversationID, authorID uuid.
 	return message, nil
 }
 
-func (f *fakeStore) MarkRead(_ context.Context, conversationID, userID uuid.UUID) error {
+func (f *fakeStore) MarkRead(_ context.Context, conversationID, userID uuid.UUID) (time.Time, bool, error) {
 	if f.read[conversationID] == nil {
 		f.read[conversationID] = map[uuid.UUID]time.Time{}
 	}
 
+	previous, seen := f.read[conversationID][userID]
 	f.read[conversationID][userID] = time.Now()
 
-	return nil
+	return previous, seen, nil
 }
 
 func (f *fakeStore) Participants(_ context.Context, conversationID uuid.UUID) ([]user.User, error) {

@@ -37,7 +37,7 @@ func TestBubbles(t *testing.T) {
 		message(other, base.Add(time.Hour), "Much later"),
 	}
 
-	rows := bubbles(messages, reader)
+	rows := bubbles(messages, reader, time.Time{})
 
 	if len(rows) != len(messages) {
 		t.Fatalf("the list holds %d rows, want %d", len(rows), len(messages))
@@ -97,7 +97,7 @@ func TestADayChangeBreaksTheGroup(t *testing.T) {
 		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "New", CreatedAt: time.Now()},
 	}
 
-	rows := bubbles(messages, reader)
+	rows := bubbles(messages, reader, time.Time{})
 
 	if rows[0].DateLabel != "Yesterday" {
 		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "Yesterday")
@@ -125,5 +125,41 @@ func TestAnOldDateReadsAsADate(t *testing.T) {
 
 	if label := dateLabel(at); label != "2 March 2020" {
 		t.Errorf("the label is %q, want %q", label, "2 March 2020")
+	}
+}
+
+// TestTheLineForTheUnreadMessages makes sure that the line stands above the
+// first message that the reader had not seen.
+func TestTheLineForTheUnreadMessages(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: uuid.NewV7(), FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+
+	base := time.Now().Add(-time.Hour)
+	since := base.Add(30 * time.Minute)
+
+	messages := []chat.Message{
+		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "Old", CreatedAt: base},
+		{ID: uuid.NewV7(), AuthorID: reader.ID, Body: "Mine", CreatedAt: since.Add(time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "New", CreatedAt: since.Add(2 * time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: other.ID, AuthorName: other.FullName, Body: "Newer", CreatedAt: since.Add(3 * time.Minute)},
+	}
+
+	rows := bubbles(messages, reader, since)
+
+	if rows[0].FirstUnread || rows[1].FirstUnread || rows[3].FirstUnread {
+		t.Error("the line stands in the wrong place")
+	}
+
+	if !rows[2].FirstUnread {
+		t.Error("the line does not stand above the first message that the reader had not seen")
+	}
+
+	// A reader who never looked gets no line.
+	for i, row := range bubbles(messages, reader, time.Time{}) {
+		if row.FirstUnread {
+			t.Errorf("row %d carries the line although the reader never looked", i)
+		}
 	}
 }

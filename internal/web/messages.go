@@ -27,13 +27,21 @@ type bubble struct {
 
 	// DateLabel is not empty when a date line comes before this message.
 	DateLabel string
+
+	// FirstUnread marks the first message that the reader had not seen when
+	// they opened the conversation. The page draws a line above it.
+	FirstUnread bool
 }
 
 // bubbles turns the messages into the rows that the page draws. A group
 // breaks when the writer changes, when the day changes, or when the silence
 // between two messages grows past groupGap.
-func bubbles(messages []chat.Message, reader user.User) []bubble {
+// The time since says when the reader last looked at the conversation. A zero
+// time means they never did, and then no line is drawn.
+func bubbles(messages []chat.Message, reader user.User, since time.Time) []bubble {
 	rows := make([]bubble, 0, len(messages))
+
+	marked := since.IsZero()
 
 	for i, message := range messages {
 		row := bubble{
@@ -64,6 +72,13 @@ func bubbles(messages []chat.Message, reader user.User) []bubble {
 		// The side already says who wrote it.
 		if row.Mine {
 			row.ShowName = false
+		}
+
+		// The line stands above the first message that this reader had not
+		// seen. Their own messages never carry it.
+		if !marked && !row.Mine && message.CreatedAt.After(since) {
+			row.FirstUnread = true
+			marked = true
 		}
 
 		rows = append(rows, row)

@@ -4,9 +4,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// versionInPage reads the version of the list out of the page.
+var versionInPage = regexp.MustCompile(`/messages\?v=([^"&]+)`)
 
 // get sends a request as one person.
 func get(t *testing.T, handler http.Handler, path string, session *http.Cookie) *httptest.ResponseRecorder {
@@ -230,5 +234,59 @@ func TestTheHeaderLinksToTheConversations(t *testing.T) {
 	home := get(t, handler, "/", session)
 	if !strings.Contains(home.Body.String(), `href="/conversations"`) {
 		t.Errorf("the header holds no link to the conversations: %s", home.Body.String())
+	}
+}
+
+// TestThePollAnswersNothingChanged makes sure that the page keeps what it has
+// when the conversation stands still, and receives the list when it moves.
+func TestThePollAnswersNothingChanged(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the first user: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the second user: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, session)
+
+	path := started.Header().Get("Location")
+
+	// The page carries the version of the list it holds.
+	page := get(t, handler, path, session)
+
+	version := versionInPage.FindStringSubmatch(page.Body.String())
+	if version == nil {
+		t.Fatalf("the page holds no version: %s", page.Body.String())
+	}
+
+	same := get(t, handler, path+"/messages?v="+url.QueryEscape(version[1]), session)
+	if same.Code != http.StatusNoContent {
+		t.Errorf("the poll with the same version gave %d, want %d", same.Code, http.StatusNoContent)
+	}
+
+	if same.Body.Len() != 0 {
+		t.Errorf("the poll with the same version carries %d bytes, want none", same.Body.Len())
+	}
+
+	old := get(t, handler, path+"/messages?v=0-none-2020-01-01", session)
+	if old.Code != http.StatusOK {
+		t.Fatalf("the poll with an old version gave %d, want %d", old.Code, http.StatusOK)
+	}
+
+	if !strings.Contains(old.Body.String(), "Are you in?") {
+		t.Errorf("the answer misses the messages: %s", old.Body.String())
 	}
 }

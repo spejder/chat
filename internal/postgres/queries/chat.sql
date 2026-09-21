@@ -71,8 +71,16 @@ INSERT INTO messages (id, conversation_id, author_id, body)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
--- MarkRead notes that this person has seen the conversation up to now.
--- name: MarkRead :exec
-UPDATE conversation_participants
+-- MarkRead notes that this person has seen the conversation up to now, and
+-- gives back the time it replaces. The page draws the line for the unread
+-- messages from that older time, so it must read the row before the update.
+-- name: MarkRead :one
+WITH previous AS (
+    SELECT before.last_read_at
+    FROM conversation_participants AS before
+    WHERE before.conversation_id = $1 AND before.user_id = $2
+)
+UPDATE conversation_participants AS now_read
 SET last_read_at = now()
-WHERE conversation_id = $1 AND user_id = $2;
+WHERE now_read.conversation_id = $1 AND now_read.user_id = $2
+RETURNING (SELECT previous.last_read_at FROM previous) AS previous_read_at;

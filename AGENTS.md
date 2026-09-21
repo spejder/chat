@@ -195,7 +195,23 @@ thread or room.
   empties the list for a moment, so the position must be read before the swap
   and written after it.
 - The message list asks for itself every three seconds, and the list page
-  every ten. This is the cheapest thing that works. Server-sent events are the
+  every ten. The list is `#message-list`, and it replaces itself with
+  `outerHTML`, so every answer carries the next version and the mark for the
+  unread messages.
+- The poll sends the version it holds in `v`. When that version still stands,
+  the server answers 204 and htmx swaps nothing, which keeps the scrolling,
+  the selected text and the work in the browser. The version is the number of
+  messages, the newest identifier and today's date. The date belongs in it,
+  because the date lines read Today and Yesterday.
+- `MarkRead` returns the time it replaces, and the page draws the line for the
+  unread messages from it. The page carries that time through the poll address
+  as `since`, so the line stays where it is while the page is open.
+- The write field sends on Enter and writes a new line on Shift and Enter. It
+  grows with the text through an inline height, which `style-src-attr` allows.
+  The send button stays, so a browser without scripts still works.
+- The button that jumps to the newest message needs `relative z-10`. The
+  message list above it is positioned and would otherwise paint over it and
+  swallow the click. This is the cheapest thing that works. Server-sent events are the
   next step when the cost of the poll begins to hurt.
 - `ChatStore.Create` is the only transaction in the project. Every query
   inside it must go through the `*db.Queries` that `WithTx` returns, or the

@@ -2,6 +2,7 @@ package postgres_test
 
 import (
 	"testing"
+	"time"
 	"uuid"
 
 	"github.com/spejder/chat/internal/postgres"
@@ -103,8 +104,14 @@ func TestUnreadCount(t *testing.T) {
 		t.Errorf("the reader has %d unread, want 1", unread)
 	}
 
-	if err := store.MarkRead(t.Context(), conversation.ID, grace.ID); err != nil {
+	previous, seen, err := store.MarkRead(t.Context(), conversation.ID, grace.ID)
+	if err != nil {
 		t.Fatalf("mark read: %v", err)
+	}
+
+	// Nobody read this conversation before, so there is no earlier time.
+	if seen || !previous.IsZero() {
+		t.Errorf("the first read gave %v and %v, want no earlier time", previous, seen)
 	}
 
 	if unread := unreadFor(t, store, grace, conversation.ID); unread != 0 {
@@ -206,4 +213,35 @@ func unreadFor(t *testing.T, store *postgres.ChatStore, person user.User, id uui
 	t.Fatalf("%s does not see the conversation", person.FullName)
 
 	return 0
+}
+
+// TestMarkReadReturnsTheTimeItReplaces makes sure that the page can draw the
+// line for the unread messages from the value of the read before.
+func TestMarkReadReturnsTheTimeItReplaces(t *testing.T) {
+	t.Parallel()
+
+	store, users := newChatStore(t)
+	ada, grace := twoPeople(t, users)
+
+	conversation, err := store.Create(t.Context(), "Lunch", ada.ID, []uuid.UUID{ada.ID, grace.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, _, err := store.MarkRead(t.Context(), conversation.ID, grace.ID); err != nil {
+		t.Fatalf("first read: %v", err)
+	}
+
+	previous, seen, err := store.MarkRead(t.Context(), conversation.ID, grace.ID)
+	if err != nil {
+		t.Fatalf("second read: %v", err)
+	}
+
+	if !seen {
+		t.Fatal("the second read reports no earlier time")
+	}
+
+	if previous.IsZero() || previous.After(time.Now()) {
+		t.Errorf("the earlier time is %v, want a moment in the past", previous)
+	}
 }

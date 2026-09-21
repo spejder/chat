@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 	"uuid"
 
 	"github.com/jackc/pgx/v5"
@@ -172,16 +173,23 @@ func (s *ChatStore) AddMessage(ctx context.Context, conversationID, authorID uui
 	}, nil
 }
 
-// MarkRead notes that one person has seen the conversation up to now.
-func (s *ChatStore) MarkRead(ctx context.Context, conversationID, userID uuid.UUID) error {
-	if err := s.queries.MarkRead(ctx, db.MarkReadParams{
+// MarkRead notes that one person has seen the conversation up to now, and
+// returns the time it replaces. The second value is false the first time,
+// when that person had read nothing yet.
+func (s *ChatStore) MarkRead(ctx context.Context, conversationID, userID uuid.UUID) (time.Time, bool, error) {
+	previous, err := s.queries.MarkRead(ctx, db.MarkReadParams{
 		ConversationID: conversationID,
 		UserID:         userID,
-	}); err != nil {
-		return fmt.Errorf("note the reading: %w", err)
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return time.Time{}, false, nil
+		}
+
+		return time.Time{}, false, fmt.Errorf("note the reading: %w", err)
 	}
 
-	return nil
+	return previous.Time, previous.Valid, nil
 }
 
 // Participants names the people in a conversation.

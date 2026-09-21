@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 	"uuid"
 
 	"github.com/a-h/templ"
@@ -145,7 +148,7 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conversation, messages, err := h.service.Read(r.Context(), person, id)
+	conversation, messages, since, err := h.service.Read(r.Context(), person, id)
 	if err != nil {
 		h.chatError(w, r, err)
 
@@ -159,14 +162,25 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.shell(w, r, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, person))
+	page := web.ConversationPage(conversation, people, messages, person, since, messagesVersion(messages))
+
+	h.shell(w, r, conversation.ID, conversation.Subject, page)
 }
 
 // messages answers the poll of a conversation.
+//
+// The page sends the version it holds. When that version still stands, the
+// answer is 204 and htmx swaps nothing, so the page keeps its scrolling, its
+// selected text and its work.
 func (h *chatHandlers) messages(w http.ResponseWriter, r *http.Request) {
 	person, _ := auth.UserFrom(r.Context())
 
 	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	conversation, ok := h.conversation(w, r, person, id)
 	if !ok {
 		return
 	}
@@ -178,7 +192,14 @@ func (h *chatHandlers) messages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.Messages(messages, person))
+	version := messagesVersion(messages)
+	if r.URL.Query().Get("v") == version {
+		w.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	h.render(w, r, web.MessageList(conversation, messages, person, readMark(r.URL.Query().Get("since")), version))
 }
 
 // write adds a message and answers with the whole list.
@@ -186,6 +207,11 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 	person, _ := auth.UserFrom(r.Context())
 
 	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	conversation, ok := h.conversation(w, r, person, id)
 	if !ok {
 		return
 	}
@@ -205,7 +231,42 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.render(w, r, web.Messages(messages, person))
+	h.render(w, r, web.MessageList(conversation, messages, person, readMark(r.FormValue("since")), messagesVersion(messages)))
+}
+
+// conversation reads one conversation for a person who takes part in it.
+func (h *chatHandlers) conversation(w http.ResponseWriter, r *http.Request, person user.User, id uuid.UUID) (chat.Conversation, bool) {
+	conversation, _, _, err := h.service.Read(r.Context(), person, id)
+	if err != nil {
+		h.chatError(w, r, err)
+
+		return chat.Conversation{}, false
+	}
+
+	return conversation, true
+}
+
+// messagesVersion names the state of a conversation. A new message changes
+// the count and the newest identifier, and the date belongs in it because the
+// date lines read Today and Yesterday.
+func messagesVersion(messages []chat.Message) string {
+	newest := "none"
+	if len(messages) > 0 {
+		newest = messages[len(messages)-1].ID.String()
+	}
+
+	return fmt.Sprintf("%d-%s-%s", len(messages), newest, time.Now().Local().Format("2006-01-02"))
+}
+
+// readMark reads the moment the reader last looked, which the page carries
+// from one answer to the next.
+func readMark(value string) time.Time {
+	seconds, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return time.Time{}
+	}
+
+	return time.Unix(seconds, 0)
 }
 
 // others lists everybody except the person who is signed in.

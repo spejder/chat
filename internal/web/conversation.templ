@@ -1,6 +1,11 @@
 package web
 
 import (
+	"net/url"
+	"strconv"
+	"time"
+	"uuid"
+
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components/button"
@@ -10,7 +15,7 @@ import (
 
 // ConversationPage renders one conversation with its messages and the field
 // to write in it.
-templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User) {
+templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, reader user.User, since time.Time, version string) {
 	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
 	// The column fills the room. Only the messages scroll, which needs
 	// min-h-0, because a flex child otherwise refuses to shrink.
@@ -19,29 +24,59 @@ templ ConversationPage(conversation chat.Conversation, people []user.User, messa
 			<h1 class="text-lg font-semibold tracking-tight">{ conversation.Subject }</h1>
 			<p class="text-sm text-muted-foreground">{ names(people) }</p>
 		</div>
-		<div
-			id="messages"
-			class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-4"
-			data-hx-get={ "/conversations/" + conversation.ID.String() + "/messages" }
-			data-hx-trigger="every 3s"
-			data-hx-swap="innerHTML"
-		>
-			@Messages(messages, reader)
+		<div id="messages" class="relative flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+			@MessageList(conversation, messages, reader, since, version)
 		</div>
-		@WriteForm(conversation, "")
+		// The button appears when a message arrives while the reader looks
+		// further up.
+		// relative and z-10, because the message list above is positioned and
+		// would otherwise paint over the button and swallow the click.
+		<div class="pointer-events-none relative z-10 flex justify-center">
+			<button
+				id="jump"
+				type="button"
+				hidden
+				class="pointer-events-auto -mt-4 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground shadow"
+			>
+				New messages
+			</button>
+		</div>
+		@WriteForm(conversation, since, "")
 	</div>
 	<script src={ assets.URL("js/chat.js") } if chatIntegrity != "" {
 	integrity={ chatIntegrity }
 } defer></script>
 }
 
+// MessageList holds the messages and the poll. It replaces itself, so the
+// answer carries the next version and the page keeps the mark for the unread
+// messages.
+templ MessageList(conversation chat.Conversation, messages []chat.Message, reader user.User, since time.Time, version string) {
+	<div
+		id="message-list"
+		class="flex flex-col gap-1"
+		data-hx-get={ messagesURL(conversation.ID, since, version) }
+		data-hx-trigger="every 3s"
+		data-hx-swap="outerHTML"
+	>
+		@Messages(messages, reader, since)
+	</div>
+}
+
 // Messages renders one conversation as bubbles: the reader on the right,
-// everybody else on the left. The page asks for this again every few seconds.
-templ Messages(messages []chat.Message, reader user.User) {
+// everybody else on the left.
+templ Messages(messages []chat.Message, reader user.User, since time.Time) {
 	if len(messages) == 0 {
 		<p class="text-sm text-muted-foreground">No messages yet. Write the first one.</p>
 	}
-	for _, row := range bubbles(messages, reader) {
+	for _, row := range bubbles(messages, reader, since) {
+		if row.FirstUnread {
+			<div class="flex items-center gap-2 py-2">
+				<span class="h-px flex-1 bg-destructive/40"></span>
+				<span class="text-xs text-destructive">New messages</span>
+				<span class="h-px flex-1 bg-destructive/40"></span>
+			</div>
+		}
 		if row.DateLabel != "" {
 			<div class="flex justify-center py-2">
 				<span class="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
@@ -53,6 +88,7 @@ templ Messages(messages []chat.Message, reader user.User) {
 			<span class="px-1 pt-2 text-xs text-muted-foreground">{ row.Message.AuthorName }</span>
 		}
 		<div
+			data-message
 			class={ "flex w-full", templ.KV("justify-end", row.Mine), templ.KV("justify-start", !row.Mine) }
 		>
 			<div
@@ -77,33 +113,38 @@ templ Messages(messages []chat.Message, reader user.User) {
 
 // WriteForm renders the field that writes a message. The answer holds the
 // whole message list, so the new message appears at once.
-templ WriteForm(conversation chat.Conversation, message string) {
+templ WriteForm(conversation chat.Conversation, since time.Time, message string) {
 	<form
 		id="write"
 		class="flex flex-col gap-2 border-t p-4"
 		method="post"
 		action={ templ.SafeURL("/conversations/" + conversation.ID.String() + "/messages") }
 		data-hx-post={ "/conversations/" + conversation.ID.String() + "/messages" }
-		data-hx-target="#messages"
-		data-hx-swap="innerHTML"
+		data-hx-target="#message-list"
+		data-hx-swap="outerHTML"
 	>
-		@textarea.Textarea(textarea.Props{
-			ID:          "body",
-			Name:        "body",
-			Rows:        3,
-			Placeholder: "Write a message",
-			Attributes: templ.Attributes{
-				"required":  true,
-				"maxlength": "4000",
-				"autofocus": true,
-			},
-		})
-		@errorMessage(message)
-		<div class="flex justify-end">
+		if !since.IsZero() {
+			<input type="hidden" name="since" value={ strconv.FormatInt(since.Unix(), 10) }/>
+		}
+		<div class="flex items-end gap-2">
+			@textarea.Textarea(textarea.Props{
+				ID:          "body",
+				Name:        "body",
+				Rows:        1,
+				Class:       "max-h-48 min-h-9 resize-none",
+				Placeholder: "Write a message, Shift and Enter for a new line",
+				Attributes: templ.Attributes{
+					"required":  true,
+					"maxlength": "4000",
+					"autofocus": true,
+					"data-grow": true,
+				},
+			})
 			@button.Button(button.Props{Type: button.TypeSubmit}) {
 				Send
 			}
 		</div>
+		@errorMessage(message)
 	</form>
 }
 
@@ -120,4 +161,17 @@ func names(people []user.User) string {
 	}
 
 	return out
+}
+
+// messagesURL points the poll at the list. The version lets the server answer
+// that nothing changed, and the mark keeps the line for the unread messages
+// where it is.
+func messagesURL(conversationID uuid.UUID, since time.Time, version string) string {
+	address := "/conversations/" + conversationID.String() + "/messages?v=" + url.QueryEscape(version)
+
+	if !since.IsZero() {
+		address += "&since=" + strconv.FormatInt(since.Unix(), 10)
+	}
+
+	return address
 }

@@ -139,7 +139,7 @@ func TestTheSidesOfAConversation(t *testing.T) {
 	}
 
 	var out strings.Builder
-	if err := web.Messages(messages, reader).Render(context.Background(), &out); err != nil {
+	if err := web.Messages(messages, reader, time.Time{}).Render(context.Background(), &out); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 

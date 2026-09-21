@@ -84,6 +84,8 @@ type Store interface {
 	List(ctx context.Context, userID uuid.UUID) ([]Summary, error)
 	Messages(ctx context.Context, conversationID uuid.UUID) ([]Message, error)
 	AddMessage(ctx context.Context, conversationID, authorID uuid.UUID, body string) (Message, error)
-	MarkRead(ctx context.Context, conversationID, userID uuid.UUID) error
+	// MarkRead notes the reading and returns the time it replaces. The
+	// second value is false when that person had read nothing yet.
+	MarkRead(ctx context.Context, conversationID, userID uuid.UUID) (time.Time, bool, error)
 	Participants(ctx context.Context, conversationID uuid.UUID) ([]user.User, error)
 }

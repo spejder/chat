@@ -70,7 +70,7 @@ func TestStartPutsBothPeopleIn(t *testing.T) {
 	}
 
 	for _, person := range []user.User{ada, grace} {
-		if _, _, err := service.Read(t.Context(), person, conversation.ID); err != nil {
+		if _, _, _, err := service.Read(t.Context(), person, conversation.ID); err != nil {
 			t.Errorf("%s cannot read the conversation: %v", person.FullName, err)
 		}
 	}
@@ -91,7 +91,7 @@ func TestAStrangerGetsNothing(t *testing.T) {
 		t.Fatalf("start: %v", err)
 	}
 
-	if _, _, err := service.Read(t.Context(), stranger, conversation.ID); !errors.Is(err, ErrNotFound) {
+	if _, _, _, err := service.Read(t.Context(), stranger, conversation.ID); !errors.Is(err, ErrNotFound) {
 		t.Errorf("read: error = %v, want %v", err, ErrNotFound)
 	}
 
