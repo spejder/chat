@@ -20,6 +20,10 @@ type bubble struct {
 	// other side.
 	Mine bool
 
+	// StartsGroup marks the first message of a group, whoever wrote it. The
+	// page puts more room above such a message than inside a group.
+	StartsGroup bool
+
 	// ShowName marks the first message of a group from another person.
 	ShowName bool
 
@@ -62,7 +66,6 @@ type Panel struct {
 // bubbles turns the messages into the rows that the page draws. A group
 // breaks when the writer changes, when the day changes, or when the silence
 // between two messages grows past groupGap.
-// bubbles turns the messages into the rows that the page draws.
 func bubbles(messages []chat.Message, panel Panel) []bubble {
 	rows := make([]bubble, 0, len(messages))
 
@@ -72,10 +75,11 @@ func bubbles(messages []chat.Message, panel Panel) []bubble {
 
 	for i, message := range messages {
 		row := bubble{
-			Message:  message,
-			Mine:     message.AuthorID == reader.ID,
-			ShowName: true,
-			ShowTime: true,
+			Message:     message,
+			Mine:        message.AuthorID == reader.ID,
+			StartsGroup: true,
+			ShowName:    true,
+			ShowTime:    true,
 		}
 
 		if i > 0 {
@@ -83,7 +87,8 @@ func bubbles(messages []chat.Message, panel Panel) []bubble {
 			// only when a message before this one exists.
 			previous := messages[i-1] //nolint:gosec // i > 0 in this branch.
 
-			row.ShowName = startsGroup(previous, message)
+			row.StartsGroup = startsGroup(previous, message)
+			row.ShowName = row.StartsGroup
 
 			if !sameDay(previous.CreatedAt, message.CreatedAt) {
 				row.DateLabel = dateLabel(message.CreatedAt)

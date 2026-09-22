@@ -237,3 +237,46 @@ func TestTwoPeopleNeedNoNames(t *testing.T) {
 		t.Error("a conversation of three does not name the writer")
 	}
 }
+
+// TestStartsGroupMarksEveryGroup makes sure that the mark for the extra room
+// above a group stands on every first message, also where no name appears.
+func TestStartsGroupMarksEveryGroup(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: uuid.NewV7(), FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+
+	base := time.Now().Truncate(time.Hour).Add(-3 * time.Hour)
+
+	message := func(author user.User, at time.Time, body string) chat.Message {
+		return chat.Message{
+			ID:         uuid.NewV7(),
+			AuthorID:   author.ID,
+			AuthorName: author.FullName,
+			Body:       body,
+			CreatedAt:  at,
+		}
+	}
+
+	messages := []chat.Message{
+		message(other, base, "First"),
+		message(other, base.Add(time.Minute), "Second"),
+		message(reader, base.Add(2*time.Minute), "Mine"),
+		message(reader, base.Add(3*time.Minute), "Mine again"),
+	}
+
+	rows := bubbles(messages, Panel{Reader: reader, People: 2})
+
+	want := []bool{true, false, true, false}
+	for i, row := range rows {
+		if row.StartsGroup != want[i] {
+			t.Errorf("row %d starts a group: %v, want %v", i, row.StartsGroup, want[i])
+		}
+	}
+
+	// The reader opens a group without a name, which is the case that the
+	// name alone cannot carry.
+	if rows[2].ShowName {
+		t.Error("the message of the reader carries a name")
+	}
+}

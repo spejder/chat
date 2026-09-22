@@ -185,7 +185,21 @@ thread or room.
   and a date line marks a new day. The rules live in Go, not in the template,
   so a test can read them.
 - A bubble shows the clock alone, because the date line above it already says
-  which day it is.
+  which day it is. The clock stands after the text in the same line, and drops
+  to a line of its own when the last line of the text leaves no room.
+- The messages, the heading and the write field sit in one centred column of
+  `max-w-3xl`. The scroll box keeps the whole width, so the scrollbar stays at
+  the edge of the window.
+- The date line carries `sticky top-0`, so the day stays on screen while the
+  reader scrolls through it. That works because `#messages` is the scroll box
+  and no box between the two hides its overflow.
+- `bubble.StartsGroup` marks the first message of every group, also where no
+  name appears, and the page turns it into the extra room above a group. The
+  name alone cannot carry that, because the reader's own messages and a
+  conversation of two carry no name.
+- The placeholder of the write field is short on purpose. The registry
+  textarea carries `field-sizing-content`, so a long placeholder makes the
+  field two lines tall on a phone. The hint about Enter lives in the `title`.
 - The page is a column that fills the window: the provider carries `h-full`,
   the page `flex-1 min-h-0`, and the message list `flex-1 min-h-0
   overflow-y-auto`. Without `min-h-0` a flex child refuses to shrink and the
