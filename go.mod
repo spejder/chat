@@ -10,7 +10,7 @@ require (
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/pressly/goose/v3 v3.28.0
-	golang.org/x/crypto/x509roots/fallback v0.0.0-20260920014000-1f7c531b64a1
+	golang.org/x/crypto/x509roots/fallback v0.0.0-20260929172509-b39ff6d641ec
 )
 
 require (
@@ -35,7 +35,7 @@ require (
 	github.com/natefinch/atomic v1.0.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
-	github.com/tinylib/msgp v1.6.4 // indirect
+	github.com/tinylib/msgp v1.6.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
