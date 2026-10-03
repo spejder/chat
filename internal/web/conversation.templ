@@ -11,22 +11,19 @@ import (
 	"github.com/spejder/chat/internal/components/button"
 	"github.com/spejder/chat/internal/components/icon"
 	"github.com/spejder/chat/internal/components/textarea"
-	"github.com/spejder/chat/internal/user"
 )
 
 // ConversationPage renders one conversation with its messages and the field
 // to write in it.
-templ ConversationPage(conversation chat.Conversation, people []user.User, messages []chat.Message, panel Panel, version string, hasOlder bool) {
+templ ConversationPage(conversation chat.Conversation, messages []chat.Message, panel Panel, version string, hasOlder bool) {
 	{{ chatIntegrity := assets.Integrity("js/chat.js") }}
 	// The column fills the room. Only the messages scroll, which needs
 	// min-h-0, because a flex child otherwise refuses to shrink.
 	<div class="flex min-h-0 flex-1 flex-col">
-		<div class="border-b p-4">
-			<div class="mx-auto flex w-full max-w-3xl flex-col gap-1">
-				<h1 class="text-lg font-semibold tracking-tight">{ conversation.Subject }</h1>
-				<p class="text-sm text-muted-foreground">{ names(people) }</p>
-			</div>
-		</div>
+		// The top bar of the shell names the subject and the people, so the
+		// page carries no heading of its own. The heading below is for a
+		// screen reader, which jumps from heading to heading.
+		<h1 class="sr-only">{ conversation.Subject }</h1>
 		// The scroll box keeps the whole width, so the scrollbar stays at the
 		// edge of the window. Only the column of messages is centred.
 		<div id="messages" class="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-2">
@@ -227,21 +224,6 @@ templ WriteForm(conversation chat.Conversation, since time.Time, message string)
 			@errorMessage(message)
 		</div>
 	</form>
-}
-
-// names writes the people of a conversation in one line.
-func names(people []user.User) string {
-	out := ""
-
-	for i, person := range people {
-		if i > 0 {
-			out += ", "
-		}
-
-		out += person.FullName
-	}
-
-	return out
 }
 
 // messagesURL points the poll at the list. The version lets the server answer

@@ -1,66 +1,85 @@
 package web
 
 import (
-	"uuid"
-
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
-	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components/breadcrumb"
 	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/dialog"
 	"github.com/spejder/chat/internal/components/dropdownmenu"
 	"github.com/spejder/chat/internal/components/icon"
 	"github.com/spejder/chat/internal/components/separator"
 	"github.com/spejder/chat/internal/components/sidebar"
 )
 
-// Shell wraps every page that a signed in person sees: a narrow rail with the
-// mark and the person, the conversations next to it, and the page itself in
-// the rest of the room.
-templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebarOpen bool, version string) {
+// Shell wraps every page that a signed in person sees: the sidebar with the
+// conversations, a top bar that names the open conversation, and the page
+// itself in the rest of the room. It follows the block sidebar-01 of
+// shadcn-templ.
+templ Shell(page ShellPage) {
 	{{ appIntegrity := assets.Integrity("js/app.js") }}
-	@Layout(heading, "Conversations in Chat.") {
+	{{ reader, _ := auth.UserFrom(ctx) }}
+	@Layout(page.Title, "Conversations in Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
 			// The height of the window, so a page inside can fill it and
 			// scroll on its own instead of growing the whole document.
 			Class: "h-full",
 			// The script writes the sidebar_state cookie, and the server
 			// reads it, so the page comes back the way the reader left it.
-			DisableDefaultOpen: !sidebarOpen,
-			// The two widths belong together: the rail is one icon wide and
-			// the list takes the rest.
-			Attributes: templ.Attributes{"style": "--sidebar-width: 340px; --sidebar-width-icon: 3rem;"},
+			DisableDefaultOpen: !page.SidebarOpen,
 		}) {
-			@sidebar.Sidebar(sidebar.Props{
-				Collapsible: sidebar.CollapsibleIcon,
-				// The two sidebars stand side by side. The second class
-				// reaches the wrapper that templ adds around the children.
-				Class: "overflow-hidden *:data-[sidebar=sidebar]:flex-row [&_[data-tui-sidebar-content]]:flex-row",
-			}) {
-				@rail()
-				@conversationSidebar(summaries, current, version)
+			@sidebar.Sidebar() {
+				@sidebar.Header() {
+					@brand()
+				}
+				@sidebar.Content() {
+					@sidebar.Group() {
+						@sidebar.GroupLabel() {
+							Conversations
+						}
+						// The pen opens the dialog. The dialog lives outside
+						// the sidebar, because on a phone the sidebar is a
+						// sheet that the script moves around.
+						@sidebar.GroupAction(sidebar.GroupActionProps{
+							Attributes: dialog.TriggerFor(newConversationDialog),
+						}) {
+							@icon.SquarePen()
+							<span class="sr-only">Start a conversation</span>
+						}
+						@sidebar.GroupContent() {
+							@ConversationList(page.Summaries, page.Current, page.Version)
+						}
+					}
+				}
+				@sidebar.Footer() {
+					@personMenu()
+				}
+				@sidebar.Rail()
 			}
 			<script src={ assets.URL("js/app.js") } if appIntegrity != "" {
 	integrity={ appIntegrity }
 } defer></script>
 			@sidebar.Inset() {
-				<header class="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background p-4">
+				<header class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
 					@sidebar.Trigger(sidebar.TriggerProps{Class: "-ml-1"})
-					@separator.Separator(separator.Props{
-						Orientation: separator.OrientationVertical,
-						Class:       "mr-2 data-vertical:h-4 data-vertical:self-auto",
-					})
-					@breadcrumb.Breadcrumb() {
-						@breadcrumb.List() {
-							@breadcrumb.Item(breadcrumb.ItemProps{Class: "hidden md:block"}) {
-								@breadcrumb.Link(breadcrumb.LinkProps{Href: "/conversations"}) {
-									Conversations
+					if page.Subject != "" {
+						@separator.Separator(separator.Props{
+							Orientation: separator.OrientationVertical,
+							Class:       "mr-2 data-vertical:h-4 data-vertical:self-auto",
+						})
+						// The subject and the people stay on one line and
+						// shorten at the end, because on a phone the top bar
+						// is the only place that names the people.
+						@breadcrumb.Breadcrumb(breadcrumb.Props{Class: "min-w-0 flex-1"}) {
+							@breadcrumb.List(breadcrumb.ListProps{Class: "flex-nowrap"}) {
+								@breadcrumb.Item(breadcrumb.ItemProps{Class: "min-w-0 shrink"}) {
+									<span class="truncate text-foreground">{ page.Subject }</span>
 								}
-							}
-							@breadcrumb.Separator(breadcrumb.SeparatorProps{Class: "hidden md:block"})
-							@breadcrumb.Item() {
-								@breadcrumb.Page() {
-									{ heading }
+								@breadcrumb.Separator()
+								@breadcrumb.Item(breadcrumb.ItemProps{Class: "min-w-0 flex-1"}) {
+									@breadcrumb.Page(breadcrumb.ItemProps{Class: "truncate"}) {
+										{ otherNames(page.People, reader.ID) }
+									}
 								}
 							}
 						}
@@ -69,54 +88,24 @@ templ Shell(summaries []chat.Summary, current uuid.UUID, heading string, sidebar
 				{ children... }
 			}
 		}
+		@NewConversation(page.NewConversation)
 	}
 }
 
-// rail is the narrow sidebar: the mark at the top, the person at the bottom.
-templ rail() {
-	@sidebar.Sidebar(sidebar.Props{
-		ID:          "rail",
-		Collapsible: sidebar.CollapsibleNone,
-		Class:       "w-[calc(var(--sidebar-width-icon)+1px)]! border-r",
-	}) {
-		@sidebar.Header() {
-			@sidebar.Menu() {
-				@sidebar.MenuItem() {
-					@sidebar.MenuButton(sidebar.MenuButtonProps{
-						Size:  sidebar.MenuButtonSizeLg,
-						Class: "md:h-8 md:p-0",
-						Href:  "/conversations",
-					}) {
-						<div class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-							@icon.MessagesSquare(icon.Props{Class: "size-4"})
-						</div>
-						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">Chat</span>
-						</div>
-					}
-				}
+// brand is the name and the mark of the application at the top of the
+// sidebar. It leads back to the blank room.
+templ brand() {
+	@sidebar.Menu() {
+		@sidebar.MenuItem() {
+			@sidebar.MenuButton(sidebar.MenuButtonProps{
+				Size: sidebar.MenuButtonSizeLg,
+				Href: "/conversations",
+			}) {
+				<span class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+					@icon.MessagesSquare(icon.Props{Class: "size-4"})
+				</span>
+				<span class="font-medium">Chat</span>
 			}
-		}
-		@sidebar.Content() {
-			@sidebar.Group() {
-				@sidebar.GroupContent(sidebar.GroupContentProps{Class: "px-1.5 md:px-0"}) {
-					@sidebar.Menu() {
-						@sidebar.MenuItem() {
-							@sidebar.MenuButton(sidebar.MenuButtonProps{
-								Tooltip: "Start a conversation",
-								Href:    "/conversations/new",
-								Class:   "px-2.5 md:px-2",
-							}) {
-								@icon.SquarePen()
-								<span>Start a conversation</span>
-							}
-						}
-					}
-				}
-			}
-		}
-		@sidebar.Footer() {
-			@personMenu()
 		}
 	}
 }
@@ -131,7 +120,7 @@ templ personMenu() {
 				@dropdownmenu.DropdownMenu() {
 					@sidebar.MenuButton(sidebar.MenuButtonProps{
 						Size:       sidebar.MenuButtonSizeLg,
-						Class:      "md:h-8 md:p-0 data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground",
+						Class:      "data-popup-open:bg-sidebar-accent data-popup-open:text-sidebar-accent-foreground",
 						Attributes: dropdownmenu.Trigger(ctx),
 					}) {
 						// The initials stand in a span, because a button may
@@ -174,39 +163,6 @@ templ personMenu() {
 							}
 						</form>
 					}
-				}
-			}
-		}
-	}
-}
-
-// conversationSidebar holds the list, which asks for itself every ten seconds
-// so the unread counts stay fresh on every page.
-templ conversationSidebar(summaries []chat.Summary, current uuid.UUID, version string) {
-	@sidebar.Sidebar(sidebar.Props{
-		ID:          "conversations",
-		Collapsible: sidebar.CollapsibleNone,
-		// The block hides this list on a small screen, where the mail app
-		// shows the mail itself. Here the list is the only way to reach a
-		// conversation, so it stays.
-		Class: "flex flex-1",
-	}) {
-		@sidebar.Header(sidebar.HeaderProps{Class: "gap-3.5 border-b p-4"}) {
-			<div class="flex w-full items-center justify-between">
-				<div class="text-base font-medium text-foreground">Conversations</div>
-				@button.Button(button.Props{
-					Href:    "/conversations/new",
-					Variant: button.VariantOutline,
-					Size:    button.SizeSm,
-				}) {
-					New
-				}
-			</div>
-		}
-		@sidebar.Content() {
-			@sidebar.Group(sidebar.GroupProps{Class: "px-0"}) {
-				@sidebar.GroupContent() {
-					@ConversationList(summaries, current, version)
 				}
 			}
 		}

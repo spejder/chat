@@ -6,70 +6,51 @@ import (
 	"uuid"
 
 	"github.com/spejder/chat/internal/chat"
-	"github.com/spejder/chat/internal/components/badge"
-	"github.com/spejder/chat/internal/components/button"
+	"github.com/spejder/chat/internal/components/sidebar"
 )
 
-// Conversations is the page behind /conversations: the list lives in the
-// sidebar, so the room itself only says what to do next.
+// Conversations is the page behind /conversations. The list lives in the
+// sidebar, so the room stays blank until the reader picks a conversation.
 templ Conversations() {
-	<div class="flex flex-1 flex-col items-start gap-4 p-6">
-		<p class="text-sm text-muted-foreground">
-			Pick a conversation on the left, or start a new one.
-		</p>
-		@button.Button(button.Props{Href: "/conversations/new"}) {
-			Start a conversation
-		}
-	</div>
+	<div class="flex-1"></div>
 }
 
 // ConversationList renders the lines of the sidebar. It replaces itself every
 // ten seconds, so the answer carries the next version, and it holds the total
 // of unread messages, which the tab title reads.
 templ ConversationList(summaries []chat.Summary, current uuid.UUID, version string) {
-	<div
-		id="conversation-list"
-		class="flex flex-col"
-		data-unread={ strconv.Itoa(unreadTotal(summaries)) }
-		data-hx-get={ listURL(current, version) }
-		data-hx-trigger="every 10s"
-		data-hx-swap="outerHTML"
-	>
-		@conversationLines(summaries, current)
-	</div>
-}
-
-// conversationLines draws one line per conversation.
-templ conversationLines(summaries []chat.Summary, current uuid.UUID) {
-	if len(summaries) == 0 {
-		<p class="p-4 text-sm text-muted-foreground">
-			You take part in no conversation yet.
-		</p>
-	}
-	for _, summary := range summaries {
-		<a
-			href={ templ.SafeURL("/conversations/" + summary.ID.String()) }
-			class="flex flex-col items-start gap-1 border-b p-4 text-sm leading-tight whitespace-nowrap last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
-			data-active?={ summary.ID == current }
-			if summary.ID == current {
-				aria-current="page"
-			}
-		>
-			<span class="flex w-full items-center gap-2">
-				<span class="truncate font-medium">{ summary.Subject }</span>
-				<span class="ml-auto text-xs">{ shortTime(summary.LastMessageAt) }</span>
-			</span>
-			<span class="flex w-full items-center gap-2">
-				<span class="truncate text-xs text-muted-foreground">{ summary.Others }</span>
-				if summary.Unread > 0 {
-					<span class="ml-auto">
-						@badge.Badge() {
-							{ strconv.Itoa(summary.Unread) } new
-						}
-					</span>
+	@sidebar.Menu(sidebar.MenuProps{
+		ID: "conversation-list",
+		Attributes: templ.Attributes{
+			"data-unread":     strconv.Itoa(unreadTotal(summaries)),
+			"data-hx-get":     listURL(current, version),
+			"data-hx-trigger": "every 10s",
+			"data-hx-swap":    "outerHTML",
+		},
+	}) {
+		if len(summaries) == 0 {
+			<li class="px-2 py-1.5 text-sm text-muted-foreground">
+				No conversations yet.
+			</li>
+		}
+		for _, summary := range summaries {
+			@sidebar.MenuItem() {
+				@sidebar.MenuButton(sidebar.MenuButtonProps{
+					Href:       "/conversations/" + summary.ID.String(),
+					IsActive:   summary.ID == current,
+					Attributes: currentPage(summary.ID == current),
+				}) {
+					<span class="truncate">{ summary.Subject }</span>
 				}
-			</span>
-		</a>
+				if summary.Unread > 0 {
+					@sidebar.MenuBadge() {
+						// The space sits inside the expression, because templ
+						// drops the white space between an expression and a tag.
+						{ strconv.Itoa(summary.Unread) }<span class="sr-only">{ " unread" }</span>
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -96,4 +77,13 @@ func listURL(current uuid.UUID, version string) string {
 	}
 
 	return address
+}
+
+// currentPage marks the line of the open conversation for a screen reader.
+func currentPage(open bool) templ.Attributes {
+	if !open {
+		return nil
+	}
+
+	return templ.Attributes{"aria-current": "page"}
 }

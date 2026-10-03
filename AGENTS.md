@@ -151,22 +151,42 @@ thread or room.
 - `internal/chat` holds the rules and knows no SQL.
   `internal/postgres/chat.go` holds the queries, and `internal/server/chat.go`
   holds the routes.
-- `internal/web/shell.templ` wraps every page that a signed in person sees: a
-  narrow rail with the mark and the person, the conversation list beside it,
-  and the page itself in `sidebar.Inset`. A handler renders a page through
-  `chatHandlers.shell`, which hands the page to the shell as its children.
+- `internal/web/shell.templ` wraps every page that a signed in person sees.
+  It follows the block sidebar-01 of shadcn-templ: the name and the mark at
+  the top, one group "Conversations" with the list, and the person at the
+  bottom in the shape of the user menu of sidebar-07. The page itself sits in
+  `sidebar.Inset`.
+- A handler renders a page through `chatHandlers.shell` with a
+  `web.ShellPage`, which carries the subject and the people for the top bar.
+  `shell` adds the sidebar list, its version, the cookie state and the people
+  for the dialog, and hands the page to the shell as its children.
+- The top bar reads "Subject > names". The names leave the reader out, as the
+  sidebar list does. The page keeps an `sr-only` heading with the subject for
+  a screen reader.
+- The room stays blank when no conversation is open. On a phone the trigger
+  in the top bar opens the sidebar as a sheet, and a tap on a conversation
+  loads a new page, which closes the sheet.
 - The inset is the `<main>` of the document, so a page inside it must not
   bring one of its own.
-- A button may hold no `<div>`. The rail uses spans inside its menu buttons
-  for that reason.
+- A button may hold no `<div>`. The brand and the person menu use spans inside
+  their menu buttons for that reason.
 - The sidebar writes the cookie `sidebar_state`, and `sidebarOpen` in
   `internal/server/chat.go` reads it, so the page comes back the way the
   reader left it.
-- The list sidebar stays visible on a small screen, where the block hides it.
-  On a phone the sheet is the only way to reach a conversation.
-- The sign out in the rail is a plain form inside the menu, not a menu item. A
+- The sign out is a plain form inside the person menu, not a menu item. A
   menu item swallowed the click before htmx saw it, and a form needs no script
   at all.
+- The pen at the end of the group label is a `sidebar.GroupAction`. It opens
+  the dialog `new-conversation` through `dialog.TriggerFor`, because the
+  dialog sits outside the sidebar, which the script moves into a sheet on a
+  phone. The shell renders the dialog on every page.
+- The form in the dialog posts without htmx and answers with a redirect. The
+  registry dialog moves its content into `<body>`, where htmx would have to
+  read the markup again. A refused form answers 422 with the dialog open and
+  every field kept. `GET /conversations/new` opens the dialog at once, so an
+  old link still works.
+- The fields of the dialog carry ids with the prefix `new-`, because the page
+  behind the dialog has a write field with the id `body`.
 - Every read and every write asks first whether this person takes part. A
   conversation of other people answers 404, exactly like one that does not
   exist, so the answer never says what exists.
@@ -466,6 +486,10 @@ so Docker creates it and gives it to root, and `go install` then fails with
 Do not stop at a green build. Start the server on a free port, request the page
 and the fragment with curl, then open the page in the browser pane and click
 the control. Read the browser console for errors.
+
+The dialog, the sheet and the menus of the registry fade in. A screenshot
+right after the click shows them half drawn or behind each other. Wait a
+second and take the screenshot again before you call it a fault.
 
 ## Shell
 

@@ -15,12 +15,15 @@ import (
 	"github.com/spejder/chat/internal/web"
 )
 
+// readerID is the person who reads every page of these tests.
+var readerID = uuid.NewV7()
+
 // render turns a component into markup for a reader who is signed in.
 func render(t *testing.T, component templ.Component, children templ.Component) string {
 	t.Helper()
 
 	ctx := auth.WithUser(context.Background(), user.User{
-		ID:       uuid.NewV7(),
+		ID:       readerID,
 		FullName: "Ada Lovelace",
 		Email:    "ada@example.com",
 	})
@@ -53,22 +56,43 @@ func TestTheShellHoldsThePersonAndTheList(t *testing.T) {
 		Unread:        2,
 	}}
 
-	body := render(t, web.Shell(summaries, conversation.ID, "Lunch", true, "abc123"), web.Conversations())
+	reader := user.User{ID: readerID, FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+
+	page := web.ShellPage{
+		Summaries:   summaries,
+		Current:     conversation.ID,
+		Title:       "Lunch",
+		Subject:     "Lunch",
+		People:      []user.User{reader, other},
+		SidebarOpen: true,
+		Version:     "abc123",
+	}
+
+	body := render(t, web.Shell(page), web.Conversations())
 
 	for _, want := range []string{
 		"Ada Lovelace",
 		"ada@example.com",
 		"Sign out",
 		"Lunch",
-		"Grace Hopper",
-		"2 new",
+		`2<span class="sr-only"> unread</span>`,
 		"Start a conversation",
+		`aria-controls="new-conversation"`,
 		`data-hx-get="/conversations/list?v=abc123&amp;current=` + conversation.ID.String() + `"`,
 		`data-unread="2"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page misses %q", want)
 		}
+	}
+
+	// The top bar names the other person and leaves the reader out.
+	_, bar, _ := strings.Cut(body, `data-slot="breadcrumb-page"`)
+	bar, _, _ = strings.Cut(bar, "</")
+
+	if !strings.Contains(bar, "Grace Hopper") || strings.Contains(bar, "Ada Lovelace") {
+		t.Errorf("the top bar reads %q, want only the other person", bar)
 	}
 }
 

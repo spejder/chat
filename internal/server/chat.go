@@ -36,7 +36,7 @@ type chatHandlers struct {
 
 // list shows the room beside the sidebar when no conversation is open.
 func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
-	h.shell(w, r, uuid.Nil(), "All conversations", web.Conversations())
+	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Conversations"}, web.Conversations())
 }
 
 // listFragment answers the poll of the sidebar. It answers 204 when the list
@@ -81,8 +81,9 @@ func listVersion(summaries []chat.Summary) string {
 }
 
 // shell draws a page inside the sidebar, which every page of a signed in
-// person needs.
-func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, current uuid.UUID, heading string, main templ.Component) {
+// person needs. The handler fills what belongs to its own page, and shell
+// adds the sidebar and the people for the dialog that starts a conversation.
+func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, status int, page web.ShellPage, main templ.Component) {
 	person, _ := auth.UserFrom(r.Context())
 
 	summaries, err := h.service.List(r.Context(), person)
@@ -92,22 +93,6 @@ func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, current uui
 		return
 	}
 
-	// The page itself arrives as the children of the shell.
-	ctx := templ.WithChildren(r.Context(), main)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	shell := web.Shell(summaries, current, heading, sidebarOpen(r), listVersion(summaries))
-
-	if err := shell.Render(ctx, w); err != nil {
-		slog.Error("could not render the page", "error", err)
-	}
-}
-
-// newForm shows the form that starts a conversation.
-func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
-	person, _ := auth.UserFrom(r.Context())
-
 	others, err := h.others(r.Context(), person)
 	if err != nil {
 		h.fail(w, r, err)
@@ -115,7 +100,32 @@ func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.shell(w, r, uuid.Nil(), "Start a conversation", web.NewConversation(others, "", "", ""))
+	page.Summaries = summaries
+	page.Version = listVersion(summaries)
+	page.SidebarOpen = sidebarOpen(r)
+	page.NewConversation.People = others
+
+	// The page itself arrives as the children of the shell.
+	ctx := templ.WithChildren(r.Context(), main)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+
+	if err := web.Shell(page).Render(ctx, w); err != nil {
+		slog.Error("could not render the page", "error", err)
+	}
+}
+
+// newForm shows the blank room with the dialog that starts a conversation
+// already open. The pen in the sidebar opens the same dialog without a new
+// page, and this address keeps an old link working.
+func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
+	page := web.ShellPage{
+		Title:           "Start a conversation",
+		NewConversation: web.NewConversationForm{Open: true},
+	}
+
+	h.shell(w, r, http.StatusOK, page, web.Conversations())
 }
 
 // start opens a conversation and sends the browser into it.
@@ -145,15 +155,20 @@ func (h *chatHandlers) start(w http.ResponseWriter, r *http.Request) {
 	conversation, err := h.service.Start(r.Context(), person, subject, chosen, body)
 	if err != nil {
 		if message, ok := readableError(err); ok {
-			others, listErr := h.others(r.Context(), person)
-			if listErr != nil {
-				h.fail(w, r, listErr)
-
-				return
+			// The dialog comes back open, with everything the reader
+			// typed and chose.
+			page := web.ShellPage{
+				Title: "Start a conversation",
+				NewConversation: web.NewConversationForm{
+					Subject: subject,
+					Body:    body,
+					Chosen:  chosen,
+					Message: message,
+					Open:    true,
+				},
 			}
 
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			h.shell(w, r, uuid.Nil(), "Start a conversation", web.NewConversation(others, subject, body, message))
+			h.shell(w, r, http.StatusUnprocessableEntity, page, web.Conversations())
 
 			return
 		}
@@ -198,14 +213,18 @@ func (h *chatHandlers) show(w http.ResponseWriter, r *http.Request) {
 
 	page := web.ConversationPage(
 		opened.Conversation,
-		people,
 		opened.Messages,
 		panel,
 		version,
 		opened.HasOlder,
 	)
 
-	h.shell(w, r, opened.Conversation.ID, opened.Conversation.Subject, page)
+	h.shell(w, r, http.StatusOK, web.ShellPage{
+		Current: opened.Conversation.ID,
+		Title:   opened.Conversation.Subject,
+		Subject: opened.Conversation.Subject,
+		People:  people,
+	}, page)
 }
 
 // messages answers the poll of a conversation.

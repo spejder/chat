@@ -86,10 +86,32 @@ func run() error {
 	}
 
 	pages := map[string]templ.Component{
-		"login.html":            web.Login(web.EmailPanel("", "")),
-		"conversations.html":    inShell(summaries, uuid.Nil(), "All conversations", web.Conversations()),
-		"conversation.html":     inShell(summaries, conversation.ID, conversation.Subject, web.ConversationPage(conversation, people, messages, panel, "4-none-0-2026-09-21", true)),
-		"new-conversation.html": inShell(summaries, uuid.Nil(), "Start a conversation", web.NewConversation(people, "Lunch", "Are you in?", "")),
+		"login.html": web.Login(web.EmailPanel("", "")),
+		"conversations.html": inShell(web.ShellPage{
+			Summaries: summaries,
+			Title:     "Conversations",
+		}, web.Conversations()),
+		"conversation.html": inShell(web.ShellPage{
+			Summaries: summaries,
+			Current:   conversation.ID,
+			Title:     conversation.Subject,
+			Subject:   conversation.Subject,
+			People:    people,
+		}, web.ConversationPage(conversation, messages, panel, "4-none-0-2026-09-21", true)),
+		// The dialog comes back open after a refused form, so the markup of
+		// an open dialog with every field filled must hold too.
+		"new-conversation.html": inShell(web.ShellPage{
+			Summaries: summaries,
+			Title:     "Start a conversation",
+			NewConversation: web.NewConversationForm{
+				People:  people[1:],
+				Subject: "Lunch",
+				Body:    "Are you in?",
+				Chosen:  []uuid.UUID{people[1].ID},
+				Message: "Write a message.",
+				Open:    true,
+			},
+		}, web.Conversations()),
 	}
 
 	fragments := map[string]templ.Component{
@@ -135,9 +157,12 @@ var signedIn = auth.WithUser(context.Background(), user.User{
 })
 
 // inShell puts a page into the sidebar, the way the server does.
-func inShell(summaries []chat.Summary, current uuid.UUID, heading string, main templ.Component) templ.Component {
+func inShell(page web.ShellPage, main templ.Component) templ.Component {
+	page.SidebarOpen = true
+	page.Version = "abc123"
+
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
-		return web.Shell(summaries, current, heading, true, "abc123").Render(templ.WithChildren(ctx, main), w)
+		return web.Shell(page).Render(templ.WithChildren(ctx, main), w)
 	})
 }
 

@@ -87,8 +87,13 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 
 	adaSession := signIn(t, handler, messages, ada)
 
-	// The form must offer the other person and not the reader.
+	// The dialog must offer the other person and not the reader. The old
+	// address of the form opens the dialog at once.
 	form := get(t, handler, "/conversations/new", adaSession)
+	if !strings.Contains(form.Body.String(), `data-tui-dialog-initial-open="true"`) {
+		t.Error("the address of the form does not open the dialog")
+	}
+
 	if !strings.Contains(form.Body.String(), grace.FullName) {
 		t.Errorf("the form does not offer %s", grace.FullName)
 	}
@@ -116,7 +121,7 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 	graceSession := signIn(t, handler, messages, grace)
 
 	list := get(t, handler, "/conversations", graceSession)
-	if !strings.Contains(list.Body.String(), "Lunch") || !strings.Contains(list.Body.String(), "1 new") {
+	if !strings.Contains(list.Body.String(), "Lunch") || !strings.Contains(list.Body.String(), oneUnread) {
 		t.Fatalf("the list does not show the unread conversation: %s", list.Body.String())
 	}
 
@@ -125,9 +130,14 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 		t.Fatalf("the conversation does not show the message: %s", page.Body.String())
 	}
 
+	// The top bar names the other person and leaves the reader out.
+	if names := breadcrumbPage(page.Body.String()); names != ada.FullName {
+		t.Errorf("the top bar names %q, want %q", names, ada.FullName)
+	}
+
 	// Reading it clears the count.
 	after := get(t, handler, "/conversations", graceSession)
-	if strings.Contains(after.Body.String(), "1 new") {
+	if strings.Contains(after.Body.String(), oneUnread) {
 		t.Error("the list still shows an unread message after the read")
 	}
 
@@ -224,6 +234,49 @@ func TestAConversationNeedsSomebody(t *testing.T) {
 
 	if !strings.Contains(answer.Body.String(), "Choose at least one other person") {
 		t.Errorf("the answer does not say what is missing: %s", answer.Body.String())
+	}
+}
+
+// TestARefusedFormKeepsTheChoice makes sure that the dialog comes back open
+// with everything the reader typed and chose.
+func TestARefusedFormKeepsTheChoice(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the first user: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the second user: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	answer := postAs(t, handler, "/conversations", url.Values{
+		"subject": {""},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, session)
+
+	if answer.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d", answer.Code, http.StatusUnprocessableEntity)
+	}
+
+	body := answer.Body.String()
+
+	for _, want := range []string{
+		"Write a subject.",
+		`data-tui-dialog-initial-open="true"`,
+		`value="` + grace.ID.String() + `" checked`,
+		"Are you in?",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the answer misses %q", want)
+		}
 	}
 }
 
@@ -450,4 +503,20 @@ func TestAConversationComesInPages(t *testing.T) {
 	if !strings.Contains(block.Body.String(), "message 1") {
 		t.Errorf("the older block misses the oldest message: %s", block.Body.String())
 	}
+}
+
+// oneUnread is the badge of a conversation with one unread message.
+const oneUnread = `1<span class="sr-only"> unread</span>`
+
+// breadcrumbPage reads the last item of the top bar, which names the people.
+func breadcrumbPage(body string) string {
+	_, after, found := strings.Cut(body, `data-slot="breadcrumb-page"`)
+	if !found {
+		return ""
+	}
+
+	_, after, _ = strings.Cut(after, ">")
+	names, _, _ := strings.Cut(after, "<")
+
+	return strings.TrimSpace(names)
 }
