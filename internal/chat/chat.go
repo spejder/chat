@@ -124,3 +124,12 @@ type Store interface {
 type Notifier interface {
 	MessageWritten(ctx context.Context, conversation Conversation, message Message, recipients []uuid.UUID)
 }
+
+// Broadcaster tells the open pages of some people that a conversation
+// changed: a new message, or a read that moves the read mark and the unread
+// count. The page then asks for the conversation with the version it holds.
+// internal/postgres carries it out through LISTEN and NOTIFY, so every
+// server instance hears it.
+type Broadcaster interface {
+	Changed(ctx context.Context, conversationID uuid.UUID, people []uuid.UUID)
+}

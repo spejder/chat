@@ -44,7 +44,7 @@ func TestStartChecksTheInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := New(newFakeStore(ada, grace), nil)
+			service := New(newFakeStore(ada, grace), nil, nil)
 
 			_, err := service.Start(t.Context(), ada, test.subject, test.others, test.body)
 			if !errors.Is(err, test.want) {
@@ -60,7 +60,7 @@ func TestStartPutsBothPeopleIn(t *testing.T) {
 	t.Parallel()
 
 	ada, grace := people()
-	service := New(newFakeStore(ada, grace), nil)
+	service := New(newFakeStore(ada, grace), nil, nil)
 
 	conversation, err := service.Start(t.Context(), ada, "  Lunch  ", []uuid.UUID{grace.ID, grace.ID}, "Are you in?")
 	if err != nil {
@@ -86,7 +86,7 @@ func TestAStrangerGetsNothing(t *testing.T) {
 	ada, grace := people()
 	stranger := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
 
-	service := New(newFakeStore(ada, grace, stranger), nil)
+	service := New(newFakeStore(ada, grace, stranger), nil, nil)
 
 	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
 	if err != nil {
@@ -124,7 +124,7 @@ func TestWriteAddsToTheEnd(t *testing.T) {
 	t.Parallel()
 
 	ada, grace := people()
-	service := New(newFakeStore(ada, grace), nil)
+	service := New(newFakeStore(ada, grace), nil, nil)
 
 	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
 	if err != nil {
@@ -184,7 +184,7 @@ func TestTheOthersHearAboutAMessage(t *testing.T) {
 	alan := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
 
 	heard := &recorder{}
-	service := New(newFakeStore(ada, grace, alan), heard)
+	service := New(newFakeStore(ada, grace, alan), heard, nil)
 
 	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID, alan.ID}, "Are you in?")
 	if err != nil {
@@ -233,4 +233,78 @@ func TestTheOthersHearAboutAMessage(t *testing.T) {
 			}
 		})
 	}
+}
+
+// bell is a broadcaster that keeps every call.
+type bell struct {
+	rings []notice
+}
+
+func (b *bell) Changed(_ context.Context, id uuid.UUID, people []uuid.UUID) {
+	b.rings = append(b.rings, notice{conversation: Conversation{ID: id}, recipients: people})
+}
+
+// TestTheOpenPagesHearAboutChanges makes sure that a message and a read of
+// something new reach the broadcaster, and that a read of nothing new stays
+// silent, so two open pages never wake each other in a loop.
+func TestTheOpenPagesHearAboutChanges(t *testing.T) {
+	t.Parallel()
+
+	ada, grace := people()
+
+	rang := &bell{}
+	service := New(newFakeStore(ada, grace), nil, rang)
+
+	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	everybody := []uuid.UUID{ada.ID, grace.ID}
+
+	check := func(step string, want int) {
+		t.Helper()
+
+		if len(rang.rings) != want {
+			t.Fatalf("%s: the bell rang %d times, want %d", step, len(rang.rings), want)
+		}
+
+		last := rang.rings[len(rang.rings)-1]
+
+		got := slices.Clone(last.recipients)
+		slices.SortFunc(got, uuid.UUID.Compare)
+
+		wanted := slices.Clone(everybody)
+		slices.SortFunc(wanted, uuid.UUID.Compare)
+
+		if last.conversation.ID != conversation.ID || !slices.Equal(got, wanted) {
+			t.Errorf("%s: the bell rang for %v and %v, want the conversation and both people", step, last.conversation.ID, got)
+		}
+	}
+
+	check("start", 1)
+
+	// Grace reads the first message, which is new to her.
+	if _, err := service.Read(t.Context(), grace, conversation.ID); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	check("the first read", 2)
+
+	// The poll of her page finds nothing new and stays silent.
+	if _, err := service.Messages(t.Context(), grace, conversation.ID); err != nil {
+		t.Fatalf("messages: %v", err)
+	}
+
+	if len(rang.rings) != 2 {
+		t.Fatalf("a read of nothing new rang the bell: %d rings, want 2", len(rang.rings))
+	}
+
+	// Her answer rings for both, and the read of the writer covers nothing
+	// new to her.
+	if _, err := service.Write(t.Context(), grace, conversation.ID, "I am in"); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	check("the answer", 3)
 }

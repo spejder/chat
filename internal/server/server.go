@@ -10,6 +10,7 @@ import (
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components"
+	"github.com/spejder/chat/internal/live"
 	"github.com/spejder/chat/internal/push"
 )
 
@@ -27,6 +28,9 @@ type Config struct {
 	// Push keeps the browsers that hear about new messages.
 	Push *push.Service
 
+	// Live hands the changes to the open pages of this instance.
+	Live *live.Hub
+
 	// SecureCookies belongs to a site on HTTPS. A browser drops a secure
 	// cookie over plain HTTP, which is how development runs.
 	SecureCookies bool
@@ -37,6 +41,7 @@ func New(config Config) http.Handler {
 	handlers := &authHandlers{service: config.Auth, secureCookies: config.SecureCookies}
 	conversations := &chatHandlers{service: config.Chat, users: config.Users, pushKey: config.Push.PublicKey()}
 	notifications := &pushHandlers{service: config.Push}
+	events := &eventHandlers{hub: config.Live}
 
 	mux := http.NewServeMux()
 
@@ -62,6 +67,8 @@ func New(config Config) http.Handler {
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
 	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
+
+	mux.Handle("GET /events", requireUser(http.HandlerFunc(events.stream)))
 
 	mux.Handle("POST /push/subscriptions", requireUser(http.HandlerFunc(notifications.subscribe)))
 	mux.Handle("DELETE /push/subscriptions", requireUser(http.HandlerFunc(notifications.unsubscribe)))

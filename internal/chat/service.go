@@ -14,14 +14,16 @@ import (
 
 // Service holds the rules of a conversation.
 type Service struct {
-	store    Store
-	notifier Notifier
+	store       Store
+	notifier    Notifier
+	broadcaster Broadcaster
 }
 
-// New builds the service. The notifier hears about every new message, and a
-// nil notifier tells nobody.
-func New(store Store, notifier Notifier) *Service {
-	return &Service{store: store, notifier: notifier}
+// New builds the service. The notifier hears about every new message, for
+// the push notifications. The broadcaster hears about every change that an
+// open page must show. A nil notifier or broadcaster tells nobody.
+func New(store Store, notifier Notifier, broadcaster Broadcaster) *Service {
+	return &Service{store: store, notifier: notifier, broadcaster: broadcaster}
 }
 
 // Start opens a conversation. The person who starts it takes part in it, and
@@ -62,6 +64,8 @@ func (s *Service) Start(ctx context.Context, creator user.User, subject string, 
 		Body:       body,
 		CreatedAt:  conversation.CreatedAt,
 	}, recipients)
+
+	s.broadcast(ctx, conversation.ID, participants)
 
 	return conversation, nil
 }
@@ -105,16 +109,16 @@ func (s *Service) Read(ctx context.Context, person user.User, id uuid.UUID) (Ope
 		return Opened{}, err
 	}
 
-	since, _, err := s.store.MarkRead(ctx, id, person.ID)
+	since, err := s.markRead(ctx, person, id, messages)
 	if err != nil {
-		return Opened{}, fmt.Errorf("note the reading: %w", err)
+		return Opened{}, err
 	}
 
 	return Opened{Conversation: conversation, Messages: messages, Since: since, HasOlder: more}, nil
 }
 
 // Messages returns the newest part of a conversation, which is what the page
-// asks for every few seconds. It also notes that this person has seen it.
+// asks for after every change. It also notes that this person has seen it.
 func (s *Service) Messages(ctx context.Context, person user.User, id uuid.UUID) ([]Message, error) {
 	if _, err := s.find(ctx, person, id); err != nil {
 		return nil, err
@@ -125,8 +129,8 @@ func (s *Service) Messages(ctx context.Context, person user.User, id uuid.UUID) 
 		return nil, err
 	}
 
-	if _, _, err := s.store.MarkRead(ctx, id, person.ID); err != nil {
-		return nil, fmt.Errorf("note the reading: %w", err)
+	if _, err := s.markRead(ctx, person, id, messages); err != nil {
+		return nil, err
 	}
 
 	return messages, nil
@@ -186,25 +190,87 @@ func (s *Service) Write(ctx context.Context, person user.User, id uuid.UUID, bod
 		return nil, fmt.Errorf("write the message: %w", err)
 	}
 
-	if s.notifier != nil {
-		people, err := s.store.Participants(ctx, id)
+	if s.notifier != nil || s.broadcaster != nil {
+		people, err := s.people(ctx, id)
 		if err != nil {
-			return nil, fmt.Errorf("read the people: %w", err)
+			return nil, err
 		}
 
-		recipients := make([]uuid.UUID, 0, len(people))
-
-		for _, other := range people {
-			if other.ID != person.ID {
-				recipients = append(recipients, other.ID)
-			}
-		}
+		recipients := slices.DeleteFunc(slices.Clone(people), func(other uuid.UUID) bool {
+			return other == person.ID
+		})
 
 		message.AuthorName = person.FullName
 		s.notify(ctx, conversation, message, recipients)
+		s.broadcast(ctx, id, people)
 	}
 
 	return s.Messages(ctx, person, id)
+}
+
+// markRead notes that this person has seen the messages and returns the time
+// it replaces. When the reading covers a message from somebody else that
+// was new to this person, the open pages hear about it: the writer sees the
+// read mark, and the other pages of the reader lose the unread count.
+//
+// A reading that covers nothing new stays silent. Every fetch of the
+// messages notes a reading, and an event for each would make two open pages
+// wake each other forever.
+func (s *Service) markRead(ctx context.Context, person user.User, id uuid.UUID, messages []Message) (time.Time, error) {
+	since, _, err := s.store.MarkRead(ctx, id, person.ID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("note the reading: %w", err)
+	}
+
+	if s.broadcaster == nil || !newToReader(messages, person.ID, since) {
+		return since, nil
+	}
+
+	people, err := s.people(ctx, id)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	s.broadcast(ctx, id, people)
+
+	return since, nil
+}
+
+// newToReader answers whether a message from somebody else arrived after the
+// previous reading time. A zero time means the person never read anything.
+func newToReader(messages []Message, reader uuid.UUID, since time.Time) bool {
+	for _, message := range messages {
+		if message.AuthorID != reader && message.CreatedAt.After(since) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// people reads the identifiers of everybody in a conversation.
+func (s *Service) people(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	people, err := s.store.Participants(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("read the people: %w", err)
+	}
+
+	ids := make([]uuid.UUID, 0, len(people))
+	for _, person := range people {
+		ids = append(ids, person.ID)
+	}
+
+	return ids, nil
+}
+
+// broadcast tells the open pages of these people about a change, when there
+// is a broadcaster.
+func (s *Service) broadcast(ctx context.Context, id uuid.UUID, people []uuid.UUID) {
+	if s.broadcaster == nil {
+		return
+	}
+
+	s.broadcaster.Changed(ctx, id, people)
 }
 
 // notify tells the notifier about a new message, when there is one.

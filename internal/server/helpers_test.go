@@ -7,6 +7,7 @@ import (
 
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/live"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/postgres/postgrestest"
 	"github.com/spejder/chat/internal/push"
@@ -52,9 +53,28 @@ func newHandlerWith(t *testing.T, options ...push.Option) (http.Handler, *sms.Re
 	// sending must end before the test drops its database.
 	t.Cleanup(notifications.Wait)
 
-	conversations := chat.New(postgres.NewChatStore(pool), notifications)
+	// The changes travel through Postgres, as between two instances.
+	hub := live.New()
+	listening := make(chan struct{})
 
-	handler := server.New(server.Config{Auth: service, Chat: conversations, Users: users, Push: notifications})
+	go func() {
+		postgres.Listen(t.Context(), pool, hub)
+		close(listening)
+	}()
+
+	// The test context ends before the cleanup runs, which stops the
+	// listener. Its connection must close before the database goes.
+	t.Cleanup(func() { <-listening })
+
+	conversations := chat.New(postgres.NewChatStore(pool), notifications, postgres.NewBroadcaster(pool))
+
+	handler := server.New(server.Config{
+		Auth:  service,
+		Chat:  conversations,
+		Users: users,
+		Push:  notifications,
+		Live:  hub,
+	})
 
 	return handler, messages, users, notifications
 }

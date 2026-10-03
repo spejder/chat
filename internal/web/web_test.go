@@ -274,3 +274,20 @@ func TestALineShowsWhoAndWhetherItWasRead(t *testing.T) {
 		t.Error("more than one line carries the read mark")
 	}
 }
+
+// TestTheListsAskWhenTheStreamRings makes sure that both lists ask for
+// themselves on the event that app.js sends, and once a minute besides.
+func TestTheListsAskWhenTheStreamRings(t *testing.T) {
+	t.Parallel()
+
+	conversation := chat.Conversation{ID: uuid.NewV7(), Subject: "Lunch"}
+
+	for name, body := range map[string]string{
+		"the sidebar":  render(t, web.ConversationList(nil, uuid.Nil(), "abc123"), nil),
+		"the messages": render(t, web.MessageList(conversation, nil, web.Panel{}, "abc123"), nil),
+	} {
+		if !strings.Contains(body, `data-hx-trigger="chat:refresh, every 60s"`) {
+			t.Errorf("%s does not ask on chat:refresh: %s", name, body)
+		}
+	}
+}

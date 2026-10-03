@@ -13,14 +13,10 @@
 	// The write field grows to this height and then scrolls.
 	const maxFieldPixels = 192;
 
-	// The line counts as down when no answer has arrived for this long.
-	const silenceMs = 10000;
-
 	const messages = () => document.getElementById("messages");
 	const jump = () => document.getElementById("jump");
 	const offline = () => document.getElementById("offline");
 	const announcer = () => document.getElementById("announce");
-	const list = () => document.getElementById("message-list");
 	const errorLine = () => document.querySelector("#write [data-error]");
 	const countMessages = () => document.querySelectorAll("#messages [data-message]").length;
 
@@ -28,7 +24,6 @@
 	let keepTop = 0;
 	let counted = 0;
 	let waiting = 0;
-	let lastAnswer = Date.now();
 
 	const atBottom = (list) =>
 		list.scrollHeight - list.scrollTop - list.clientHeight < nearBottomPixels;
@@ -83,23 +78,6 @@
 		const body = newest.querySelector("[data-body]");
 
 		line.textContent = (newest.dataset.author || "") + ": " + (body ? body.textContent : "");
-	};
-
-	// askAgain takes over when htmx gives up after a failed request.
-	const askAgain = () => {
-		const element = list();
-
-		if (!element || !window.htmx) {
-			return;
-		}
-
-		const address = element.getAttribute("data-hx-get");
-
-		if (!address) {
-			return;
-		}
-
-		window.htmx.ajax("GET", address, { target: "#message-list", swap: "outerHTML" });
 	};
 
 	// grow lets the field follow the text instead of scrolling from the first
@@ -261,11 +239,11 @@
 		}
 	});
 
-	// Any answer at all means the line is up again.
-	document.addEventListener("htmx:after:request", () => {
-		lastAnswer = Date.now();
-		showOffline(false);
-	});
+	// app.js watches the stream of changes. While its line is down, the
+	// page hears about nothing, so it says so. The browser connects again by
+	// itself, and app.js catches up when it does.
+	document.addEventListener("chat:offline", () => showOffline(true));
+	document.addEventListener("chat:online", () => showOffline(false));
 
 	// The server says with a header that the message went out, and the field
 	// empties. A refused message never swaps, so the text stays.
@@ -307,24 +285,11 @@
 		line.textContent = message || "The message did not go out.";
 	});
 
-	// htmx stops asking after a failed request, so the page says so and takes
-	// over the asking itself.
+	// A failed request also means the line is down. The stream decides when
+	// it is up again.
 	document.addEventListener("htmx:error", () => {
 		showOffline(true);
 	});
-
-	setInterval(() => {
-		if (!list()) {
-			return;
-		}
-
-		if (Date.now() - lastAnswer < silenceMs) {
-			return;
-		}
-
-		showOffline(true);
-		askAgain();
-	}, 5000);
 
 	document.addEventListener(
 		"scroll",

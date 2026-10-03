@@ -71,8 +71,10 @@ templ ConversationPage(conversation chat.Conversation, messages []chat.Message, 
 } defer></script>
 }
 
-// MessageList holds the messages and the poll. It replaces itself, so the
-// answer carries the next version and the page keeps the mark for the unread
+// MessageList holds the messages. It asks for itself when app.js sends
+// chat:refresh after an event of the stream names this conversation, and
+// once a minute in case an event got lost. It replaces itself, so the answer
+// carries the next version and the page keeps the mark for the unread
 // messages.
 templ MessageList(conversation chat.Conversation, messages []chat.Message, panel Panel, version string) {
 	<div
@@ -80,7 +82,7 @@ templ MessageList(conversation chat.Conversation, messages []chat.Message, panel
 		role="log"
 		class="flex flex-col gap-1"
 		data-hx-get={ messagesURL(conversation.ID, panel.Since, version) }
-		data-hx-trigger="every 3s"
+		data-hx-trigger="chat:refresh, every 60s"
 		data-hx-swap="outerHTML"
 	>
 		@Messages(messages, panel)

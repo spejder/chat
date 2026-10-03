@@ -226,7 +226,8 @@ thread or room.
   somebody later yet.
 - The unread count comes from `last_read_at` in
   `conversation_participants`. Every read of the messages writes that column,
-  including the poll, so the count stays at zero while a page is open.
+  including every refresh of an open page, so the count stays at zero while
+  a page is open.
 - The conversation reads like a phone. `internal/web/messages.go` turns the
   messages into bubbles: the reader on the right in the accent colour,
   everybody else on the left. A group breaks when the writer changes, when the
@@ -264,36 +265,36 @@ thread or room.
   sits near the bottom, and puts them back where they were otherwise. A swap
   empties the list for a moment, so the position must be read before the swap
   and written after it.
-- The message list asks for itself every three seconds, and the list page
-  every ten. The list is `#message-list`, and it replaces itself with
-  `outerHTML`, so every answer carries the next version and the mark for the
-  unread messages.
+- The message list and the sidebar list ask for themselves on the event
+  `chat:refresh`, which `app.js` sends when the stream of changes rings, and
+  once a minute in case an event got lost. See "Live updates". The list is
+  `#message-list`, and it replaces itself with `outerHTML`, so every answer
+  carries the next version and the mark for the unread messages.
 - A message that the server refuses answers 204 with the reason in an
   `HX-Trigger` header, and a message that goes out answers with the list and
   the header `chat:sent`. htmx 4 swaps whatever comes back, including the body
   of an error, so an error body would wipe the conversation.
-- `assets/js/chat.js` shows a notice and asks again by itself when no answer
-  has arrived for ten seconds. htmx stops polling after a failed request, and
-  without this the conversation freezes with no sign.
+- `assets/js/chat.js` shows the notice "The connection is down" while the
+  stream of changes is broken (`chat:offline` and `chat:online` from
+  `app.js`) and after a failed request.
 - A hidden line with `aria-live` carries one sentence for a screen reader when
   a message arrives. A live region on the list itself would read the whole
   conversation after every swap.
 - The mark under the newest own message comes from the reading times of the
   other people. Only the number of people who have read that message belongs
-  in the version, never the raw times: every poll writes a reading time, and
-  the answer would never be 204 again.
+  in the version, never the raw times: every refresh writes a reading time,
+  and the answer would never be 204 again.
 - `assets/js/app.js` belongs to the shell, so it runs on every page of a
-  signed in person. It writes the number of unread messages into the tab
-  title, which it reads from `data-unread` on the sidebar list, and it slows
-  both polls to one every thirty seconds while the tab is hidden. It remembers
-  the pace the server asked for in `data-awake`, and never remembers the slow
-  one, or a swap while the tab is hidden would keep the page slow for good.
+  signed in person. It opens the stream of changes, writes the number of
+  unread messages into the tab title, which it reads from `data-unread` on
+  the sidebar list, and asks for both lists once when a hidden tab becomes
+  visible again.
 - The sidebar list carries a version too and answers 204 the same way. Its
   version is a hash over every line: the conversation, the time of its newest
   message, the unread count and the read mark. A state that the list shows
   but the version leaves out never reaches an open page.
 - A conversation comes in pages of `chat.MessagePage`. The newest page lives
-  in `#message-list`, which the poll replaces. Everything the reader asked to
+  in `#message-list`, which every refresh replaces. Everything the reader asked to
   see lives above it in `#older`, which nothing else touches. That is why the
   two boxes are separate.
 - An older block renders with `Panel.History`, so it carries neither the line
@@ -301,24 +302,70 @@ thread or room.
 - An unsent message lives in the browser under `chat:draft:<conversation>`,
   and `chat:sent` clears it. Every read and write sits in a try and catch,
   because a private window refuses the store.
-- The poll sends the version it holds in `v`. When that version still stands,
+- A refresh sends the version it holds in `v`. When that version still stands,
   the server answers 204 and htmx swaps nothing, which keeps the scrolling,
   the selected text and the work in the browser. The version is the number of
   messages, the newest identifier and today's date. The date belongs in it,
   because the date lines read Today and Yesterday.
 - `MarkRead` returns the time it replaces, and the page draws the line for the
-  unread messages from it. The page carries that time through the poll address
-  as `since`, so the line stays where it is while the page is open.
+  unread messages from it. The page carries that time through the refresh
+  address as `since`, so the line stays where it is while the page is open.
 - The write field sends on Enter and writes a new line on Shift and Enter. It
   grows with the text through an inline height, which `style-src-attr` allows.
   The send button stays, so a browser without scripts still works.
 - The button that jumps to the newest message needs `relative z-10`. The
   message list above it is positioned and would otherwise paint over it and
-  swallow the click. This is the cheapest thing that works. Server-sent events are the
-  next step when the cost of the poll begins to hurt.
+  swallow the click.
 - `ChatStore.Create` is the only transaction in the project. Every query
   inside it must go through the `*db.Queries` that `WithTx` returns, or the
   work lands outside the transaction.
+
+## Live updates
+
+The server tells an open page when one of its conversations changes, over
+Server-Sent Events (a long HTTP answer that the server writes events into,
+which the browser reads with `EventSource`). The event is a doorbell: it
+carries only the identifier of the conversation, and the page then asks for
+its lists with the version it holds, exactly as before. All rules about
+versions, read marks and pages stay in the routes that already had them.
+
+- `chat.Service` calls `chat.Broadcaster.Changed` with every participant
+  after a message is written, and after a read that covers a message from
+  somebody else that was new to the reader. That read moves the read mark of
+  the writer and the unread count of the reader's other pages.
+- A read that covers nothing new must stay silent. Every refresh notes a
+  reading, so an event for each one would make two open pages wake each
+  other forever. `MarkRead` returns the previous time, and `newToReader` in
+  `internal/chat/service.go` decides.
+- `internal/postgres/live.go` sends the change with `pg_notify` on the
+  channel `chat_changed`, and `postgres.Listen` hears every change of every
+  server instance on one connection, which leaves the pool for good. It
+  hands the change to the hub in `internal/live`, which knows the open pages
+  of this instance. A broken line starts again after two seconds.
+- `GET /events` writes the stream. It sets `X-Accel-Buffering: no`, because
+  nginx and others hold an answer back otherwise, writes a comment every 25
+  seconds, so a proxy keeps the line open, and flushes after every event.
+  `compress` lets a request that accepts `text/event-stream` through
+  unpacked, because gzip would hold the events in its buffer.
+- A stream never ends by itself, and `http.Server.Shutdown` waits for every
+  answer. `cmd/chat` registers `hub.Close` with `RegisterOnShutdown`, which
+  ends the streams at once.
+- `assets/js/app.js` sends `chat:refresh` to the sidebar list on every
+  event, and to `#message-list` when the event names the open conversation.
+  After a broken line it asks for both without the version, so the answer
+  always replaces them: the page cannot know what it missed, and a fresh
+  element also restarts the slow poll that htmx drops after a failed
+  request.
+- The hub drops an event for a page that falls 16 events behind. The next
+  event or the poll once a minute brings the same state, so nothing is lost
+  for good.
+- A browser opens at most six connections to one host over HTTP/1.1, and
+  every tab holds one stream. Put a proxy with HTTP/2 in front of the server
+  in production, or the seventh tab stalls.
+- The tests of `internal/server` run a real listener, so a change travels
+  through Postgres as between two instances. A test that waits for an event
+  writes again until it arrives, because the `LISTEN` needs a moment to
+  stand.
 
 ## Push notifications
 

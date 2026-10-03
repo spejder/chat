@@ -43,8 +43,8 @@ func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
 	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Conversations", OpenOnPhone: true}, web.Conversations())
 }
 
-// listFragment answers the poll of the sidebar. It answers 204 when the list
-// still stands, so the sidebar stops replacing itself every ten seconds.
+// listFragment answers the sidebar when it asks. It answers 204 when the list
+// still stands, so the sidebar does not replace itself for nothing.
 func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 	person, _ := auth.UserFrom(r.Context())
 

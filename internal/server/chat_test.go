@@ -425,8 +425,8 @@ func TestAReadChangesTheVersion(t *testing.T) {
 	}
 }
 
-// TestTheSidebarAnswersNothingChanged makes sure that the list stops
-// replacing itself every ten seconds when nothing moves.
+// TestTheSidebarAnswersNothingChanged makes sure that the list does not
+// replace itself when it asks and nothing moved.
 func TestTheSidebarAnswersNothingChanged(t *testing.T) {
 	t.Parallel()
 

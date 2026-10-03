@@ -37,16 +37,18 @@ templ Conversations() {
 	</div>
 }
 
-// ConversationList renders the lines of the sidebar. It replaces itself every
-// ten seconds, so the answer carries the next version, and it holds the total
-// of unread messages, which the tab title reads.
+// ConversationList renders the lines of the sidebar. It asks for itself when
+// app.js sends chat:refresh after an event of the stream, and once a minute
+// in case an event got lost. It replaces itself, so the answer carries the
+// next version, and it holds the total of unread messages, which the tab
+// title reads.
 templ ConversationList(summaries []chat.Summary, current uuid.UUID, version string) {
 	@sidebar.Menu(sidebar.MenuProps{
 		ID: "conversation-list",
 		Attributes: templ.Attributes{
 			"data-unread":     strconv.Itoa(unreadTotal(summaries)),
 			"data-hx-get":     listURL(current, version),
-			"data-hx-trigger": "every 10s",
+			"data-hx-trigger": "chat:refresh, every 60s",
 			"data-hx-swap":    "outerHTML",
 		},
 	}) {

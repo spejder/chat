@@ -16,6 +16,7 @@ import (
 
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
+	"github.com/spejder/chat/internal/live"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/push"
 	"github.com/spejder/chat/internal/server"
@@ -104,7 +105,13 @@ func run() error {
 	// database closes.
 	defer notifications.Wait()
 
-	conversations := chat.New(postgres.NewChatStore(pool), notifications)
+	// Every instance listens for the changes of every other one and hands
+	// them to its own open pages.
+	hub := live.New()
+
+	go postgres.Listen(ctx, pool, hub)
+
+	conversations := chat.New(postgres.NewChatStore(pool), notifications, postgres.NewBroadcaster(pool))
 
 	slog.Info("the sign in is ready", "origin", *origin)
 	slog.Info("this is chat", "version", version, "commit", commit, "date", date)
@@ -116,10 +123,15 @@ func run() error {
 			Chat:          conversations,
 			Users:         users,
 			Push:          notifications,
+			Live:          hub,
 			SecureCookies: strings.HasPrefix(*origin, "https://"),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+
+	// A stream of events never ends by itself, and Shutdown waits for every
+	// open answer. Closing the hub ends the streams.
+	srv.RegisterOnShutdown(hub.Close)
 
 	errs := make(chan error, 1)
 

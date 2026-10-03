@@ -30,13 +30,17 @@ var writers = sync.Pool{
 
 // compress packs the answer when the browser accepts gzip and the answer is
 // text. A request for a byte range passes through, because a range of the
-// packed bytes means nothing to the browser.
+// packed bytes means nothing to the browser, and so does a stream of events.
 func compress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Accept-Encoding")
 
+		// A stream of events must reach the browser event by event, and
+		// gzip would hold them in its buffer.
 		accepted := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
-		if !accepted || r.Header.Get("Range") != "" {
+		stream := strings.Contains(r.Header.Get("Accept"), "text/event-stream")
+
+		if !accepted || stream || r.Header.Get("Range") != "" {
 			next.ServeHTTP(w, r)
 
 			return
