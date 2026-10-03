@@ -97,6 +97,9 @@ sets it for the service container.
   four digit prefix, because sqlc reads the files in name order. The binary
   carries them, and `cmd/chat` applies them at start. `task migrate` applies
   them alone.
+- `postgres.Migrate` uses a `goose.Provider`. Do not call the package level
+  functions of goose, for example `goose.SetBaseFS` or `goose.UpContext`.
+  They share one global state, and the parallel tests race on it.
 - `task seed` writes the development users with `cmd/seed`. The people live in
   `internal/seed`. The seed is not a migration, so a new environment holds no
   users until somebody runs it. A second run changes nothing.
@@ -451,6 +454,9 @@ plus a set of stricter ones, and `gofumpt` and `goimports` as formatters.
   comes from the shadcn-templ registry.
 - `task test` runs `task generate` first, so a changed `.templ` file is always
   part of the run.
+- `task test:race` runs the tests with the race detector. The detector needs
+  cgo, so the command itself sets `CGO_ENABLED=1`. A value in the `env` block
+  of a task loses against the same variable in the environment of the shell.
 
 ## Markup validation
 
@@ -479,8 +485,9 @@ them with html-validate.
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs four jobs on every push to main and on every
-pull request. The build job runs `task build` and `task test`. The lint job
-runs `task lint`, `task fmt` and `task fix`. The markup job runs `task html`.
+pull request. The build job runs `task build`, `task test` and
+`task test:race`. The lint job runs `task lint`, `task fmt` and `task fix`.
+The markup job runs `task html`.
 The Lighthouse job starts the binary and audits the page against the
 thresholds in `.github/lighthouserc.json`.
 

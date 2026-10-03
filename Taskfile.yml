@@ -168,6 +168,16 @@ tasks:
     cmds:
       - go test ./...
 
+  test:race:
+    desc: Run the tests with the race detector
+    deps: [generate]
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+    cmds:
+      # The race detector needs cgo. The variable sits in the command,
+      # because a value in the environment of the shell beats the env block.
+      - CGO_ENABLED=1 go test -race ./...
+
   fmt:
     desc: Format the code
     deps: [tools:golangci]
