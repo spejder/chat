@@ -218,3 +218,18 @@ func TestAnEmptyListOffersTheDialog(t *testing.T) {
 		t.Error("the pen carries no tooltip")
 	}
 }
+
+// TestThePageFollowsTheViewport makes sure that the shell fills the window as
+// it is right now, and that a phone keyboard shrinks the page instead of
+// pushing the top bar away.
+func TestThePageFollowsTheViewport(t *testing.T) {
+	t.Parallel()
+
+	body := render(t, web.Shell(web.ShellPage{Title: "Conversations"}), web.Conversations())
+
+	for _, want := range []string{"interactive-widget=resizes-content", "h-dvh"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page misses %q", want)
+		}
+	}
+}

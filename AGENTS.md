@@ -240,7 +240,13 @@ thread or room.
 - The placeholder of the write field is short on purpose. The registry
   textarea carries `field-sizing-content`, so a long placeholder makes the
   field two lines tall on a phone. The hint about Enter lives in the `title`.
-- The page is a column that fills the window: the provider carries `h-full`,
+- The provider carries `h-dvh`, the height of the window as it is right
+  now, so the toolbars of a mobile browser never push the write field below
+  the edge. The viewport line carries `interactive-widget=resizes-content`,
+  so Chrome and Firefox on Android shrink the page when the keyboard opens
+  and the top bar stays. Safari ignores that setting. A fix for the iPhone
+  needs a script on `visualViewport` and a real iPhone to test it.
+- The page is a column that fills the window: the provider carries `h-dvh`,
   the page `flex-1 min-h-0`, and the message list `flex-1 min-h-0
   overflow-y-auto`. Without `min-h-0` a flex child refuses to shrink and the
   whole document grows instead of the list scrolling.

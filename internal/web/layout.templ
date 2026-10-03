@@ -18,7 +18,8 @@ templ Layout(title, description string) {
 	<html lang="en" class="h-full">
 		<head>
 			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<!-- resizes-content makes Chrome and Firefox on Android shrink the page when the keyboard opens, so the top bar and the write field stay on screen. Safari ignores it. -->
+			<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"/>
 			<meta name="color-scheme" content="light dark"/>
 			<meta name="description" content={ description }/>
 			<title>{ title }</title>

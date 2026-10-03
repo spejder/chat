@@ -24,9 +24,10 @@ templ Shell(page ShellPage) {
 	{{ reader, _ := auth.UserFrom(ctx) }}
 	@Layout(page.Title, "Conversations in Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
-			// The height of the window, so a page inside can fill it and
-			// scroll on its own instead of growing the whole document.
-			Class: "h-full",
+			// The height of the window as it is right now, with or without
+			// the toolbars of a mobile browser, so a page inside can fill it
+			// and scroll on its own instead of growing the whole document.
+			Class: "h-dvh",
 			// The script writes the sidebar_state cookie, and the server
 			// reads it, so the page comes back the way the reader left it.
 			DisableDefaultOpen: !page.SidebarOpen,
