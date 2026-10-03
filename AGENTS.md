@@ -283,6 +283,57 @@ thread or room.
   inside it must go through the `*db.Queries` that `WithTx` returns, or the
   work lands outside the transaction.
 
+## Push notifications
+
+A message reaches the other people through the push service of their
+browser, also when no tab of the site is open.
+
+- `internal/push` holds the rules and the sender, `internal/postgres/push.go`
+  the queries, and `internal/server/push.go` the routes. `chat.Service`
+  tells a `chat.Notifier` about every new message, with every participant
+  except the writer, and `push.Service` carries the notifier out.
+- `github.com/SherClockHolmes/webpush-go` encrypts the message and signs the
+  request with the VAPID key pair (the key pair that proves to a push
+  service that the message comes from this site).
+- The server makes the key pair at its first start and keeps it in the one
+  row of `vapid_keys`. Never delete or change that row. Every subscription
+  belongs to the public key, so a new pair breaks all of them. `push.js`
+  heals that at the next page load: it compares the key of the subscription
+  with the key on the page and subscribes again when they differ.
+- The sending runs on its own goroutine after the answer to the writer, with
+  a timeout of ten seconds. `push.Service.Wait` waits for it. `cmd/chat`
+  calls it before the database closes, and the tests call it before they
+  read what a fake push service received.
+- A push service that answers 404 or 410 no longer knows the browser, and
+  the row goes. The log names only the host of an endpoint, because the
+  whole address is a secret of the browser.
+- A subscription belongs to a session. Signing out deletes the session, and
+  the cascade deletes the subscription. A subscription of an expired session
+  stays in the table but receives nothing, because the query joins the
+  sessions. The middleware puts the session key into the context with
+  `auth.WithSession`, and the route reads it with `auth.SessionFrom`.
+- The browser remembers in `localStorage` under `chat:push:owner` who turned
+  the notifications on. When somebody else signs in on the same browser,
+  `push.js` drops the subscription, so that person starts with them off.
+- The routes `POST` and `DELETE /push/subscriptions` accept only
+  `application/json`. A form on another site cannot send that type.
+- The service worker lives at `/sw.js`, because a worker controls only the
+  addresses below its own. It answers with `no-cache`. It has no fetch
+  handler and keeps no cache. It shows nothing when a visible window already
+  shows the conversation, which Chrome accepts.
+- The switch in the person menu is a native checkbox with `role="switch"`,
+  for the same reason as the checkboxes of the dialog. It starts hidden, and
+  `push.js` shows it only in a browser that can receive a push.
+- The site carries a manifest at `/manifest.webmanifest`, so it installs as
+  an app. An iPhone delivers a push only to a site on the home screen. The
+  PNG icons in `assets/img` are drawn from the shapes of `favicon.svg`.
+  Draw them again when the mark changes.
+- A browser that a tool drives refuses the permission by itself: the browser
+  pane says denied, and the Chrome of the DevTools tools denies the prompt.
+  The Go tests cover the sending end to end against a fake push service.
+  Check the allowed path by hand in a real Chrome on `http://localhost`,
+  which counts as a secure origin.
+
 ## Tests that need the database
 
 `internal/postgres/postgrestest` creates a database for each test, applies the
@@ -358,7 +409,8 @@ cache time of one year. Every other request gets 60 seconds and an ETag.
 
 ## Assets and embedding
 
-- `assets/assets.go` embeds `css`, `js` and `dist` into the binary.
+- `assets/assets.go` embeds `app`, `css`, `js`, `dist` and `img` into the
+  binary. `app` holds the manifest, which the server hands out at the root.
 - `assets/dist/styles.css` is generated and ignored by git. The committed file
   `assets/dist/.gitkeep` keeps the embed pattern valid on a fresh clone.
 - Build the CSS before `go build`, or the binary holds an old stylesheet. The

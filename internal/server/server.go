@@ -10,6 +10,7 @@ import (
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/components"
+	"github.com/spejder/chat/internal/push"
 )
 
 // Config holds what the routes need from the outside.
@@ -23,6 +24,9 @@ type Config struct {
 	// Users lists the people that a conversation can reach.
 	Users Users
 
+	// Push keeps the browsers that hear about new messages.
+	Push *push.Service
+
 	// SecureCookies belongs to a site on HTTPS. A browser drops a secure
 	// cookie over plain HTTP, which is how development runs.
 	SecureCookies bool
@@ -31,13 +35,16 @@ type Config struct {
 // New returns the handler with every route of the application.
 func New(config Config) http.Handler {
 	handlers := &authHandlers{service: config.Auth, secureCookies: config.SecureCookies}
-	conversations := &chatHandlers{service: config.Chat, users: config.Users}
+	conversations := &chatHandlers{service: config.Chat, users: config.Users, pushKey: config.Push.PublicKey()}
+	notifications := &pushHandlers{service: config.Push}
 
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", static(http.FileServerFS(assets.FS))))
 	mux.Handle("GET /components/{bundle}", components.ScriptsHandler())
 	mux.HandleFunc("GET /{$}", start)
+	mux.HandleFunc("GET /sw.js", serviceWorker)
+	mux.HandleFunc("GET /manifest.webmanifest", manifest)
 
 	mux.HandleFunc("GET /login", handlers.page)
 	mux.HandleFunc("POST /login", handlers.start)
@@ -55,6 +62,9 @@ func New(config Config) http.Handler {
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
 	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
+
+	mux.Handle("POST /push/subscriptions", requireUser(http.HandlerFunc(notifications.subscribe)))
+	mux.Handle("DELETE /push/subscriptions", requireUser(http.HandlerFunc(notifications.unsubscribe)))
 
 	return secure(compress(handlers.authenticate(mux)))
 }

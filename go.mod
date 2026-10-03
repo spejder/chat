@@ -6,6 +6,7 @@ tool github.com/a-h/templ/cmd/templ
 
 require (
 	github.com/Oudwins/tailwind-merge-go v0.2.3
+	github.com/SherClockHolmes/webpush-go v1.4.0
 	github.com/a-h/templ v0.3.1020
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/jackc/pgx/v5 v5.11.0

@@ -14,6 +14,8 @@ const contentSecurityPolicy = "default-src 'self'; " +
 	"style-src-attr 'unsafe-inline'; " +
 	"img-src 'self' data:; " +
 	"connect-src 'self'; " +
+	"worker-src 'self'; " +
+	"manifest-src 'self'; " +
 	"base-uri 'none'; " +
 	"form-action 'self'; " +
 	"frame-ancestors 'none'; " +

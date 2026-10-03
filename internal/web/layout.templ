@@ -23,6 +23,11 @@ templ Layout(title, description string) {
 			<meta name="description" content={ description }/>
 			<title>{ title }</title>
 			<link rel="icon" type="image/svg+xml" href={ assets.URL("img/favicon.svg") }/>
+			<!-- The manifest lets the site install as an app. An iPhone delivers push notifications only to an installed site. -->
+			<link rel="manifest" href="/manifest.webmanifest"/>
+			<link rel="apple-touch-icon" href={ assets.URL("img/apple-touch-icon.png") }/>
+			<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff"/>
+			<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0a"/>
 			<link
 				rel="stylesheet"
 				href={ assets.URL("dist/styles.css") }

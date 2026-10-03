@@ -267,7 +267,9 @@ func (h *authHandlers) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		next.ServeHTTP(w, r.WithContext(auth.WithUser(r.Context(), person)))
+		ctx := auth.WithSession(auth.WithUser(r.Context(), person), cookie.Value)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

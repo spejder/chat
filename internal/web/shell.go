@@ -35,6 +35,10 @@ type ShellPage struct {
 	// Version is the state of the sidebar list, which the poll sends back.
 	Version string
 
+	// PushKey is the public VAPID key, which the browser needs to subscribe
+	// to notifications. An empty key hides the switch.
+	PushKey string
+
 	// NewConversation fills the dialog that starts a conversation.
 	NewConversation NewConversationForm
 }

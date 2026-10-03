@@ -9,6 +9,7 @@ import (
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/postgres/postgrestest"
+	"github.com/spejder/chat/internal/push"
 	"github.com/spejder/chat/internal/server"
 	"github.com/spejder/chat/internal/sms"
 	"github.com/spejder/chat/internal/user"
@@ -22,6 +23,17 @@ const testOrigin = "http://localhost:8080"
 func newHandler(t *testing.T) (http.Handler, *sms.Recorder, *postgres.UserStore) {
 	t.Helper()
 
+	handler, messages, users, _ := newHandlerWith(t)
+
+	return handler, messages, users
+}
+
+// newHandlerWith is newHandler with options for the notifications, for
+// example a client that reaches a fake push service. It also returns the
+// notifications, so a test can wait for a round of sending.
+func newHandlerWith(t *testing.T, options ...push.Option) (http.Handler, *sms.Recorder, *postgres.UserStore, *push.Service) {
+	t.Helper()
+
 	pool := postgrestest.New(t)
 	users := postgres.NewUserStore(pool)
 	messages := &sms.Recorder{}
@@ -31,11 +43,20 @@ func newHandler(t *testing.T) (http.Handler, *sms.Recorder, *postgres.UserStore)
 		t.Fatalf("set up the sign in: %v", err)
 	}
 
-	conversations := chat.New(postgres.NewChatStore(pool))
+	notifications, err := push.New(t.Context(), postgres.NewPushStore(pool), testOrigin, options...)
+	if err != nil {
+		t.Fatalf("set up the notifications: %v", err)
+	}
 
-	handler := server.New(server.Config{Auth: service, Chat: conversations, Users: users})
+	// Nothing in these tests posts to a real push service, but a round of
+	// sending must end before the test drops its database.
+	t.Cleanup(notifications.Wait)
 
-	return handler, messages, users
+	conversations := chat.New(postgres.NewChatStore(pool), notifications)
+
+	handler := server.New(server.Config{Auth: service, Chat: conversations, Users: users, Push: notifications})
+
+	return handler, messages, users, notifications
 }
 
 // signIn walks the code path and returns the session cookie of that person.

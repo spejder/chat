@@ -1,7 +1,9 @@
 package chat
 
 import (
+	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"uuid"
@@ -42,7 +44,7 @@ func TestStartChecksTheInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			service := New(newFakeStore(ada, grace))
+			service := New(newFakeStore(ada, grace), nil)
 
 			_, err := service.Start(t.Context(), ada, test.subject, test.others, test.body)
 			if !errors.Is(err, test.want) {
@@ -58,7 +60,7 @@ func TestStartPutsBothPeopleIn(t *testing.T) {
 	t.Parallel()
 
 	ada, grace := people()
-	service := New(newFakeStore(ada, grace))
+	service := New(newFakeStore(ada, grace), nil)
 
 	conversation, err := service.Start(t.Context(), ada, "  Lunch  ", []uuid.UUID{grace.ID, grace.ID}, "Are you in?")
 	if err != nil {
@@ -84,7 +86,7 @@ func TestAStrangerGetsNothing(t *testing.T) {
 	ada, grace := people()
 	stranger := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
 
-	service := New(newFakeStore(ada, grace, stranger))
+	service := New(newFakeStore(ada, grace, stranger), nil)
 
 	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
 	if err != nil {
@@ -122,7 +124,7 @@ func TestWriteAddsToTheEnd(t *testing.T) {
 	t.Parallel()
 
 	ada, grace := people()
-	service := New(newFakeStore(ada, grace))
+	service := New(newFakeStore(ada, grace), nil)
 
 	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
 	if err != nil {
@@ -154,5 +156,81 @@ func TestWriteAddsToTheEnd(t *testing.T) {
 
 	if summaries[0].Unread != 0 {
 		t.Errorf("after the read there are %d unread, want 0", summaries[0].Unread)
+	}
+}
+
+// notice is one call to the notifier.
+type notice struct {
+	conversation Conversation
+	message      Message
+	recipients   []uuid.UUID
+}
+
+// recorder is a notifier that keeps every call.
+type recorder struct {
+	notices []notice
+}
+
+func (r *recorder) MessageWritten(_ context.Context, conversation Conversation, message Message, recipients []uuid.UUID) {
+	r.notices = append(r.notices, notice{conversation: conversation, message: message, recipients: recipients})
+}
+
+// TestTheOthersHearAboutAMessage makes sure that every new message reaches
+// the notifier, with the other people and never the writer.
+func TestTheOthersHearAboutAMessage(t *testing.T) {
+	t.Parallel()
+
+	ada, grace := people()
+	alan := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
+
+	heard := &recorder{}
+	service := New(newFakeStore(ada, grace, alan), heard)
+
+	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID, alan.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	if _, err := service.Write(t.Context(), grace, conversation.ID, "I am in"); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	if len(heard.notices) != 2 {
+		t.Fatalf("the notifier heard %d messages, want 2", len(heard.notices))
+	}
+
+	tests := []struct {
+		name   string
+		notice notice
+		writer user.User
+		body   string
+		want   []uuid.UUID
+	}{
+		{name: "the first message", notice: heard.notices[0], writer: ada, body: "Are you in?", want: []uuid.UUID{grace.ID, alan.ID}},
+		{name: "an answer", notice: heard.notices[1], writer: grace, body: "I am in", want: []uuid.UUID{ada.ID, alan.ID}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if test.notice.conversation.ID != conversation.ID || test.notice.conversation.Subject != "Lunch" {
+				t.Errorf("the conversation is %+v, want Lunch", test.notice.conversation)
+			}
+
+			if test.notice.message.AuthorName != test.writer.FullName || test.notice.message.Body != test.body {
+				t.Errorf("the message is %+v, want %q by %s", test.notice.message, test.body, test.writer.FullName)
+			}
+
+			got := slices.Clone(test.notice.recipients)
+			slices.SortFunc(got, uuid.UUID.Compare)
+
+			want := slices.Clone(test.want)
+			slices.SortFunc(want, uuid.UUID.Compare)
+
+			if !slices.Equal(got, want) {
+				t.Errorf("the recipients are %v, want %v", got, want)
+			}
+		})
 	}
 }

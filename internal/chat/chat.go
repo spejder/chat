@@ -103,3 +103,10 @@ type Store interface {
 	Participants(ctx context.Context, conversationID uuid.UUID) ([]user.User, error)
 	Readers(ctx context.Context, conversationID uuid.UUID) ([]Reader, error)
 }
+
+// Notifier hears about every new message, so the people of the conversation
+// learn about it with the page closed. internal/push carries it out. The
+// call must return at once, because the writer waits for the answer.
+type Notifier interface {
+	MessageWritten(ctx context.Context, conversation Conversation, message Message, recipients []uuid.UUID)
+}

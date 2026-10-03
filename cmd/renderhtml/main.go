@@ -160,6 +160,9 @@ var signedIn = auth.WithUser(context.Background(), user.User{
 func inShell(page web.ShellPage, main templ.Component) templ.Component {
 	page.SidebarOpen = true
 	page.Version = "abc123"
+	// A key makes the shell draw the switch for the notifications, so the
+	// validator reads its markup too.
+	page.PushKey = "BExampleKeyForTheValidator"
 
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		return web.Shell(page).Render(templ.WithChildren(ctx, main), w)

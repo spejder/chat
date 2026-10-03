@@ -18,6 +18,7 @@ import (
 // shadcn-templ.
 templ Shell(page ShellPage) {
 	{{ appIntegrity := assets.Integrity("js/app.js") }}
+	{{ pushIntegrity := assets.Integrity("js/push.js") }}
 	{{ reader, _ := auth.UserFrom(ctx) }}
 	@Layout(page.Title, "Conversations in Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
@@ -52,12 +53,15 @@ templ Shell(page ShellPage) {
 					}
 				}
 				@sidebar.Footer() {
-					@personMenu()
+					@personMenu(page.PushKey)
 				}
 				@sidebar.Rail()
 			}
 			<script src={ assets.URL("js/app.js") } if appIntegrity != "" {
 	integrity={ appIntegrity }
+} defer></script>
+			<script src={ assets.URL("js/push.js") } if pushIntegrity != "" {
+	integrity={ pushIntegrity }
 } defer></script>
 			@sidebar.Inset() {
 				<header class="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -112,7 +116,7 @@ templ brand() {
 
 // personMenu shows who is signed in and the way out. The menu needs a script,
 // so a plain form sits behind it for a browser without one.
-templ personMenu() {
+templ personMenu(pushKey string) {
 	{{ person, signedIn := auth.UserFrom(ctx) }}
 	if signedIn {
 		@sidebar.Menu() {
@@ -147,6 +151,10 @@ templ personMenu() {
 								<span class="truncate text-xs">{ person.Email }</span>
 							</div>
 						}
+						if pushKey != "" {
+							@dropdownmenu.Separator()
+							@pushSwitch(pushKey, person.ID.String())
+						}
 						@dropdownmenu.Separator()
 						// A form, not a menu item: a plain submit works with
 						// the keyboard, with no script, and without htmx. The
@@ -167,6 +175,42 @@ templ personMenu() {
 			}
 		}
 	}
+}
+
+// pushSwitch turns the notifications of this browser on and off. It starts
+// hidden, and assets/js/push.js shows it when the browser can receive a
+// push, so a browser without push never sees a dead control.
+//
+// The switch is a native checkbox with the role of a switch. The switch of
+// the registry hides its real input from the keyboard and needs its own
+// script, and push.js must set the state from outside. The classes copy the
+// look of the registry switch.
+templ pushSwitch(pushKey, personID string) {
+	<div data-push hidden class="px-2 py-1.5">
+		<label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
+			<span class="flex items-center gap-2">
+				@icon.Bell(icon.Props{Class: "size-4 text-muted-foreground"})
+				Notifications
+			</span>
+			<span class="relative inline-flex shrink-0 items-center">
+				<input
+					type="checkbox"
+					role="switch"
+					data-push-switch
+					data-push-key={ pushKey }
+					data-push-user={ personID }
+					class="peer h-[18.4px] w-8 cursor-pointer appearance-none rounded-full border border-transparent bg-input shadow-xs transition-all outline-none checked:bg-primary focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/80 dark:checked:bg-primary"
+				/>
+				<span
+					aria-hidden="true"
+					class="pointer-events-none absolute left-px size-4 rounded-full bg-background transition-transform peer-checked:translate-x-[calc(100%-2px)] dark:bg-foreground dark:peer-checked:bg-primary-foreground"
+				></span>
+			</span>
+		</label>
+		<p data-push-note hidden class="max-w-56 pt-1 text-xs text-muted-foreground">
+			This browser blocks notifications from Chat. Allow them in the settings of the browser.
+		</p>
+	</div>
 }
 
 // initials writes the first letters of a name, for the round mark.

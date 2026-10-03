@@ -17,6 +17,7 @@ import (
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
 	"github.com/spejder/chat/internal/postgres"
+	"github.com/spejder/chat/internal/push"
 	"github.com/spejder/chat/internal/server"
 	"github.com/spejder/chat/internal/sms"
 
@@ -94,7 +95,16 @@ func run() error {
 		return err
 	}
 
-	conversations := chat.New(postgres.NewChatStore(pool))
+	notifications, err := push.New(ctx, postgres.NewPushStore(pool), *origin)
+	if err != nil {
+		return err
+	}
+
+	// The notifications that are still on their way finish before the
+	// database closes.
+	defer notifications.Wait()
+
+	conversations := chat.New(postgres.NewChatStore(pool), notifications)
 
 	slog.Info("the sign in is ready", "origin", *origin)
 	slog.Info("this is chat", "version", version, "commit", commit, "date", date)
@@ -105,6 +115,7 @@ func run() error {
 			Auth:          signIn,
 			Chat:          conversations,
 			Users:         users,
+			Push:          notifications,
 			SecureCookies: strings.HasPrefix(*origin, "https://"),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

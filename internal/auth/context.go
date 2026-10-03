@@ -21,3 +21,21 @@ func UserFrom(ctx context.Context) (user.User, bool) {
 
 	return signedIn, ok
 }
+
+// sessionKey keeps the key of the session out of reach of other packages.
+type sessionKey struct{}
+
+// WithSession returns a context that carries the key of the session, which
+// is the hash of the token in the cookie. A push subscription belongs to a
+// session, so signing out ends it.
+func WithSession(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, sessionKey{}, hashToken(token))
+}
+
+// SessionFrom returns the key of the session. It is empty when nobody is
+// signed in.
+func SessionFrom(ctx context.Context) []byte {
+	key, _ := ctx.Value(sessionKey{}).([]byte)
+
+	return key
+}

@@ -16,7 +16,7 @@ import (
 
 // FS holds the static files of the application.
 //
-//go:embed all:css all:js all:dist all:img
+//go:embed all:app all:css all:js all:dist all:img
 var FS embed.FS
 
 // fingerprints maps the path of an embedded file to a short hash of its

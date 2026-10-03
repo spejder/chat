@@ -190,6 +190,8 @@ func TestSecurityHeaders(t *testing.T) {
 		"default-src 'self'",
 		"script-src 'self'",
 		"frame-ancestors 'none'",
+		"worker-src 'self'",
+		"manifest-src 'self'",
 		"object-src 'none'",
 	} {
 		if !strings.Contains(policy, directive) {

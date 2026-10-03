@@ -14,12 +14,14 @@ import (
 
 // Service holds the rules of a conversation.
 type Service struct {
-	store Store
+	store    Store
+	notifier Notifier
 }
 
-// New builds the service.
-func New(store Store) *Service {
-	return &Service{store: store}
+// New builds the service. The notifier hears about every new message, and a
+// nil notifier tells nobody.
+func New(store Store, notifier Notifier) *Service {
+	return &Service{store: store, notifier: notifier}
 }
 
 // Start opens a conversation. The person who starts it takes part in it, and
@@ -45,12 +47,21 @@ func (s *Service) Start(ctx context.Context, creator user.User, subject string, 
 	}
 
 	// The person who writes the first message must be in the conversation.
+	// The others hear about it, so they are counted before the writer joins.
+	recipients := slices.Clone(participants)
 	participants = append(participants, creator.ID)
 
 	conversation, err := s.store.Create(ctx, subject, creator.ID, participants, body)
 	if err != nil {
 		return Conversation{}, fmt.Errorf("start the conversation: %w", err)
 	}
+
+	s.notify(ctx, conversation, Message{
+		AuthorID:   creator.ID,
+		AuthorName: creator.FullName,
+		Body:       body,
+		CreatedAt:  conversation.CreatedAt,
+	}, recipients)
 
 	return conversation, nil
 }
@@ -160,7 +171,8 @@ func cutPage(messages []Message) ([]Message, bool, error) {
 
 // Write adds a message and returns the conversation as it now stands.
 func (s *Service) Write(ctx context.Context, person user.User, id uuid.UUID, body string) ([]Message, error) {
-	if _, err := s.find(ctx, person, id); err != nil {
+	conversation, err := s.find(ctx, person, id)
+	if err != nil {
 		return nil, err
 	}
 
@@ -169,11 +181,39 @@ func (s *Service) Write(ctx context.Context, person user.User, id uuid.UUID, bod
 		return nil, err
 	}
 
-	if _, err := s.store.AddMessage(ctx, id, person.ID, clean); err != nil {
+	message, err := s.store.AddMessage(ctx, id, person.ID, clean)
+	if err != nil {
 		return nil, fmt.Errorf("write the message: %w", err)
 	}
 
+	if s.notifier != nil {
+		people, err := s.store.Participants(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("read the people: %w", err)
+		}
+
+		recipients := make([]uuid.UUID, 0, len(people))
+
+		for _, other := range people {
+			if other.ID != person.ID {
+				recipients = append(recipients, other.ID)
+			}
+		}
+
+		message.AuthorName = person.FullName
+		s.notify(ctx, conversation, message, recipients)
+	}
+
 	return s.Messages(ctx, person, id)
+}
+
+// notify tells the notifier about a new message, when there is one.
+func (s *Service) notify(ctx context.Context, conversation Conversation, message Message, recipients []uuid.UUID) {
+	if s.notifier == nil {
+		return
+	}
+
+	s.notifier.MessageWritten(ctx, conversation, message, recipients)
 }
 
 // Participants names the people in a conversation.

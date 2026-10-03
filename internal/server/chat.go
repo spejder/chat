@@ -32,6 +32,10 @@ type Users interface {
 type chatHandlers struct {
 	service *chat.Service
 	users   Users
+
+	// pushKey is the public half of the push key pair. The page hands it to
+	// the browser, which needs it to subscribe.
+	pushKey string
 }
 
 // list shows the room beside the sidebar when no conversation is open.
@@ -103,6 +107,7 @@ func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, status int,
 	page.Summaries = summaries
 	page.Version = listVersion(summaries)
 	page.SidebarOpen = sidebarOpen(r)
+	page.PushKey = h.pushKey
 	page.NewConversation.People = others
 
 	// The page itself arrives as the children of the shell.
