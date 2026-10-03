@@ -64,11 +64,30 @@
 		}
 	};
 
+	// writeBadge puts the count on the icon of the installed app. Only some
+	// browsers have the Badging API, and none of them needs it to work, so
+	// the call sits behind a test and a refusal only warns.
+	const writeBadge = (unread) => {
+		if (!("setAppBadge" in navigator)) {
+			return;
+		}
+
+		const done = unread > 0 ? navigator.setAppBadge(unread) : navigator.clearAppBadge();
+
+		done.catch((error) => console.warn("the badge of the app was refused", error));
+	};
+
 	const writeTitle = () => {
 		const list = document.getElementById("conversation-list");
-		const unread = list ? Number(list.dataset.unread || "0") : 0;
+
+		if (!list) {
+			return;
+		}
+
+		const unread = Number(list.dataset.unread || "0");
 
 		document.title = unread > 0 ? "(" + unread + ") " + plainTitle : plainTitle;
+		writeBadge(unread);
 	};
 
 	// chat.js keeps an unsent message under this key and the identifier of

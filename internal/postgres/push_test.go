@@ -166,3 +166,51 @@ func TestRemoveTouchesOnlyTheOwner(t *testing.T) {
 		t.Errorf("the browser is still there after forget: %+v, %v", targets, err)
 	}
 }
+
+// TestUnreadCountsEveryConversation makes sure that the count for the badge
+// adds up the unread messages of every conversation of a person, and drops
+// after a read.
+func TestUnreadCountsEveryConversation(t *testing.T) {
+	t.Parallel()
+
+	pool := postgrestest.New(t)
+	store := postgres.NewPushStore(pool)
+	chats := postgres.NewChatStore(pool)
+	ada, grace := twoPeople(t, postgres.NewUserStore(pool))
+
+	first, err := chats.Create(t.Context(), "Lunch", ada.ID, []uuid.UUID{ada.ID, grace.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("create the first conversation: %v", err)
+	}
+
+	if _, err := chats.Create(t.Context(), "Party", ada.ID, []uuid.UUID{ada.ID, grace.ID}, "Who brings cake?"); err != nil {
+		t.Fatalf("create the second conversation: %v", err)
+	}
+
+	if _, err := chats.AddMessage(t.Context(), first.ID, ada.ID, "Twelve o'clock"); err != nil {
+		t.Fatalf("add a message: %v", err)
+	}
+
+	counts, err := store.Unread(t.Context(), []uuid.UUID{ada.ID, grace.ID})
+	if err != nil {
+		t.Fatalf("unread: %v", err)
+	}
+
+	// Ada wrote everything, so only Grace has something to read.
+	if counts[grace.ID] != 3 || counts[ada.ID] != 0 {
+		t.Errorf("the counts are %v, want 3 for Grace and 0 for Ada", counts)
+	}
+
+	if _, _, err := chats.MarkRead(t.Context(), first.ID, grace.ID); err != nil {
+		t.Fatalf("mark as read: %v", err)
+	}
+
+	counts, err = store.Unread(t.Context(), []uuid.UUID{grace.ID})
+	if err != nil {
+		t.Fatalf("unread: %v", err)
+	}
+
+	if counts[grace.ID] != 1 {
+		t.Errorf("the count after a read is %d, want 1", counts[grace.ID])
+	}
+}

@@ -200,20 +200,6 @@ func (s *Service) MessageWritten(ctx context.Context, conversation chat.Conversa
 		return
 	}
 
-	payload := Payload{
-		Title: conversation.Subject,
-		Body:  message.AuthorName + ": " + shorten(message.Body),
-		URL:   "/conversations/" + conversation.ID.String(),
-		Tag:   "conversation-" + conversation.ID.String(),
-	}
-
-	data, err := json.Marshal(payload)
-	if err != nil {
-		slog.Error("could not write the push message", "error", err)
-
-		return
-	}
-
 	// The topic lets a push service drop an older message of the same
 	// conversation that still waits for an offline browser. It allows 32
 	// characters, which the identifier without its dashes fills exactly.
@@ -230,10 +216,41 @@ func (s *Service) MessageWritten(ctx context.Context, conversation chat.Conversa
 			return
 		}
 
+		if len(targets) == 0 {
+			return
+		}
+
+		// The count includes the new message, because the round starts
+		// after the message is stored. A count that fails to arrive costs
+		// only the badge, so the notifications still go out.
+		unread, err := s.store.Unread(ctx, recipients)
+		if err != nil {
+			slog.Error("could not count the unread messages", "error", err)
+		}
+
 		for _, target := range targets {
+			data, err := json.Marshal(payloadFor(conversation, message, unread[target.UserID]))
+			if err != nil {
+				slog.Error("could not write the push message", "error", err)
+
+				continue
+			}
+
 			s.send(ctx, target, data, topic)
 		}
 	})
+}
+
+// payloadFor writes the message for one person. Everything but the count of
+// unread messages is the same for everybody.
+func payloadFor(conversation chat.Conversation, message chat.Message, unread int) Payload {
+	return Payload{
+		Title:  conversation.Subject,
+		Body:   message.AuthorName + ": " + shorten(message.Body),
+		URL:    "/conversations/" + conversation.ID.String(),
+		Tag:    "conversation-" + conversation.ID.String(),
+		Unread: unread,
+	}
 }
 
 // Wait blocks until every round of sending is over.

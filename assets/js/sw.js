@@ -28,6 +28,16 @@ self.addEventListener("push", (event) => {
 
 	event.waitUntil(
 		(async () => {
+			// The count of unread messages goes on the icon of the
+			// installed app, also when no notification shows. Only some
+			// browsers have the Badging API, and a refusal changes nothing
+			// else.
+			if (message && Number.isInteger(message.unread) && "setAppBadge" in navigator) {
+				const badge = message.unread > 0 ? navigator.setAppBadge(message.unread) : navigator.clearAppBadge();
+
+				await badge.catch(() => {});
+			}
+
 			// The reader already looks at the conversation, and the poll of
 			// the page brings the message in. A browser accepts a push
 			// without a notification while a window of the site is visible.

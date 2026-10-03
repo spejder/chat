@@ -39,3 +39,17 @@ JOIN sessions s ON s.token_hash = ps.session_key
 WHERE ps.user_id = ANY(@user_ids::uuid[])
   AND s.expires_at > now()
 ORDER BY ps.created_at;
+
+-- CountUnread counts the messages from other people that each person has not
+-- read, over every conversation of that person. The rule is the one of the
+-- unread count in ListConversations. The badge on the icon of the installed
+-- app shows the number.
+-- name: CountUnread :many
+SELECT p.user_id, count(m.id)::bigint AS unread
+FROM conversation_participants p
+LEFT JOIN messages m
+    ON m.conversation_id = p.conversation_id
+   AND m.author_id <> p.user_id
+   AND (p.last_read_at IS NULL OR m.created_at > p.last_read_at)
+WHERE p.user_id = ANY(@user_ids::uuid[])
+GROUP BY p.user_id;

@@ -11,6 +11,46 @@ import (
 	"uuid"
 )
 
+const countUnread = `-- name: CountUnread :many
+SELECT p.user_id, count(m.id)::bigint AS unread
+FROM conversation_participants p
+LEFT JOIN messages m
+    ON m.conversation_id = p.conversation_id
+   AND m.author_id <> p.user_id
+   AND (p.last_read_at IS NULL OR m.created_at > p.last_read_at)
+WHERE p.user_id = ANY($1::uuid[])
+GROUP BY p.user_id
+`
+
+type CountUnreadRow struct {
+	UserID uuid.UUID
+	Unread int64
+}
+
+// CountUnread counts the messages from other people that each person has not
+// read, over every conversation of that person. The rule is the one of the
+// unread count in ListConversations. The badge on the icon of the installed
+// app shows the number.
+func (q *Queries) CountUnread(ctx context.Context, userIds []uuid.UUID) ([]CountUnreadRow, error) {
+	rows, err := q.db.Query(ctx, countUnread, userIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CountUnreadRow
+	for rows.Next() {
+		var i CountUnreadRow
+		if err := rows.Scan(&i.UserID, &i.Unread); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteSubscription = `-- name: DeleteSubscription :exec
 DELETE FROM push_subscriptions
 WHERE endpoint = $1 AND user_id = $2

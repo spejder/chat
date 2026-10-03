@@ -107,3 +107,20 @@ func (s *PushStore) Targets(ctx context.Context, userIDs []uuid.UUID) ([]push.Ta
 
 	return targets, nil
 }
+
+// Unread counts the unread messages of some people, over all their
+// conversations. A person without a conversation is missing from the map,
+// which reads as zero.
+func (s *PushStore) Unread(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	rows, err := s.queries.CountUnread(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("count the unread messages: %w", err)
+	}
+
+	counts := make(map[uuid.UUID]int, len(rows))
+	for _, row := range rows {
+		counts[row.UserID] = int(row.Unread)
+	}
+
+	return counts, nil
+}

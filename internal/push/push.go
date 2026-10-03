@@ -61,14 +61,20 @@ type Store interface {
 
 	// Targets reads the live subscriptions of some people.
 	Targets(ctx context.Context, userIDs []uuid.UUID) ([]Target, error)
+
+	// Unread counts the unread messages of some people, over all their
+	// conversations. The badge on the icon of the app shows the number.
+	Unread(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]int, error)
 }
 
 // Payload is what the service worker receives. It shows title and body, the
 // tag makes a newer notification of the same conversation replace an older
-// one, and a click opens the address.
+// one, and a click opens the address. Unread is the number of unread
+// messages of the person it goes to, which the worker puts on the icon.
 type Payload struct {
-	Title string `json:"title"`
-	Body  string `json:"body"`
-	URL   string `json:"url"`
-	Tag   string `json:"tag"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	URL    string `json:"url"`
+	Tag    string `json:"tag"`
+	Unread int    `json:"unread"`
 }

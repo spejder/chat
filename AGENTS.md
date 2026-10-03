@@ -365,6 +365,18 @@ browser, also when no tab of the site is open.
   an app. An iPhone delivers a push only to a site on the home screen. The
   PNG icons in `assets/img` are drawn from the shapes of `favicon.svg`.
   Draw them again when the mark changes.
+- The icon of the installed app carries the number of unread messages
+  through the Badging API (`navigator.setAppBadge`). It works on an iPhone
+  for a site on the home screen once notifications are allowed, and in
+  Chrome and Edge on a computer for an installed app. Chrome on Android has
+  no number badge and draws a dot while a notification waits. The API is not
+  Baseline, so it sits behind a feature test, like WebOTP.
+- `assets/js/app.js` sets the badge from `data-unread` together with the tab
+  title. `assets/js/sw.js` sets it from `unread` in the push payload, which
+  `push.Store.Unread` counts per person after the message is stored. That is
+  why the payload is written per target. A read on another device while the
+  app is closed leaves the badge too high until the app opens or the next
+  push arrives.
 - A browser that a tool drives refuses the permission by itself: the browser
   pane says denied, and the Chrome of the DevTools tools denies the prompt.
   The Go tests cover the sending end to end against a fake push service.

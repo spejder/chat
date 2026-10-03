@@ -29,6 +29,7 @@ type fakeStore struct {
 	saved     map[string]uuid.UUID
 	targets   []push.Target
 	forgotten []string
+	counted   []uuid.UUID
 }
 
 func (f *fakeStore) Keys(context.Context) (push.Keys, bool, error) {
@@ -86,6 +87,20 @@ func (f *fakeStore) Targets(_ context.Context, userIDs []uuid.UUID) ([]push.Targ
 	}
 
 	return out, nil
+}
+
+func (f *fakeStore) Unread(_ context.Context, userIDs []uuid.UUID) (map[uuid.UUID]int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.counted = append(f.counted, userIDs...)
+
+	counts := make(map[uuid.UUID]int, len(userIDs))
+	for _, id := range userIDs {
+		counts[id] = 3
+	}
+
+	return counts, nil
 }
 
 // browserKeys makes the two keys that a real browser hands over, so the
@@ -207,6 +222,11 @@ func TestAMessageReachesTheOtherBrowsers(t *testing.T) {
 		if !strings.HasPrefix(request.headers.Get("Authorization"), "vapid t=") {
 			t.Errorf("%s: the request carries no VAPID signature: %q", request.path, request.headers.Get("Authorization"))
 		}
+	}
+
+	// The badge counts only the people who hear about the message.
+	if want := []uuid.UUID{grace.ID}; !slices.Equal(store.counted, want) {
+		t.Errorf("counted the unread messages of %v, want %v", store.counted, want)
 	}
 
 	// Only the browser that the service no longer knows goes.
