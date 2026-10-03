@@ -94,6 +94,11 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 		t.Error("the address of the form does not open the dialog")
 	}
 
+	// The sheet stays shut behind the dialog.
+	if strings.Contains(form.Body.String(), "data-open-on-phone") {
+		t.Error("the address of the form opens the sheet on a phone")
+	}
+
 	if !strings.Contains(form.Body.String(), grace.FullName) {
 		t.Errorf("the form does not offer %s", grace.FullName)
 	}
@@ -125,9 +130,17 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 		t.Fatalf("the list does not show the unread conversation: %s", list.Body.String())
 	}
 
+	if !strings.Contains(list.Body.String(), "data-open-on-phone") {
+		t.Error("the list page does not open the sheet on a phone")
+	}
+
 	page := get(t, handler, path, graceSession)
 	if !strings.Contains(page.Body.String(), "Are you in?") {
 		t.Fatalf("the conversation does not show the message: %s", page.Body.String())
+	}
+
+	if strings.Contains(page.Body.String(), "data-open-on-phone") {
+		t.Error("a conversation opens the sheet on a phone")
 	}
 
 	// The top bar names the other person and leaves the reader out.

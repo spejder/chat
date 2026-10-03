@@ -18,7 +18,9 @@ import (
 )
 
 // Conversations is the page behind /conversations. The list lives in the
-// sidebar, so the room stays blank until the reader picks a conversation.
+// sidebar, so the room only shows the mark of the application until the
+// reader picks a conversation. The mark is the shape of the favicon, in a
+// muted colour with the dots cut out.
 func Conversations() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -40,7 +42,7 @@ func Conversations() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex-1\"></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-1 items-center justify-center p-8\"><svg data-mark xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\" aria-hidden=\"true\" class=\"size-32 text-muted-foreground/25\"><path class=\"fill-current\" d=\"M6 4h20a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H14l-8 6v-6a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z\"></path> <circle class=\"fill-background\" cx=\"11\" cy=\"14\" r=\"2\"></circle> <circle class=\"fill-background\" cx=\"16\" cy=\"14\" r=\"2\"></circle> <circle class=\"fill-background\" cx=\"21\" cy=\"14\" r=\"2\"></circle></svg></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -122,7 +124,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 						var templ_7745c5c3_Var6 string
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(summary.Subject)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 43, Col: 45}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 58, Col: 45}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -166,7 +168,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 							var templ_7745c5c3_Var8 string
 							templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(summary.Unread))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 49, Col: 36}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 64, Col: 36}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 							if templ_7745c5c3_Err != nil {
@@ -179,7 +181,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 							var templ_7745c5c3_Var9 string
 							templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(" unread")
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 49, Col: 71}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 64, Col: 71}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 							if templ_7745c5c3_Err != nil {

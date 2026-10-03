@@ -76,7 +76,21 @@
 		setPace();
 	};
 
-	document.addEventListener("DOMContentLoaded", update);
+	// The list page holds nothing to read in its room, and on a phone the
+	// list hides behind the trigger. The page asks for the sheet to open,
+	// and the sidebar script of the registry does nothing on a wide screen.
+	const openOnPhone = () => {
+		const sidebar = window.tui && window.tui.sidebar;
+
+		if (sidebar && document.querySelector("[data-open-on-phone]") && sidebar.isMobile()) {
+			sidebar.setOpenMobile(true);
+		}
+	};
+
+	document.addEventListener("DOMContentLoaded", () => {
+		update();
+		openOnPhone();
+	});
 	document.addEventListener("htmx:after:swap", update);
 
 	document.addEventListener("visibilitychange", () => {
@@ -89,5 +103,6 @@
 
 	if (document.readyState !== "loading") {
 		update();
+		openOnPhone();
 	}
 })();

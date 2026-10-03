@@ -10,9 +10,24 @@ import (
 )
 
 // Conversations is the page behind /conversations. The list lives in the
-// sidebar, so the room stays blank until the reader picks a conversation.
+// sidebar, so the room only shows the mark of the application until the
+// reader picks a conversation. The mark is the shape of the favicon, in a
+// muted colour with the dots cut out.
 templ Conversations() {
-	<div class="flex-1"></div>
+	<div class="flex flex-1 items-center justify-center p-8">
+		<svg
+			data-mark
+			xmlns="http://www.w3.org/2000/svg"
+			viewBox="0 0 32 32"
+			aria-hidden="true"
+			class="size-32 text-muted-foreground/25"
+		>
+			<path class="fill-current" d="M6 4h20a4 4 0 0 1 4 4v12a4 4 0 0 1-4 4H14l-8 6v-6a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z"></path>
+			<circle class="fill-background" cx="11" cy="14" r="2"></circle>
+			<circle class="fill-background" cx="16" cy="14" r="2"></circle>
+			<circle class="fill-background" cx="21" cy="14" r="2"></circle>
+		</svg>
+	</div>
 }
 
 // ConversationList renders the lines of the sidebar. It replaces itself every

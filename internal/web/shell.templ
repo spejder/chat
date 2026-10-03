@@ -28,6 +28,8 @@ templ Shell(page ShellPage) {
 			// The script writes the sidebar_state cookie, and the server
 			// reads it, so the page comes back the way the reader left it.
 			DisableDefaultOpen: !page.SidebarOpen,
+			// assets/js/app.js reads the mark and opens the sheet on a phone.
+			Attributes: templ.Attributes{"data-open-on-phone": page.OpenOnPhone},
 		}) {
 			@sidebar.Sidebar() {
 				@sidebar.Header() {

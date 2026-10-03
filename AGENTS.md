@@ -166,9 +166,16 @@ thread or room.
 - The top bar reads "Subject > names". The names leave the reader out, as the
   sidebar list does. The page keeps an `sr-only` heading with the subject for
   a screen reader.
-- The room stays blank when no conversation is open. On a phone the trigger
-  in the top bar opens the sidebar as a sheet, and a tap on a conversation
-  loads a new page, which closes the sheet.
+- When no conversation is open, the room shows only the mark of the
+  application: the shape of `favicon.svg` as inline SVG in a muted colour,
+  hidden from a screen reader.
+- On a phone the trigger in the top bar opens the sidebar as a sheet, and a
+  tap on a conversation loads a new page, which closes the sheet. The list
+  page opens the sheet by itself: `ShellPage.OpenOnPhone` writes
+  `data-open-on-phone`, and `assets/js/app.js` then calls
+  `window.tui.sidebar.setOpenMobile(true)`, which does nothing on a wide
+  screen. `/conversations/new` and a refused form leave it shut, because the
+  dialog is open there.
 - The inset is the `<main>` of the document, so a page inside it must not
   bring one of its own.
 - A button may hold no `<div>`. The brand and the person menu use spans inside

@@ -273,7 +273,7 @@ func Shell(page ShellPage) templ.Component {
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(assets.URL("js/app.js"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 60, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 62, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -291,7 +291,7 @@ func Shell(page ShellPage) templ.Component {
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(appIntegrity)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 61, Col: 25}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 63, Col: 25}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 					if templ_7745c5c3_Err != nil {
@@ -309,7 +309,7 @@ func Shell(page ShellPage) templ.Component {
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(assets.URL("js/push.js"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 63, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 65, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 				if templ_7745c5c3_Err != nil {
@@ -327,7 +327,7 @@ func Shell(page ShellPage) templ.Component {
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(pushIntegrity)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 64, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 66, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 					if templ_7745c5c3_Err != nil {
@@ -417,7 +417,7 @@ func Shell(page ShellPage) templ.Component {
 									var templ_7745c5c3_Var20 string
 									templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(page.Subject)
 									if templ_7745c5c3_Err != nil {
-										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 80, Col: 62}
+										return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 82, Col: 62}
 									}
 									_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 									if templ_7745c5c3_Err != nil {
@@ -472,7 +472,7 @@ func Shell(page ShellPage) templ.Component {
 										var templ_7745c5c3_Var23 string
 										templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(otherNames(page.People, reader.ID))
 										if templ_7745c5c3_Err != nil {
-											return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 85, Col: 46}
+											return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 87, Col: 46}
 										}
 										_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 										if templ_7745c5c3_Err != nil {
@@ -526,6 +526,8 @@ func Shell(page ShellPage) templ.Component {
 				// The script writes the sidebar_state cookie, and the server
 				// reads it, so the page comes back the way the reader left it.
 				DisableDefaultOpen: !page.SidebarOpen,
+				// assets/js/app.js reads the mark and opens the sheet on a phone.
+				Attributes: templ.Attributes{"data-open-on-phone": page.OpenOnPhone},
 			}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -724,7 +726,7 @@ func personMenu(pushKey string) templ.Component {
 							var templ_7745c5c3_Var33 string
 							templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(initials(person.FullName))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 133, Col: 34}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 135, Col: 34}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 							if templ_7745c5c3_Err != nil {
@@ -737,7 +739,7 @@ func personMenu(pushKey string) templ.Component {
 							var templ_7745c5c3_Var34 string
 							templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(person.FullName)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 136, Col: 59}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 138, Col: 59}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 							if templ_7745c5c3_Err != nil {
@@ -750,7 +752,7 @@ func personMenu(pushKey string) templ.Component {
 							var templ_7745c5c3_Var35 string
 							templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(person.Email)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 137, Col: 52}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 139, Col: 52}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 							if templ_7745c5c3_Err != nil {
@@ -809,7 +811,7 @@ func personMenu(pushKey string) templ.Component {
 								var templ_7745c5c3_Var38 string
 								templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(person.FullName)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 150, Col: 60}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 152, Col: 60}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 								if templ_7745c5c3_Err != nil {
@@ -822,7 +824,7 @@ func personMenu(pushKey string) templ.Component {
 								var templ_7745c5c3_Var39 string
 								templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(person.Email)
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 151, Col: 53}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 153, Col: 53}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 								if templ_7745c5c3_Err != nil {
@@ -982,7 +984,7 @@ func pushSwitch(pushKey, personID string) templ.Component {
 		var templ_7745c5c3_Var42 string
 		templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(pushKey)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 200, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 202, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 		if templ_7745c5c3_Err != nil {
@@ -995,7 +997,7 @@ func pushSwitch(pushKey, personID string) templ.Component {
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(personID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 201, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/shell.templ`, Line: 203, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 		if templ_7745c5c3_Err != nil {

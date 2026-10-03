@@ -32,6 +32,11 @@ type ShellPage struct {
 	// SidebarOpen comes from the cookie that the sidebar writes.
 	SidebarOpen bool
 
+	// OpenOnPhone opens the sidebar sheet on a phone as soon as the page
+	// loads. The list page asks for it, because its room holds nothing to
+	// read and the list hides behind the trigger.
+	OpenOnPhone bool
+
 	// Version is the state of the sidebar list, which the poll sends back.
 	Version string
 

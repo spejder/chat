@@ -181,3 +181,23 @@ func TestTheSidesOfAConversation(t *testing.T) {
 		t.Error("the markup names the reader")
 	}
 }
+
+// TestTheBlankRoomShowsTheMark makes sure that the list page shows the mark
+// of the application, hidden from a screen reader, and that only a page that
+// asks for it opens the sheet on a phone.
+func TestTheBlankRoomShowsTheMark(t *testing.T) {
+	t.Parallel()
+
+	room := render(t, web.Conversations(), nil)
+	if !strings.Contains(room, "data-mark") || !strings.Contains(room, `aria-hidden="true"`) {
+		t.Errorf("the room holds no hidden mark: %s", room)
+	}
+
+	for _, open := range []bool{true, false} {
+		body := render(t, web.Shell(web.ShellPage{Title: "Conversations", OpenOnPhone: open}), web.Conversations())
+
+		if got := strings.Contains(body, "data-open-on-phone"); got != open {
+			t.Errorf("OpenOnPhone = %v, but the page carries the mark: %v", open, got)
+		}
+	}
+}

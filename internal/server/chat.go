@@ -40,7 +40,7 @@ type chatHandlers struct {
 
 // list shows the room beside the sidebar when no conversation is open.
 func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
-	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Conversations"}, web.Conversations())
+	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Conversations", OpenOnPhone: true}, web.Conversations())
 }
 
 // listFragment answers the poll of the sidebar. It answers 204 when the list
