@@ -61,6 +61,9 @@ jobs:
       - name: Test
         run: task test
 
+      - name: Test with the race detector
+        run: task test:race
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

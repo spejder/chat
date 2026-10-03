@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"io/fs"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -40,19 +41,33 @@ func Open(ctx context.Context, url string) (*pgxpool.Pool, error) {
 
 // Migrate brings the schema to the newest step. It does nothing when the
 // database is already there.
+//
+// A goose provider keeps its state to itself, so many tests can migrate their
+// own databases at the same time. The package level functions of goose share
+// one global state and race.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
-	goose.SetBaseFS(migrations)
-	goose.SetLogger(goose.NopLogger())
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		return fmt.Errorf("choose the database dialect: %w", err)
+	steps, err := fs.Sub(migrations, "migrations")
+	if err != nil {
+		return fmt.Errorf("read the migrations: %w", err)
 	}
 
 	// goose speaks database/sql, so the pool needs a wrapper.
 	database := stdlib.OpenDBFromPool(pool)
-	defer func() { _ = database.Close() }()
 
-	if err := goose.UpContext(ctx, database, "migrations"); err != nil {
+	provider, err := goose.NewProvider(goose.DialectPostgres, database, steps,
+		goose.WithDisableGlobalRegistry(true),
+		goose.WithLogger(goose.NopLogger()),
+	)
+	if err != nil {
+		_ = database.Close()
+
+		return fmt.Errorf("prepare the migrations: %w", err)
+	}
+
+	// Close closes the wrapper, not the pool behind it.
+	defer func() { _ = provider.Close() }()
+
+	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("apply the migrations: %w", err)
 	}
 
