@@ -457,6 +457,56 @@ func TestTheSidebarAnswersNothingChanged(t *testing.T) {
 	}
 }
 
+// TestAReadReachesTheSidebar makes sure that the list of the writer changes
+// when the other person reads the newest message. Without that, the poll
+// would answer 204 and the read mark would never appear.
+func TestAReadReachesTheSidebar(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the first user: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the second user: %v", err)
+	}
+
+	adaSession := signIn(t, handler, messages, ada)
+	graceSession := signIn(t, handler, messages, grace)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, adaSession)
+
+	before := get(t, handler, "/conversations", adaSession)
+
+	found := listVersionInPage.FindStringSubmatch(before.Body.String())
+	if found == nil {
+		t.Fatalf("the page holds no version for the list: %s", before.Body.String())
+	}
+
+	if strings.Contains(before.Body.String(), ">Read<") {
+		t.Error("the message counts as read before the other person opened it")
+	}
+
+	get(t, handler, started.Header().Get("Location"), graceSession)
+
+	after := get(t, handler, "/conversations/list?v="+url.QueryEscape(found[1]), adaSession)
+	if after.Code != http.StatusOK {
+		t.Fatalf("the poll after the read gave %d, want %d", after.Code, http.StatusOK)
+	}
+
+	if !strings.Contains(after.Body.String(), ">Read<") {
+		t.Errorf("the list misses the read mark: %s", after.Body.String())
+	}
+}
+
 // TestAConversationComesInPages makes sure that a long conversation shows its
 // newest part with a way back to the older messages.
 func TestAConversationComesInPages(t *testing.T) {

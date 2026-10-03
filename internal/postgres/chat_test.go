@@ -164,6 +164,28 @@ func TestListNamesTheOthers(t *testing.T) {
 		t.Errorf("the newest message is %q by %q (mine: %v), want the first message by the reader", line.LastBody, line.LastAuthor, line.LastMine)
 	}
 
+	if len(summaries[0].OtherNames) != 1 || summaries[0].OtherNames[0] != grace.FullName {
+		t.Errorf("the other names are %v, want only %s", summaries[0].OtherNames, grace.FullName)
+	}
+
+	// Nobody else has opened the conversation, so the message is not read.
+	if summaries[0].LastRead {
+		t.Error("the newest message counts as read before anybody opened it")
+	}
+
+	if _, _, err := store.MarkRead(t.Context(), conversation.ID, grace.ID); err != nil {
+		t.Fatalf("mark as read: %v", err)
+	}
+
+	summaries, err = store.List(t.Context(), ada.ID)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+
+	if !summaries[0].LastRead {
+		t.Error("the newest message does not count as read after the other person opened it")
+	}
+
 	if _, err := store.AddMessage(t.Context(), conversation.ID, grace.ID, "I am in"); err != nil {
 		t.Fatalf("add a message: %v", err)
 	}
@@ -175,6 +197,11 @@ func TestListNamesTheOthers(t *testing.T) {
 
 	if line := summaries[0]; line.LastBody != "I am in" || line.LastAuthor != grace.FullName || line.LastMine {
 		t.Errorf("the newest message is %q by %q (mine: %v), want the answer of the other person", line.LastBody, line.LastAuthor, line.LastMine)
+	}
+
+	// A message of somebody else never carries the read mark of the reader.
+	if summaries[0].LastRead {
+		t.Error("the answer of the other person carries the read mark")
 	}
 }
 

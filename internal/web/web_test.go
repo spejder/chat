@@ -233,3 +233,44 @@ func TestThePageFollowsTheViewport(t *testing.T) {
 		}
 	}
 }
+
+// TestALineShowsWhoAndWhetherItWasRead covers the avatar and the read mark of
+// a line in the sidebar.
+func TestALineShowsWhoAndWhetherItWasRead(t *testing.T) {
+	t.Parallel()
+
+	two := chat.Summary{
+		ID: uuid.NewV7(), Subject: "Lunch",
+		OtherNames: []string{"Grace Hopper"},
+		LastAuthor: "Ada Lovelace",
+		LastBody:   "Are you in?",
+		LastMine:   true,
+		LastRead:   true,
+	}
+
+	group := chat.Summary{
+		ID: uuid.NewV7(), Subject: "Party",
+		OtherNames: []string{"Alan Turing", "Grace Hopper"},
+		LastAuthor: "Alan Turing",
+		LastBody:   "Who brings cake?",
+	}
+
+	body := render(t, web.ConversationList([]chat.Summary{two, group}, uuid.Nil(), "abc123"), nil)
+
+	for _, want := range []string{
+		`title="Grace Hopper"`,
+		">GH<",
+		`title="Alan Turing, Grace Hopper"`,
+		`data-conversation="` + two.ID.String() + `"`,
+		"data-preview",
+		">Read<",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the list misses %q", want)
+		}
+	}
+
+	if strings.Count(body, ">Read<") != 1 {
+		t.Error("more than one line carries the read mark")
+	}
+}

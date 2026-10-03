@@ -61,6 +61,9 @@ type Summary struct {
 	// Others names the people besides the reader, in one string.
 	Others string
 
+	// OtherNames lists the people besides the reader, in name order.
+	OtherNames []string
+
 	// LastMessageAt is the time of the newest message, or the time the
 	// conversation started when it holds none.
 	LastMessageAt time.Time
@@ -71,6 +74,10 @@ type Summary struct {
 	LastAuthor string
 	LastBody   string
 	LastMine   bool
+
+	// LastRead says that the reader wrote the newest message and that every
+	// other person has read it since.
+	LastRead bool
 
 	// Unread counts the messages from other people that the reader has not
 	// seen.

@@ -71,9 +71,49 @@
 		document.title = unread > 0 ? "(" + unread + ") " + plainTitle : plainTitle;
 	};
 
+	// chat.js keeps an unsent message under this key and the identifier of
+	// its conversation.
+	const draftPrefix = "chat:draft:";
+
+	const storedDraft = (conversation) => {
+		try {
+			return (window.localStorage.getItem(draftPrefix + conversation) || "").trim();
+		} catch {
+			// A private window refuses the store, and then there is no draft.
+			return "";
+		}
+	};
+
+	// showDrafts puts an unsent message in place of the preview, so a half
+	// written answer is not forgotten. The open conversation shows its draft
+	// in the write field already, so its line stays as it is. The server
+	// never sees a draft, which is why the browser writes the line.
+	const showDrafts = () => {
+		for (const line of document.querySelectorAll("#conversation-list [data-conversation]")) {
+			const preview = line.querySelector("[data-preview]");
+
+			if (!preview || line.getAttribute("aria-current") === "page") {
+				continue;
+			}
+
+			const draft = storedDraft(line.dataset.conversation);
+
+			if (!draft) {
+				continue;
+			}
+
+			const label = document.createElement("span");
+			label.className = "font-medium text-foreground";
+			label.textContent = "Draft: ";
+
+			preview.replaceChildren(label, draft.replace(/\s+/g, " "));
+		}
+	};
+
 	const update = () => {
 		writeTitle();
 		setPace();
+		showDrafts();
 	};
 
 	// The list page holds nothing to read in its room, and on a phone the

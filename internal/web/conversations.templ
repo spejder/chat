@@ -3,6 +3,7 @@ package web
 import (
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 	"uuid"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/spejder/chat/internal/components/dialog"
 	"github.com/spejder/chat/internal/components/icon"
 	"github.com/spejder/chat/internal/components/sidebar"
+	"github.com/spejder/chat/internal/utils"
 )
 
 // Conversations is the page behind /conversations. The list lives in the
@@ -70,11 +72,17 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 				// unread conversation carries a bold subject and a dark
 				// badge, so it stands out at a glance.
 				@sidebar.MenuButton(sidebar.MenuButtonProps{
-					Href:       "/conversations/" + summary.ID.String(),
-					IsActive:   summary.ID == current,
-					Size:       sidebar.MenuButtonSizeLg,
-					Attributes: currentPage(summary.ID == current),
+					Href:     "/conversations/" + summary.ID.String(),
+					IsActive: summary.ID == current,
+					Size:     sidebar.MenuButtonSizeLg,
+					// app.js finds the line of a conversation with an unsent
+					// draft through data-conversation.
+					Attributes: utils.MergeAttributes(
+						currentPage(summary.ID == current),
+						templ.Attributes{"data-conversation": summary.ID.String()},
+					),
 				}) {
+					@avatar(summary.OtherNames)
 					<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 						<span class="flex items-center gap-2">
 							<span class={ "truncate", templ.KV("font-semibold", unread) }>{ summary.Subject }</span>
@@ -83,7 +91,10 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 							</span>
 						</span>
 						<span class="flex items-center gap-2">
-							<span class={ "truncate text-xs", templ.KV("text-muted-foreground", !unread) }>{ preview(summary) }</span>
+							<span data-preview class={ "truncate text-xs", templ.KV("text-muted-foreground", !unread) }>{ preview(summary) }</span>
+							if summary.LastRead {
+								<span class="ml-auto shrink-0 text-xs text-muted-foreground">Read</span>
+							}
 							if unread {
 								@badge.Badge(badge.Props{Class: "ml-auto h-5 min-w-5 shrink-0 rounded-full px-1.5 tabular-nums"}) {
 									// The space sits inside the expression, because
@@ -98,6 +109,24 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 			}
 		}
 	}
+}
+
+// avatar is the round mark at the start of a line: the initials of the other
+// person in a conversation of two, and a group icon for more people. The
+// subject and the preview already say what the line is, so a screen reader
+// skips it, and the title names the people for a mouse.
+templ avatar(names []string) {
+	<span
+		aria-hidden="true"
+		title={ strings.Join(names, ", ") }
+		class="flex size-8 shrink-0 items-center justify-center rounded-full border bg-background text-xs font-medium text-foreground"
+	>
+		if len(names) == 1 {
+			{ initials(names[0]) }
+		} else {
+			@icon.Users(icon.Props{Class: "size-4 text-muted-foreground"})
+		}
+	</span>
 }
 
 // unreadTotal counts the messages that this person has not read, over every

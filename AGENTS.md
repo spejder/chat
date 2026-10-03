@@ -192,6 +192,16 @@ thread or room.
   join. `listTime` and `preview` in `internal/web/format.go` write the two
   texts. An unread conversation carries a bold subject and the dark badge
   with the count.
+- A round avatar starts every line: the initials of the other person in a
+  conversation of two, a group icon for more. It is hidden from a screen
+  reader, and its title names the people.
+- When the reader wrote the newest message and every other person has
+  opened the conversation since, the line says "Read". The query uses the
+  same rule as the read mark of the conversation page.
+- A conversation with an unsent draft shows "Draft:" and the draft in place
+  of the preview. The draft lives only in the browser, so `assets/js/app.js`
+  writes that line after every load and every swap, and leaves the open
+  conversation alone.
 - An empty list shows a button that opens the dialog, so a new person sees
   how to begin.
 - The pen at the end of the group label is a `sidebar.GroupAction` inside a
@@ -280,7 +290,8 @@ thread or room.
   one, or a swap while the tab is hidden would keep the page slow for good.
 - The sidebar list carries a version too and answers 204 the same way. Its
   version is a hash over every line: the conversation, the time of its newest
-  message and the unread count.
+  message, the unread count and the read mark. A state that the list shows
+  but the version leaves out never reaches an open page.
 - A conversation comes in pages of `chat.MessagePage`. The newest page lives
   in `#message-list`, which the poll replaces. Everything the reader asked to
   see lives above it in `#older`, which nothing else touches. That is why the

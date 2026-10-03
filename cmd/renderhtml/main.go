@@ -71,7 +71,7 @@ func run() error {
 		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "See you there", CreatedAt: at.Add(2 * time.Minute)},
 	}
 
-	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", LastMessageAt: at, Unread: 2}}
+	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", OtherNames: []string{"Grace Hopper"}, LastMessageAt: at, Unread: 2}}
 
 	// The second person has read everything, so the newest own message
 	// carries its mark.

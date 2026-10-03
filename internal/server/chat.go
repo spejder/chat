@@ -71,12 +71,13 @@ func (h *chatHandlers) listFragment(w http.ResponseWriter, r *http.Request) {
 }
 
 // listVersion names the state of the sidebar: which conversations there are,
-// how new each of them is, and how much of each one this person has not read.
+// how new each of them is, how much of each one this person has not read, and
+// whether the others have read the newest message of this person.
 func listVersion(summaries []chat.Summary) string {
 	var out strings.Builder
 
 	for _, summary := range summaries {
-		fmt.Fprintf(&out, "%s:%d:%d;", summary.ID, summary.LastMessageAt.Unix(), summary.Unread)
+		fmt.Fprintf(&out, "%s:%d:%d:%t;", summary.ID, summary.LastMessageAt.Unix(), summary.Unread, summary.LastRead)
 	}
 
 	sum := sha256.Sum256([]byte(out.String()))

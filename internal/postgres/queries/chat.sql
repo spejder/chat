@@ -35,10 +35,27 @@ SELECT
         JOIN users u ON u.id = other.user_id
         WHERE other.conversation_id = c.id AND other.user_id <> p.user_id
     ), '')::text AS others,
+    ARRAY(
+        SELECT u.full_name
+        FROM conversation_participants other
+        JOIN users u ON u.id = other.user_id
+        WHERE other.conversation_id = c.id AND other.user_id <> p.user_id
+        ORDER BY u.full_name
+    )::text[] AS other_names,
     COALESCE(newest.created_at, c.created_at)::timestamptz AS last_message_at,
     COALESCE(newest.body, '')::text AS last_body,
     COALESCE(newest.author_name, '')::text AS last_author,
     COALESCE(newest.author_id = p.user_id, false)::boolean AS last_mine,
+    -- The newest message is the reader's, and every other person opened the
+    -- conversation after it arrived. The page of the conversation uses the
+    -- same rule for its read mark.
+    COALESCE(newest.author_id = p.user_id AND NOT EXISTS (
+        SELECT 1
+        FROM conversation_participants other
+        WHERE other.conversation_id = c.id
+          AND other.user_id <> p.user_id
+          AND (other.last_read_at IS NULL OR other.last_read_at <= newest.created_at)
+    ), false)::boolean AS last_read,
     (
         SELECT count(*)
         FROM messages m
