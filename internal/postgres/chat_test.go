@@ -130,7 +130,7 @@ func TestUnreadCount(t *testing.T) {
 }
 
 // TestListNamesTheOthers makes sure that the line of the list names the other
-// people and holds the time of the newest message.
+// people and holds the time, the writer and the text of the newest message.
 func TestListNamesTheOthers(t *testing.T) {
 	t.Parallel()
 
@@ -157,6 +157,24 @@ func TestListNamesTheOthers(t *testing.T) {
 
 	if summaries[0].LastMessageAt.Before(conversation.CreatedAt) {
 		t.Error("the time of the newest message is older than the conversation")
+	}
+
+	// The newest message comes along, and the reader wrote it.
+	if line := summaries[0]; line.LastBody != "Are you in?" || line.LastAuthor != ada.FullName || !line.LastMine {
+		t.Errorf("the newest message is %q by %q (mine: %v), want the first message by the reader", line.LastBody, line.LastAuthor, line.LastMine)
+	}
+
+	if _, err := store.AddMessage(t.Context(), conversation.ID, grace.ID, "I am in"); err != nil {
+		t.Fatalf("add a message: %v", err)
+	}
+
+	summaries, err = store.List(t.Context(), ada.ID)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+
+	if line := summaries[0]; line.LastBody != "I am in" || line.LastAuthor != grace.FullName || line.LastMine {
+		t.Errorf("the newest message is %q by %q (mine: %v), want the answer of the other person", line.LastBody, line.LastAuthor, line.LastMine)
 	}
 }
 

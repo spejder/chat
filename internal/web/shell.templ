@@ -10,6 +10,8 @@ import (
 	"github.com/spejder/chat/internal/components/icon"
 	"github.com/spejder/chat/internal/components/separator"
 	"github.com/spejder/chat/internal/components/sidebar"
+	"github.com/spejder/chat/internal/components/tooltip"
+	"github.com/spejder/chat/internal/utils"
 )
 
 // Shell wraps every page that a signed in person sees: the sidebar with the
@@ -43,11 +45,22 @@ templ Shell(page ShellPage) {
 						// The pen opens the dialog. The dialog lives outside
 						// the sidebar, because on a phone the sidebar is a
 						// sheet that the script moves around.
-						@sidebar.GroupAction(sidebar.GroupActionProps{
-							Attributes: dialog.TriggerFor(newConversationDialog),
-						}) {
-							@icon.SquarePen()
-							<span class="sr-only">Start a conversation</span>
+						// A tooltip names the pen for a mouse. On a phone the
+						// group action of the registry already widens its tap
+						// area with an invisible frame around the icon.
+						@tooltip.Tooltip() {
+							@sidebar.GroupAction(sidebar.GroupActionProps{
+								Attributes: utils.MergeAttributes(
+									tooltip.Trigger(ctx),
+									dialog.TriggerFor(newConversationDialog),
+								),
+							}) {
+								@icon.SquarePen()
+								<span class="sr-only">Start a conversation</span>
+							}
+							@tooltip.Content(tooltip.ContentProps{Side: tooltip.SideRight}) {
+								Start a conversation
+							}
 						}
 						@sidebar.GroupContent() {
 							@ConversationList(page.Summaries, page.Current, page.Version)

@@ -201,3 +201,20 @@ func TestTheBlankRoomShowsTheMark(t *testing.T) {
 		}
 	}
 }
+
+// TestAnEmptyListOffersTheDialog makes sure that a person without a
+// conversation gets a button that opens the dialog, and that the pen carries
+// a tooltip.
+func TestAnEmptyListOffersTheDialog(t *testing.T) {
+	t.Parallel()
+
+	list := render(t, web.ConversationList(nil, uuid.Nil(), "abc123"), nil)
+	if !strings.Contains(list, "Start a conversation") || !strings.Contains(list, `aria-controls="new-conversation"`) {
+		t.Errorf("the empty list offers no way to start: %s", list)
+	}
+
+	shell := render(t, web.Shell(web.ShellPage{Title: "Conversations"}), web.Conversations())
+	if !strings.Contains(shell, "data-tui-tooltip-trigger") {
+		t.Error("the pen carries no tooltip")
+	}
+}

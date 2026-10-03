@@ -22,6 +22,8 @@ WHERE id = $1;
 -- people in one string, the time of the newest message, and how many messages
 -- this person has not read.
 -- name: ListConversations :many
+-- The newest message comes along, so the sidebar can show its writer and the
+-- start of its text below the subject.
 SELECT
     c.id,
     c.subject,
@@ -33,9 +35,10 @@ SELECT
         JOIN users u ON u.id = other.user_id
         WHERE other.conversation_id = c.id AND other.user_id <> p.user_id
     ), '')::text AS others,
-    COALESCE((
-        SELECT max(m.created_at) FROM messages m WHERE m.conversation_id = c.id
-    ), c.created_at)::timestamptz AS last_message_at,
+    COALESCE(newest.created_at, c.created_at)::timestamptz AS last_message_at,
+    COALESCE(newest.body, '')::text AS last_body,
+    COALESCE(newest.author_name, '')::text AS last_author,
+    COALESCE(newest.author_id = p.user_id, false)::boolean AS last_mine,
     (
         SELECT count(*)
         FROM messages m
@@ -45,6 +48,14 @@ SELECT
     )::bigint AS unread
 FROM conversations c
 JOIN conversation_participants p ON p.conversation_id = c.id
+LEFT JOIN LATERAL (
+    SELECT m.created_at, m.body, m.author_id, u.full_name AS author_name
+    FROM messages m
+    JOIN users u ON u.id = m.author_id
+    WHERE m.conversation_id = c.id
+    ORDER BY m.created_at DESC, m.id DESC
+    LIMIT 1
+) newest ON true
 WHERE p.user_id = $1
 ORDER BY last_message_at DESC;
 

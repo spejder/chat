@@ -186,10 +186,20 @@ thread or room.
 - The sign out is a plain form inside the person menu, not a menu item. A
   menu item swallowed the click before htmx saw it, and a form needs no script
   at all.
-- The pen at the end of the group label is a `sidebar.GroupAction`. It opens
-  the dialog `new-conversation` through `dialog.TriggerFor`, because the
-  dialog sits outside the sidebar, which the script moves into a sheet on a
-  phone. The shell renders the dialog on every page.
+- A line of the sidebar reads like a phone: the subject and the time of the
+  newest message, then the first name of its writer, or "You", and the start
+  of its text. `ListConversations` brings the newest message with a lateral
+  join. `listTime` and `preview` in `internal/web/format.go` write the two
+  texts. An unread conversation carries a bold subject and the dark badge
+  with the count.
+- An empty list shows a button that opens the dialog, so a new person sees
+  how to begin.
+- The pen at the end of the group label is a `sidebar.GroupAction` inside a
+  registry tooltip, which names it for a mouse. On a phone the group action
+  of the registry widens its tap area itself.
+- The pen opens the dialog `new-conversation` through `dialog.TriggerFor`,
+  because the dialog sits outside the sidebar, which the script moves into a
+  sheet on a phone. The shell renders the dialog on every page.
 - The form in the dialog posts without htmx and answers with a redirect. The
   registry dialog moves its content into `<body>`, where htmx would have to
   read the markup again. A refused form answers 422 with the dialog open and

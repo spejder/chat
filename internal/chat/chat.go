@@ -65,6 +65,13 @@ type Summary struct {
 	// conversation started when it holds none.
 	LastMessageAt time.Time
 
+	// LastAuthor and LastBody are the writer and the text of the newest
+	// message. LastMine says that the reader wrote it. Both strings are
+	// empty when the conversation holds no message.
+	LastAuthor string
+	LastBody   string
+	LastMine   bool
+
 	// Unread counts the messages from other people that the reader has not
 	// seen.
 	Unread int

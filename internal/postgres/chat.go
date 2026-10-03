@@ -126,6 +126,9 @@ func (s *ChatStore) List(ctx context.Context, userID uuid.UUID) ([]chat.Summary,
 			CreatedAt:     row.CreatedAt,
 			Others:        row.Others,
 			LastMessageAt: row.LastMessageAt,
+			LastAuthor:    row.LastAuthor,
+			LastBody:      row.LastBody,
+			LastMine:      row.LastMine,
 			Unread:        int(row.Unread),
 		})
 	}
