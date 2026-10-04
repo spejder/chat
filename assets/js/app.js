@@ -187,10 +187,82 @@
 		}
 	};
 
+	// A swipe opens and closes the sidebar sheet on a phone. The trigger in
+	// the top bar stays, so the swipe is an extra way and never the only one.
+	//
+	// The swipe to open starts in the left third of the screen, not at the
+	// edge: Android and Safari go back on a swipe in from the very edge, and
+	// that gesture must keep working.
+	const swipe = {
+		minPixels: 60,
+		maxMs: 500,
+		// The share of the screen width, from the left, where a swipe to open
+		// may start.
+		openZone: 1 / 3,
+	};
+
+	let touchStart = null;
+
+	// Another dialog or the person menu is open, and a swipe would fight it.
+	const busy = () =>
+		document.querySelector(
+			'[data-tui-dialog-content][data-open]:not([id$="-mobile"]), [data-tui-dropdownmenu-content][data-open]',
+		) !== null;
+
+	const watchSwipes = () => {
+		document.addEventListener(
+			"touchstart",
+			(event) => {
+				const touch = event.touches.length === 1 ? event.touches[0] : null;
+				const inField = event.target instanceof Element && event.target.closest("textarea, input");
+
+				touchStart = touch && !inField ? { x: touch.clientX, y: touch.clientY, at: Date.now() } : null;
+			},
+			{ passive: true },
+		);
+
+		document.addEventListener(
+			"touchend",
+			(event) => {
+				const begin = touchStart;
+				const sidebar = window.tui && window.tui.sidebar;
+
+				touchStart = null;
+
+				if (!begin || !sidebar || !sidebar.isMobile() || busy() || event.changedTouches.length !== 1) {
+					return;
+				}
+
+				const touch = event.changedTouches[0];
+				const across = touch.clientX - begin.x;
+				const down = Math.abs(touch.clientY - begin.y);
+
+				const isSwipe =
+					Date.now() - begin.at <= swipe.maxMs &&
+					Math.abs(across) >= swipe.minPixels &&
+					down <= Math.abs(across) / 2;
+
+				if (!isSwipe) {
+					return;
+				}
+
+				const open = sidebar.openMobile();
+
+				if (across > 0 && !open && begin.x <= window.innerWidth * swipe.openZone) {
+					sidebar.setOpenMobile(true);
+				} else if (across < 0 && open) {
+					sidebar.setOpenMobile(false);
+				}
+			},
+			{ passive: true },
+		);
+	};
+
 	const start = () => {
 		update();
 		openOnPhone();
 		listen();
+		watchSwipes();
 	};
 
 	document.addEventListener("htmx:after:swap", update);

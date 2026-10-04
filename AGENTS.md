@@ -176,6 +176,13 @@ thread or room.
   `window.tui.sidebar.setOpenMobile(true)`, which does nothing on a wide
   screen. `/conversations/new` and a refused form leave it shut, because the
   dialog is open there.
+- On a phone a quick swipe to the right opens the sheet, and a swipe to the
+  left closes it (`watchSwipes` in `assets/js/app.js`). The swipe to open
+  starts in the left third of the screen, not at the edge, because Android
+  and Safari go back on a swipe in from the very edge. A swipe that starts
+  in a field, a slow drag, a mostly vertical move, and any swipe while a
+  dialog or the person menu is open do nothing. The trigger stays, so the
+  swipe is never the only way.
 - The inset is the `<main>` of the document, so a page inside it must not
   bring one of its own.
 - A button may hold no `<div>`. The brand and the person menu use spans inside
