@@ -1,9 +1,11 @@
 // Package live hands the "something changed" events to the open pages of
 // this server instance. It knows no SQL and no HTTP routes.
 //
-// An event carries only the identifier of a conversation. The page answers
+// A change carries only the identifier of a conversation. The page answers
 // it by asking for that conversation with the version it holds, so the event
-// is a doorbell and the rules of what to show stay where they are.
+// is a doorbell and the rules of what to show stay where they are. A typing
+// event also names the person who writes, which the page shows for a few
+// seconds and never stores.
 package live
 
 import (
@@ -16,6 +18,25 @@ import (
 // event or the slow safety poll of the page brings the same state.
 const buffer = 16
 
+// The kinds of event.
+const (
+	// KindChanged says that a conversation changed.
+	KindChanged = "changed"
+
+	// KindTyping says that somebody writes in a conversation right now.
+	KindTyping = "typing"
+)
+
+// Event is one thing that an open page hears about.
+type Event struct {
+	Kind         string
+	Conversation uuid.UUID
+
+	// From and Name name the writer of a typing event.
+	From uuid.UUID
+	Name string
+}
+
 // Hub keeps the open pages of this instance, by person.
 type Hub struct {
 	mu     sync.Mutex
@@ -25,7 +46,7 @@ type Hub struct {
 
 // page is one open stream.
 type page struct {
-	events chan uuid.UUID
+	events chan Event
 }
 
 // New builds an empty hub.
@@ -35,11 +56,11 @@ func New() *Hub {
 
 // Subscribe opens a stream for one page of a person. The channel closes when
 // the page calls cancel or when the hub closes. Call cancel in any case.
-func (h *Hub) Subscribe(userID uuid.UUID) (<-chan uuid.UUID, func()) {
+func (h *Hub) Subscribe(userID uuid.UUID) (<-chan Event, func()) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	p := &page{events: make(chan uuid.UUID, buffer)}
+	p := &page{events: make(chan Event, buffer)}
 
 	if h.closed {
 		close(p.events)
@@ -77,16 +98,16 @@ func (h *Hub) Subscribe(userID uuid.UUID) (<-chan uuid.UUID, func()) {
 	return p.events, cancel
 }
 
-// Deliver tells every open page of these people that the conversation
-// changed. It never blocks: a page that is behind misses the event.
-func (h *Hub) Deliver(conversationID uuid.UUID, people []uuid.UUID) {
+// Deliver hands an event to every open page of these people. It never
+// blocks: a page that is behind misses the event.
+func (h *Hub) Deliver(event Event, people []uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	for _, person := range people {
 		for p := range h.pages[person] {
 			select {
-			case p.events <- conversationID:
+			case p.events <- event:
 			default:
 			}
 		}

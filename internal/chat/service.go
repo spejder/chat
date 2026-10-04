@@ -208,6 +208,32 @@ func (s *Service) Write(ctx context.Context, person user.User, id uuid.UUID, bod
 	return s.Messages(ctx, person, id)
 }
 
+// Typing tells the other people of a conversation that this person writes
+// in it right now. The page calls it every few seconds while the field holds
+// text, and nothing is stored.
+func (s *Service) Typing(ctx context.Context, person user.User, id uuid.UUID) error {
+	if _, err := s.find(ctx, person, id); err != nil {
+		return err
+	}
+
+	if s.broadcaster == nil {
+		return nil
+	}
+
+	people, err := s.people(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	others := slices.DeleteFunc(people, func(other uuid.UUID) bool {
+		return other == person.ID
+	})
+
+	s.broadcaster.Typing(ctx, id, person, others)
+
+	return nil
+}
+
 // markRead notes that this person has seen the messages and returns the time
 // it replaces. When the reading covers a message from somebody else that
 // was new to this person, the open pages hear about it: the writer sees the

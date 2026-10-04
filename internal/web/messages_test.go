@@ -280,3 +280,31 @@ func TestStartsGroupMarksEveryGroup(t *testing.T) {
 		t.Error("the message of the reader carries a name")
 	}
 }
+
+// TestDaysCutAtTheDateLine makes sure that a day begins at every date line,
+// so the sticky date line of a day leaves with its day.
+func TestDaysCutAtTheDateLine(t *testing.T) {
+	t.Parallel()
+
+	rows := []bubble{
+		{DateLabel: "Yesterday"},
+		{},
+		{DateLabel: "Today"},
+		{},
+		{},
+	}
+
+	got := days(rows)
+
+	if len(got) != 2 || len(got[0]) != 2 || len(got[1]) != 3 {
+		t.Fatalf("the days hold %d rows, want two days of 2 and 3", len(got))
+	}
+
+	if got[1][0].DateLabel != "Today" {
+		t.Errorf("the second day starts with %q, want Today", got[1][0].DateLabel)
+	}
+
+	if len(days(nil)) != 0 {
+		t.Error("no rows give a day")
+	}
+}

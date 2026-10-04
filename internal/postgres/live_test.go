@@ -52,8 +52,8 @@ func TestAChangeTravelsThroughPostgres(t *testing.T) {
 	for {
 		select {
 		case got := <-events:
-			if got != conversation {
-				t.Fatalf("the hub received %v, want %v", got, conversation)
+			if got.Conversation != conversation || got.Kind != live.KindChanged {
+				t.Fatalf("the hub received %+v, want a change of %v", got, conversation)
 			}
 
 			return

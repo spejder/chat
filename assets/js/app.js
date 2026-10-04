@@ -81,6 +81,22 @@
 			document.dispatchEvent(new CustomEvent("chat:offline"));
 		});
 
+		// Somebody writes in the open conversation right now. chat.js shows
+		// it for a few seconds.
+		source.addEventListener("typing", (event) => {
+			let detail = null;
+
+			try {
+				detail = JSON.parse(event.data);
+			} catch {
+				return;
+			}
+
+			if (detail && detail.conversation === openConversation()) {
+				document.dispatchEvent(new CustomEvent("chat:typing", { detail }));
+			}
+		});
+
 		source.addEventListener("changed", (event) => {
 			refresh(sidebarList());
 

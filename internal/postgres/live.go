@@ -11,7 +11,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/spejder/chat/internal/live"
 	"github.com/spejder/chat/internal/postgres/db"
+	"github.com/spejder/chat/internal/user"
 )
 
 // channel is the name that NOTIFY and LISTEN share.
@@ -20,10 +22,14 @@ const channel = "chat_changed"
 // relisten is the pause before the listener tries again after a broken line.
 const relisten = 2 * time.Second
 
-// change is the payload of one notification: the conversation and the people
-// whose open pages must hear about it.
+// change is the payload of one notification: the kind, the conversation, the
+// writer of a typing event, and the people whose open pages must hear about
+// it.
 type change struct {
+	Kind         string      `json:"kind"`
 	Conversation uuid.UUID   `json:"conversation"`
+	From         uuid.UUID   `json:"from,omitzero"`
+	Name         string      `json:"name,omitempty"`
 	People       []uuid.UUID `json:"people"`
 }
 
@@ -41,7 +47,23 @@ func NewBroadcaster(pool *pgxpool.Pool) *Broadcaster {
 // Changed sends the change. A failure costs only the speed of the update,
 // because every page still asks now and then, so it goes to the log.
 func (b *Broadcaster) Changed(ctx context.Context, conversationID uuid.UUID, people []uuid.UUID) {
-	payload, err := json.Marshal(change{Conversation: conversationID, People: people})
+	b.send(ctx, change{Kind: live.KindChanged, Conversation: conversationID, People: people})
+}
+
+// Typing sends that a person writes in the conversation right now.
+func (b *Broadcaster) Typing(ctx context.Context, conversationID uuid.UUID, writer user.User, people []uuid.UUID) {
+	b.send(ctx, change{
+		Kind:         live.KindTyping,
+		Conversation: conversationID,
+		From:         writer.ID,
+		Name:         writer.FullName,
+		People:       people,
+	})
+}
+
+// send writes one notification.
+func (b *Broadcaster) send(ctx context.Context, sent change) {
+	payload, err := json.Marshal(sent)
 	if err != nil {
 		slog.Error("could not write the change", "error", err)
 
@@ -53,10 +75,10 @@ func (b *Broadcaster) Changed(ctx context.Context, conversationID uuid.UUID, peo
 	}
 }
 
-// Deliverer hands a change to the open pages of one server instance. The
+// Deliverer hands an event to the open pages of one server instance. The
 // hub in internal/live carries it out.
 type Deliverer interface {
-	Deliver(conversationID uuid.UUID, people []uuid.UUID)
+	Deliver(event live.Event, people []uuid.UUID)
 }
 
 // Listen hands every change of every instance, this one too, to the
@@ -114,12 +136,17 @@ func listenOnce(ctx context.Context, pool *pgxpool.Pool, deliverer Deliverer) er
 			continue
 		}
 
-		if received.Conversation == uuid.Nil() {
-			slog.Error("could not read a change", "error", errors.New("no conversation"))
+		if received.Conversation == uuid.Nil() || (received.Kind != live.KindChanged && received.Kind != live.KindTyping) {
+			slog.Error("could not read a change", "error", errors.New("no conversation or an unknown kind"))
 
 			continue
 		}
 
-		deliverer.Deliver(received.Conversation, received.People)
+		deliverer.Deliver(live.Event{
+			Kind:         received.Kind,
+			Conversation: received.Conversation,
+			From:         received.From,
+			Name:         received.Name,
+		}, received.People)
 	}
 }

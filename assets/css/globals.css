@@ -9,6 +9,10 @@
    assets/css, so the templ sources need an explicit source path. */
 @source "../../internal/**/*.templ";
 
+/* The links inside a message are written in Go, not in a template, so the
+   file that holds their classes is a source of its own. */
+@source "../../internal/web/links.go";
+
 @theme inline {
   --font-heading: var(--font-sans);
   --color-background: var(--background);

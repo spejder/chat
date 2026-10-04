@@ -291,3 +291,36 @@ func TestTheListsAskWhenTheStreamRings(t *testing.T) {
 		}
 	}
 }
+
+// TestTheConversationHoldsTheNewParts makes sure that the page holds the
+// line for somebody who writes, outside the list that a swap replaces, and
+// that the line for unread messages carries the mark that chat.js opens at.
+func TestTheConversationHoldsTheNewParts(t *testing.T) {
+	t.Parallel()
+
+	reader := user.User{ID: readerID, FullName: "Ada Lovelace"}
+	other := user.User{ID: uuid.NewV7(), FullName: "Grace Hopper"}
+	conversation := chat.Conversation{ID: uuid.NewV7(), Subject: "Lunch"}
+
+	messages := []chat.Message{{
+		ID:         uuid.NewV7(),
+		AuthorID:   other.ID,
+		AuthorName: other.FullName,
+		Body:       "Look at https://example.com",
+		CreatedAt:  time.Now(),
+	}}
+
+	panel := web.Panel{Reader: reader, Since: time.Now().Add(-time.Hour), People: 2}
+	body := render(t, web.ConversationPage(conversation, messages, panel, "abc123", false), nil)
+
+	for _, want := range []string{`id="typing"`, "data-unread-line", `href="https://example.com"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page misses %q", want)
+		}
+	}
+
+	_, afterList, _ := strings.Cut(body, `id="message-list"`)
+	if strings.Index(afterList, `id="typing"`) < strings.Index(afterList, "data-unread-line") {
+		t.Error("the typing line sits inside the message list")
+	}
+}

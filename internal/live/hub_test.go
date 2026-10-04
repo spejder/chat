@@ -8,10 +8,10 @@ import (
 )
 
 // receive reads one event, or reports false when none waits.
-func receive(events <-chan uuid.UUID) (uuid.UUID, bool) {
+func receive(events <-chan live.Event) (uuid.UUID, bool) {
 	select {
-	case id, open := <-events:
-		return id, open
+	case event, open := <-events:
+		return event.Conversation, open
 	default:
 		return uuid.Nil(), false
 	}
@@ -34,9 +34,9 @@ func TestAnEventReachesThePagesOfItsPeople(t *testing.T) {
 	defer cancelAlan()
 
 	conversation := uuid.NewV7()
-	hub.Deliver(conversation, []uuid.UUID{ada, grace})
+	hub.Deliver(live.Event{Kind: live.KindChanged, Conversation: conversation}, []uuid.UUID{ada, grace})
 
-	for name, events := range map[string]<-chan uuid.UUID{"phone": adaPhone, "laptop": adaLaptop} {
+	for name, events := range map[string]<-chan live.Event{"phone": adaPhone, "laptop": adaLaptop} {
 		if got, ok := receive(events); !ok || got != conversation {
 			t.Errorf("the %s got %v (%v), want the conversation", name, got, ok)
 		}
@@ -63,7 +63,7 @@ func TestCancelAndCloseEndTheStreams(t *testing.T) {
 		t.Error("a cancelled stream is still open")
 	}
 
-	hub.Deliver(uuid.NewV7(), []uuid.UUID{ada})
+	hub.Deliver(live.Event{Kind: live.KindChanged, Conversation: uuid.NewV7()}, []uuid.UUID{ada})
 
 	staying, cancelStaying := hub.Subscribe(ada)
 	defer cancelStaying()
@@ -94,6 +94,6 @@ func TestASlowPageDoesNotBlock(t *testing.T) {
 	defer cancel()
 
 	for range 100 {
-		hub.Deliver(uuid.NewV7(), []uuid.UUID{ada})
+		hub.Deliver(live.Event{Kind: live.KindChanged, Conversation: uuid.NewV7()}, []uuid.UUID{ada})
 	}
 }

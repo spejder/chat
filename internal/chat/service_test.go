@@ -237,11 +237,53 @@ func TestTheOthersHearAboutAMessage(t *testing.T) {
 
 // bell is a broadcaster that keeps every call.
 type bell struct {
-	rings []notice
+	rings  []notice
+	typing []notice
 }
 
 func (b *bell) Changed(_ context.Context, id uuid.UUID, people []uuid.UUID) {
 	b.rings = append(b.rings, notice{conversation: Conversation{ID: id}, recipients: people})
+}
+
+func (b *bell) Typing(_ context.Context, id uuid.UUID, writer user.User, people []uuid.UUID) {
+	b.typing = append(b.typing, notice{
+		conversation: Conversation{ID: id},
+		message:      Message{AuthorID: writer.ID, AuthorName: writer.FullName},
+		recipients:   people,
+	})
+}
+
+// TestTypingReachesOnlyTheOthers makes sure that the writer never hears about
+// their own typing, and that a stranger cannot ring the bell.
+func TestTypingReachesOnlyTheOthers(t *testing.T) {
+	t.Parallel()
+
+	ada, grace := people()
+	stranger := user.User{ID: uuid.NewV7(), FullName: "Alan Turing"}
+
+	rang := &bell{}
+	service := New(newFakeStore(ada, grace, stranger), nil, rang)
+
+	conversation, err := service.Start(t.Context(), ada, "Lunch", []uuid.UUID{grace.ID}, "Are you in?")
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+
+	if err := service.Typing(t.Context(), grace, conversation.ID); err != nil {
+		t.Fatalf("typing: %v", err)
+	}
+
+	if len(rang.typing) != 1 {
+		t.Fatalf("the bell rang %d times for typing, want 1", len(rang.typing))
+	}
+
+	if got := rang.typing[0]; got.message.AuthorName != grace.FullName || !slices.Equal(got.recipients, []uuid.UUID{ada.ID}) {
+		t.Errorf("typing rang for %+v, want Grace to Ada", got)
+	}
+
+	if err := service.Typing(t.Context(), stranger, conversation.ID); !errors.Is(err, ErrNotFound) {
+		t.Errorf("a stranger typing gave %v, want %v", err, ErrNotFound)
+	}
 }
 
 // TestTheOpenPagesHearAboutChanges makes sure that a message and a read of

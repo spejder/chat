@@ -132,4 +132,8 @@ type Notifier interface {
 // server instance hears it.
 type Broadcaster interface {
 	Changed(ctx context.Context, conversationID uuid.UUID, people []uuid.UUID)
+
+	// Typing tells the pages of the people that a person writes in the
+	// conversation right now. The page shows it for a few seconds.
+	Typing(ctx context.Context, conversationID uuid.UUID, writer user.User, people []uuid.UUID)
 }

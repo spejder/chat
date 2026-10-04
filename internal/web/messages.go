@@ -201,3 +201,18 @@ func dateLabel(at time.Time) string {
 		return at.Local().Format("2 January 2006")
 	}
 }
+
+// days cuts the rows into days. A row with a date line starts a new day.
+func days(rows []bubble) [][]bubble {
+	var out [][]bubble
+
+	for _, row := range rows {
+		if row.DateLabel != "" || len(out) == 0 {
+			out = append(out, nil)
+		}
+
+		out[len(out)-1] = append(out[len(out)-1], row)
+	}
+
+	return out
+}

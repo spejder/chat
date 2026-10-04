@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -53,12 +55,12 @@ func (h *eventHandlers) stream(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 			return
-		case id, open := <-events:
+		case event, open := <-events:
 			if !open {
 				return
 			}
 
-			if _, err := fmt.Fprintf(w, "event: changed\ndata: %s\n\n", id); err != nil {
+			if err := writeEvent(w, event); err != nil {
 				return
 			}
 		case <-ticker.C:
@@ -70,5 +72,37 @@ func (h *eventHandlers) stream(w http.ResponseWriter, r *http.Request) {
 		if err := flusher.Flush(); err != nil {
 			return
 		}
+	}
+}
+
+// typingData is what the page reads from a typing event.
+type typingData struct {
+	Conversation string `json:"conversation"`
+	From         string `json:"from"`
+	Name         string `json:"name"`
+}
+
+// writeEvent writes one event of the stream. A change carries the identifier
+// alone, and a typing event carries JSON, which holds no line break, so it
+// fits on the one data line that the format allows per field.
+func writeEvent(w io.Writer, event live.Event) error {
+	switch event.Kind {
+	case live.KindTyping:
+		data, err := json.Marshal(typingData{
+			Conversation: event.Conversation.String(),
+			From:         event.From.String(),
+			Name:         event.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("write the typing event: %w", err)
+		}
+
+		_, err = fmt.Fprintf(w, "event: typing\ndata: %s\n\n", data)
+
+		return err
+	default:
+		_, err := fmt.Fprintf(w, "event: changed\ndata: %s\n\n", event.Conversation)
+
+		return err
 	}
 }

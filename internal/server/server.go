@@ -67,6 +67,7 @@ func New(config Config) http.Handler {
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
 	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
+	mux.Handle("POST /conversations/{id}/typing", requireUser(http.HandlerFunc(conversations.typing)))
 
 	mux.Handle("GET /events", requireUser(http.HandlerFunc(events.stream)))
 

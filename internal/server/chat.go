@@ -360,6 +360,25 @@ func (h *chatHandlers) conversation(w http.ResponseWriter, r *http.Request, pers
 	return opened.Conversation, true
 }
 
+// typing tells the other people that this person writes right now. The
+// page calls it every few seconds while the field holds text.
+func (h *chatHandlers) typing(w http.ResponseWriter, r *http.Request) {
+	person, _ := auth.UserFrom(r.Context())
+
+	id, ok := conversationID(w, r)
+	if !ok {
+		return
+	}
+
+	if err := h.service.Typing(r.Context(), person, id); err != nil {
+		h.chatError(w, r, err)
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // older answers the button above a conversation with the block in front of
 // the message it names.
 func (h *chatHandlers) older(w http.ResponseWriter, r *http.Request) {

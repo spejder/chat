@@ -243,7 +243,20 @@ thread or room.
   the edge of the window.
 - The date line carries `sticky top-0`, so the day stays on screen while the
   reader scrolls through it. That works because `#messages` is the scroll box
-  and no box between the two hides its overflow.
+  and no box between the two hides its overflow. Every day sits in a box of
+  its own (`days` in `internal/web/messages.go`), because a sticky element
+  sticks within its parent: in one shared box every older date line stayed
+  stuck and piled up behind the newest.
+- A conversation opens at the line for the unread messages
+  (`data-unread-line`) when the newest messages would push that line out of
+  view, and at the newest message otherwise. `openAtStart` in `chat.js` does
+  it.
+- A web address in a message becomes a link that opens in a new tab with
+  `rel="noopener noreferrer"`. `messageText` in `internal/web/links.go`
+  writes the markup itself and escapes every piece, because the bubble keeps
+  every space and a template could add white space between the parts. Only
+  http and https count. Tailwind reads `links.go` as a source of its own,
+  because its classes live in Go and not in a template.
 - `bubble.StartsGroup` marks the first message of every group, also where no
   name appears, and the page turns it into the extra room above a group. The
   name alone cannot carry that, because the reader's own messages and a
@@ -362,6 +375,12 @@ versions, read marks and pages stay in the routes that already had them.
 - A browser opens at most six connections to one host over HTTP/1.1, and
   every tab holds one stream. Put a proxy with HTTP/2 in front of the server
   in production, or the seventh tab stalls.
+- A typing event goes through the same line. `chat.js` posts to
+  `/conversations/{id}/typing` at most every three seconds while the field
+  holds text, and the service tells the other people, never the writer. The
+  page shows "Arne is writing…" below the messages, outside the list that a
+  swap replaces, and drops a name after seven seconds without a word, or when
+  a message of that person arrives. Nothing is stored.
 - The tests of `internal/server` run a real listener, so a change travels
   through Postgres as between two instances. A test that waits for an event
   writes again until it arrives, because the `LISTEN` needs a moment to

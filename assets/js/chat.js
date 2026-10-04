@@ -10,6 +10,17 @@
 	// reader further up wants to stay where they are.
 	const nearBottomPixels = 100;
 
+	// Room above the line for the unread messages when the page opens there,
+	// so the date line that sticks to the top does not cover it.
+	const roomAbovePixels = 56;
+
+	// The page tells the others at most this often that the reader writes.
+	const typingEveryMs = 3000;
+
+	// A name leaves the typing line when no word arrives for this long. It is
+	// two rounds of typingEveryMs, so one lost event does not make it blink.
+	const typingForMs = 7000;
+
 	// The write field grows to this height and then scrolls.
 	const maxFieldPixels = 192;
 
@@ -17,6 +28,7 @@
 	const jump = () => document.getElementById("jump");
 	const offline = () => document.getElementById("offline");
 	const announcer = () => document.getElementById("announce");
+	const typingLine = () => document.getElementById("typing");
 	const errorLine = () => document.querySelector("#write [data-error]");
 	const countMessages = () => document.querySelectorAll("#messages [data-message]").length;
 
@@ -34,6 +46,32 @@
 		if (list) {
 			list.scrollTop = list.scrollHeight;
 		}
+	};
+
+	// openAtStart opens the conversation where the reader left off: at the
+	// line for the unread messages when the newest ones would push it out of
+	// view, and at the newest message otherwise. A phone does the same.
+	const openAtStart = () => {
+		const list = messages();
+		const line = document.querySelector("#messages [data-unread-line]");
+
+		if (!list || !line) {
+			toNewest();
+
+			return;
+		}
+
+		const lineTop = line.offsetTop - roomAbovePixels;
+		const bottomTop = list.scrollHeight - list.clientHeight;
+
+		if (lineTop >= bottomTop) {
+			toNewest();
+
+			return;
+		}
+
+		list.scrollTop = Math.max(lineTop, 0);
+		follow = false;
 	};
 
 	const hideJump = () => {
@@ -78,6 +116,88 @@
 		const body = newest.querySelector("[data-body]");
 
 		line.textContent = (newest.dataset.author || "") + ": " + (body ? body.textContent : "");
+	};
+
+	// The people who write right now, by full name, each with the timer that
+	// takes them off the line again.
+	const typists = new Map();
+
+	const firstName = (name) => name.split(/\s+/)[0] || name;
+
+	const showTypists = () => {
+		const line = typingLine();
+
+		if (!line) {
+			return;
+		}
+
+		const names = [...typists.keys()].map(firstName);
+		const list = messages();
+		const stay = list ? atBottom(list) : false;
+
+		if (names.length === 0) {
+			line.hidden = true;
+			line.textContent = "";
+
+			return;
+		}
+
+		if (names.length === 1) {
+			line.textContent = names[0] + " is writing…";
+		} else if (names.length === 2) {
+			line.textContent = names[0] + " and " + names[1] + " are writing…";
+		} else {
+			line.textContent = "Several people are writing…";
+		}
+
+		line.hidden = false;
+
+		// A reader at the bottom sees the line without scrolling.
+		if (stay) {
+			toNewest();
+		}
+	};
+
+	const stopTyping = (name) => {
+		const timer = typists.get(name);
+
+		if (timer === undefined) {
+			return;
+		}
+
+		window.clearTimeout(timer);
+		typists.delete(name);
+		showTypists();
+	};
+
+	document.addEventListener("chat:typing", (event) => {
+		const name = event.detail && event.detail.name;
+
+		if (!name) {
+			return;
+		}
+
+		window.clearTimeout(typists.get(name));
+		typists.set(name, window.setTimeout(() => stopTyping(name), typingForMs));
+		showTypists();
+	});
+
+	// tellTyping lets the others know that the reader writes, at most once
+	// every few seconds. The answer does not matter: a lost word only makes
+	// the line on the other side go a little sooner.
+	let lastTyping = 0;
+
+	const tellTyping = (field) => {
+		const form = field.closest("form");
+		const now = Date.now();
+
+		if (!form || !form.dataset.conversation || !field.value.trim() || now - lastTyping < typingEveryMs) {
+			return;
+		}
+
+		lastTyping = now;
+
+		fetch("/conversations/" + form.dataset.conversation + "/typing", { method: "POST" }).catch(() => {});
 	};
 
 	// grow lets the field follow the text instead of scrolling from the first
@@ -153,6 +273,7 @@
 
 		field.addEventListener("input", () => {
 			grow(field);
+			tellTyping(field);
 
 			window.clearTimeout(draftTimer);
 			draftTimer = window.setTimeout(() => writeDraft(field.value), 300);
@@ -179,7 +300,7 @@
 	document.addEventListener("DOMContentLoaded", () => {
 		counted = countMessages();
 		wireField();
-		toNewest();
+		openAtStart();
 	});
 
 	document.addEventListener("click", (event) => {
@@ -215,6 +336,11 @@
 
 		if (arrived > 0) {
 			announce();
+
+			// A person whose message arrived has stopped writing.
+			for (const message of [...document.querySelectorAll("#messages [data-message]")].slice(-arrived)) {
+				stopTyping(message.dataset.author || "");
+			}
 		}
 
 		if (follow) {
@@ -304,6 +430,6 @@
 	if (document.readyState !== "loading") {
 		counted = countMessages();
 		wireField();
-		toNewest();
+		openAtStart();
 	}
 })();
