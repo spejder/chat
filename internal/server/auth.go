@@ -49,7 +49,7 @@ func (h *authHandlers) page(w http.ResponseWriter, r *http.Request) {
 func (h *authHandlers) start(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.FormValue("email"))
 	if email == "" {
-		h.renderPanel(w, r, web.EmailPanel("", "Type your email address."))
+		h.renderPanel(w, r, web.EmailPanel("", "Skriv din e-mailadresse."))
 
 		return
 	}
@@ -98,13 +98,13 @@ func (h *authHandlers) code(w http.ResponseWriter, r *http.Request) {
 	person, token, err := h.service.VerifyCode(r.Context(), email, code)
 	if err != nil {
 		if errors.Is(err, auth.ErrWrongCode) {
-			h.renderPanel(w, r, web.CodePanel(email, "That code is wrong. Try again."))
+			h.renderPanel(w, r, web.CodePanel(email, "Koden er forkert. Prøv igen."))
 
 			return
 		}
 
 		if errors.Is(err, auth.ErrNoCode) {
-			h.renderPanel(w, r, web.EmailPanel(email, "That code is no longer valid. Ask for a new one."))
+			h.renderPanel(w, r, web.EmailPanel(email, "Koden virker ikke længere. Bed om en ny."))
 
 			return
 		}
@@ -140,7 +140,7 @@ func (h *authHandlers) code(w http.ResponseWriter, r *http.Request) {
 func (h *authHandlers) passkeyLogin(w http.ResponseWriter, r *http.Request) {
 	challenge, err := uuid.Parse(r.URL.Query().Get("challenge"))
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "The sign in attempt is unknown. Start again.")
+		writeJSONError(w, http.StatusBadRequest, "Login-forsøget er ukendt. Start forfra.")
 
 		return
 	}
@@ -148,7 +148,7 @@ func (h *authHandlers) passkeyLogin(w http.ResponseWriter, r *http.Request) {
 	_, token, err := h.service.FinishPasskeyLogin(r.Context(), challenge, r.Body)
 	if err != nil {
 		slog.Info("a passkey sign in failed", "error", err)
-		writeJSONError(w, http.StatusUnauthorized, "That passkey did not work. Try a code instead.")
+		writeJSONError(w, http.StatusUnauthorized, "Adgangsnøglen virkede ikke. Prøv en kode i stedet.")
 
 		return
 	}
@@ -160,21 +160,21 @@ func (h *authHandlers) passkeyLogin(w http.ResponseWriter, r *http.Request) {
 // passkeyRegister stores a new passkey for the person who is signed in.
 func (h *authHandlers) passkeyRegister(w http.ResponseWriter, r *http.Request) {
 	if _, ok := auth.UserFrom(r.Context()); !ok {
-		writeJSONError(w, http.StatusUnauthorized, "Sign in first.")
+		writeJSONError(w, http.StatusUnauthorized, "Log ind først.")
 
 		return
 	}
 
 	challenge, err := uuid.Parse(r.URL.Query().Get("challenge"))
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "The attempt is unknown. Start again.")
+		writeJSONError(w, http.StatusBadRequest, "Forsøget er ukendt. Start forfra.")
 
 		return
 	}
 
 	if err := h.service.FinishPasskeyRegistration(r.Context(), challenge, r.Body); err != nil {
 		slog.Info("a passkey creation failed", "error", err)
-		writeJSONError(w, http.StatusBadRequest, "The passkey could not be stored. Try again.")
+		writeJSONError(w, http.StatusBadRequest, "Adgangsnøglen kunne ikke gemmes. Prøv igen.")
 
 		return
 	}
@@ -221,7 +221,7 @@ func (h *authHandlers) renderPanel(w http.ResponseWriter, r *http.Request, panel
 // side.
 func (h *authHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 	slog.Error("the sign in broke", "error", err)
-	h.renderPanel(w, r, web.EmailPanel("", "Something went wrong. Try again."))
+	h.renderPanel(w, r, web.EmailPanel("", "Noget gik galt. Prøv igen."))
 }
 
 // withLink signs a person in through the token of a link from an SMS. The

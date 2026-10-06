@@ -210,7 +210,7 @@ func text(missed []Due, link string) string {
 	who := writers(missed)
 
 	for limit := smsLength; ; limit-- {
-		out := "Chat: " + who + " wrote in " + where(missed, limit) + ".\n" + link
+		out := "Chat: " + who + " skrev i " + where(missed, limit) + ".\n" + link
 
 		if utf8.RuneCountInString(out) <= smsLength || limit <= minSubject {
 			return out
@@ -218,8 +218,8 @@ func text(missed []Due, link string) string {
 	}
 }
 
-// writers names the people by their first names: "Arne", "Arne and Grace",
-// or "Arne and 2 others".
+// writers names the people by their first names: "Arne", "Arne og Grace",
+// or "Arne og 2 andre".
 func writers(missed []Due) string {
 	var names []string
 
@@ -238,13 +238,13 @@ func writers(missed []Due) string {
 
 	switch len(names) {
 	case 0:
-		return "Somebody"
+		return "Nogen"
 	case 1:
 		return names[0]
 	case 2:
-		return names[0] + " and " + names[1]
+		return names[0] + " og " + names[1]
 	default:
-		return names[0] + " and " + strconv.Itoa(len(names)-1) + " others"
+		return names[0] + " og " + strconv.Itoa(len(names)-1) + " andre"
 	}
 }
 
@@ -258,10 +258,10 @@ func where(missed []Due, limit int) string {
 	}
 
 	if rest := len(missed) - len(quoted); rest > 0 {
-		return strings.Join(quoted, ", ") + " and " + strconv.Itoa(rest) + " more"
+		return strings.Join(quoted, ", ") + " og " + strconv.Itoa(rest) + " til"
 	}
 
-	return strings.Join(quoted, " and ")
+	return strings.Join(quoted, " og ")
 }
 
 // firstName returns the first word of a name.

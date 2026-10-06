@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
+	"unicode/utf8"
 	"uuid"
 
 	"github.com/spejder/chat/internal/address"
@@ -44,7 +46,7 @@ type chatHandlers struct {
 
 // list shows the room beside the sidebar when no conversation is open.
 func (h *chatHandlers) list(w http.ResponseWriter, r *http.Request) {
-	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Conversations", OpenOnPhone: true}, web.Conversations())
+	h.shell(w, r, http.StatusOK, web.ShellPage{Title: "Samtaler", OpenOnPhone: true}, web.Conversations())
 }
 
 // listFragment answers the sidebar when it asks. It answers 204 when the list
@@ -131,7 +133,7 @@ func (h *chatHandlers) shell(w http.ResponseWriter, r *http.Request, status int,
 // page, and this address keeps an old link working.
 func (h *chatHandlers) newForm(w http.ResponseWriter, r *http.Request) {
 	page := web.ShellPage{
-		Title:           "Start a conversation",
+		Title:           "Start en samtale",
 		NewConversation: web.NewConversationForm{Open: true},
 	}
 
@@ -168,7 +170,7 @@ func (h *chatHandlers) start(w http.ResponseWriter, r *http.Request) {
 			// The dialog comes back open, with everything the reader
 			// typed and chose.
 			page := web.ShellPage{
-				Title: "Start a conversation",
+				Title: "Start en samtale",
 				NewConversation: web.NewConversationForm{
 					Subject: subject,
 					Body:    body,
@@ -323,14 +325,14 @@ func (h *chatHandlers) write(w http.ResponseWriter, r *http.Request) {
 			// No body, because htmx swaps whatever comes back and would wipe
 			// the conversation. The reason travels in a header instead, and
 			// the page writes it under the field.
-			trigger, marshalErr := json.Marshal(map[string]string{"chat:error": message})
+			trigger, marshalErr := headerJSON(map[string]string{"chat:error": message})
 			if marshalErr != nil {
 				h.fail(w, r, marshalErr)
 
 				return
 			}
 
-			w.Header().Set("HX-Trigger", string(trigger))
+			w.Header().Set("HX-Trigger", trigger)
 			w.WriteHeader(http.StatusNoContent)
 
 			return
@@ -546,18 +548,45 @@ func conversationID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
 	return id, true
 }
 
+// headerJSON writes JSON for a response header. A browser reads the bytes of
+// a header as Latin-1, so a Danish letter in UTF-8 would arrive garbled.
+// Every character outside ASCII therefore travels as a \u escape, which
+// the JSON reader of the page turns back into the letter.
+func headerJSON(value any) (string, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("write the header: %w", err)
+	}
+
+	var out strings.Builder
+
+	for _, r := range string(data) {
+		switch {
+		case r < utf8.RuneSelf:
+			out.WriteRune(r)
+		case r > 0xFFFF:
+			high, low := utf16.EncodeRune(r)
+			fmt.Fprintf(&out, "\\u%04x\\u%04x", high, low)
+		default:
+			fmt.Fprintf(&out, "\\u%04x", r)
+		}
+	}
+
+	return out.String(), nil
+}
+
 // readableError turns a rule of internal/chat into a line for the page. The
 // second value is false for every other error.
 func readableError(err error) (string, bool) {
 	switch {
 	case errors.Is(err, chat.ErrNoSubject):
-		return "Write a subject.", true
+		return "Skriv et emne.", true
 	case errors.Is(err, chat.ErrNoParticipants):
-		return "Choose at least one other person.", true
+		return "Vælg mindst én anden person.", true
 	case errors.Is(err, chat.ErrEmptyMessage):
-		return "Write a message.", true
+		return "Skriv en besked.", true
 	case errors.Is(err, chat.ErrTooLong):
-		return "That text is too long.", true
+		return "Teksten er for lang.", true
 	default:
 		return "", false
 	}

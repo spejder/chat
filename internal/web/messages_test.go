@@ -71,8 +71,8 @@ func TestBubbles(t *testing.T) {
 	}
 
 	// Only the first row carries a date line, because every message is today.
-	if rows[0].DateLabel != "Today" {
-		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "Today")
+	if rows[0].DateLabel != "I dag" {
+		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "I dag")
 	}
 
 	for i, row := range rows[1:] {
@@ -99,12 +99,12 @@ func TestADayChangeBreaksTheGroup(t *testing.T) {
 
 	rows := bubbles(messages, Panel{Reader: reader, People: 3})
 
-	if rows[0].DateLabel != "Yesterday" {
-		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "Yesterday")
+	if rows[0].DateLabel != "I går" {
+		t.Errorf("the first date line is %q, want %q", rows[0].DateLabel, "I går")
 	}
 
-	if rows[1].DateLabel != "Today" {
-		t.Errorf("the second date line is %q, want %q", rows[1].DateLabel, "Today")
+	if rows[1].DateLabel != "I dag" {
+		t.Errorf("the second date line is %q, want %q", rows[1].DateLabel, "I dag")
 	}
 
 	if !rows[1].ShowName {
@@ -123,8 +123,8 @@ func TestAnOldDateReadsAsADate(t *testing.T) {
 	// A date far from today, so the label can never read Today or Yesterday.
 	at := time.Date(2020, time.March, 2, 10, 0, 0, 0, time.Local)
 
-	if label := dateLabel(at); label != "2 March 2020" {
-		t.Errorf("the label is %q, want %q", label, "2 March 2020")
+	if label := dateLabel(at); label != "2. marts 2020" {
+		t.Errorf("the label is %q, want %q", label, "2. marts 2020")
 	}
 }
 
@@ -197,15 +197,15 @@ func TestTheReadMark(t *testing.T) {
 		t.Error("a mark sits on a message that is not the newest of the reader")
 	}
 
-	if rows[2].ReadMark != "Read by Grace Hopper" {
-		t.Errorf("the mark is %q, want %q", rows[2].ReadMark, "Read by Grace Hopper")
+	if rows[2].ReadMark != "Læst af Grace Hopper" {
+		t.Errorf("the mark is %q, want %q", rows[2].ReadMark, "Læst af Grace Hopper")
 	}
 
 	// Everybody has read it now.
 	panel.Readers[2].LastReadAt = base.Add(4 * time.Minute)
 
-	if mark := bubbles(messages, panel)[2].ReadMark; mark != "Read" {
-		t.Errorf("the mark is %q, want %q", mark, "Read")
+	if mark := bubbles(messages, panel)[2].ReadMark; mark != "Læst" {
+		t.Errorf("the mark is %q, want %q", mark, "Læst")
 	}
 
 	// Nobody has read it.
@@ -287,9 +287,9 @@ func TestDaysCutAtTheDateLine(t *testing.T) {
 	t.Parallel()
 
 	rows := []bubble{
-		{DateLabel: "Yesterday"},
+		{DateLabel: "I går"},
 		{},
-		{DateLabel: "Today"},
+		{DateLabel: "I dag"},
 		{},
 		{},
 	}
@@ -300,7 +300,7 @@ func TestDaysCutAtTheDateLine(t *testing.T) {
 		t.Fatalf("the days hold %d rows, want two days of 2 and 3", len(got))
 	}
 
-	if got[1][0].DateLabel != "Today" {
+	if got[1][0].DateLabel != "I dag" {
 		t.Errorf("the second day starts with %q, want Today", got[1][0].DateLabel)
 	}
 

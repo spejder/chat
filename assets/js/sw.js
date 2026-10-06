@@ -59,7 +59,7 @@ self.addEventListener("push", (event) => {
 			}
 
 			const tag = (message && message.tag) || "chat";
-			const line = (message && message.body) || "A new message arrived.";
+			const line = (message && message.body) || "Der er kommet en ny besked.";
 
 			// A notification of this conversation that still shows means
 			// the stretch goes on.
@@ -76,7 +76,7 @@ self.addEventListener("push", (event) => {
 			const alert = due && !silent;
 
 			await self.registration.showNotification(title, {
-				body: count > 1 ? `${count} new messages\n${line}` : line,
+				body: count > 1 ? `${count} nye beskeder\n${line}` : line,
 				// A newer message of the same conversation replaces the older
 				// notification. renotify makes the replacement sound.
 				tag,

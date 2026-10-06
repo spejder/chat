@@ -76,6 +76,21 @@
 		},
 	});
 
+	// readable turns an error into a line for the page. The browser writes
+	// its own errors in English, so they get a Danish line here. The errors
+	// of the server arrive in Danish already.
+	const readable = (error) => {
+		if (error && error.name === "NotAllowedError") {
+			return "Adgangsnøglen blev ikke brugt. Prøv igen, eller send en kode i stedet.";
+		}
+
+		if (error instanceof DOMException) {
+			return "Adgangsnøglen virkede ikke. Prøv igen.";
+		}
+
+		return (error && error.message) || "Noget gik galt. Prøv igen.";
+	};
+
 	const showError = (panel, message) => {
 		const field = panel.querySelector("[data-error]");
 
@@ -94,7 +109,7 @@
 		const answer = await response.json().catch(() => ({}));
 
 		if (!response.ok) {
-			throw new Error(answer.error || "The sign in did not work. Try again.");
+			throw new Error(answer.error || "Det lykkedes ikke at logge ind. Prøv igen.");
 		}
 
 		return answer;
@@ -131,7 +146,7 @@
 			try {
 				await runPasskey(panel);
 			} catch (error) {
-				showError(panel, error.message || String(error));
+				showError(panel, readable(error));
 			}
 		};
 

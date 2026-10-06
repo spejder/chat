@@ -92,7 +92,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "Start a conversation")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "Start en samtale")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -118,7 +118,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "The people are fixed once the conversation starts.")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "Deltagerne kan ikke ændres, når samtalen er startet.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -150,7 +150,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "Subject")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "Emne")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -174,12 +174,12 @@ func NewConversation(form NewConversationForm) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><fieldset class=\"flex flex-col gap-3\"><legend class=\"pb-2 text-sm font-medium\">Who takes part</legend> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><fieldset class=\"flex flex-col gap-3\"><legend class=\"pb-2 text-sm font-medium\">Hvem er med</legend> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(form.People) == 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-sm text-muted-foreground\">There is nobody else to write to yet.</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p class=\"text-sm text-muted-foreground\">Der er ingen andre at skrive til endnu.</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -273,7 +273,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "First message")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "Første besked")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -288,7 +288,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 					Name:        "body",
 					Value:       form.Body,
 					Rows:        4,
-					Placeholder: "Write the first message",
+					Placeholder: "Skriv den første besked",
 					Attributes: templ.Attributes{
 						"required":  true,
 						"maxlength": "4000",
@@ -333,7 +333,7 @@ func NewConversation(form NewConversationForm) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "Cancel")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "Annuller")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

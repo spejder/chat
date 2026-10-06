@@ -19,10 +19,10 @@ func TestListTime(t *testing.T) {
 		want string
 	}{
 		{name: "today", at: now.Add(-2 * time.Hour), want: "12:00"},
-		{name: "yesterday", at: now.AddDate(0, 0, -1), want: "Yesterday"},
-		{name: "this week", at: now.AddDate(0, 0, -3), want: "Wednesday"},
-		{name: "this year", at: now.AddDate(0, -2, 0), want: "3 Aug"},
-		{name: "an older year", at: now.AddDate(-1, 0, 0), want: "3 Oct 2025"},
+		{name: "yesterday", at: now.AddDate(0, 0, -1), want: "I går"},
+		{name: "this week", at: now.AddDate(0, 0, -3), want: "onsdag"},
+		{name: "this year", at: now.AddDate(0, -2, 0), want: "3. aug."},
+		{name: "an older year", at: now.AddDate(-1, 0, 0), want: "3. okt. 2025"},
 	}
 
 	for _, test := range tests {
@@ -45,9 +45,9 @@ func TestPreview(t *testing.T) {
 		summary chat.Summary
 		want    string
 	}{
-		{name: "no message", summary: chat.Summary{}, want: "No messages yet"},
+		{name: "no message", summary: chat.Summary{}, want: "Ingen beskeder endnu"},
 		{name: "somebody else", summary: chat.Summary{LastAuthor: "Grace Hopper", LastBody: "Are you in?"}, want: "Grace: Are you in?"},
-		{name: "the reader", summary: chat.Summary{LastAuthor: "Ada Lovelace", LastBody: "Yes", LastMine: true}, want: "You: Yes"},
+		{name: "the reader", summary: chat.Summary{LastAuthor: "Ada Lovelace", LastBody: "Yes", LastMine: true}, want: "Dig: Yes"},
 		{name: "more lines", summary: chat.Summary{LastAuthor: "Grace Hopper", LastBody: "One\n\ntwo"}, want: "Grace: One two"},
 	}
 

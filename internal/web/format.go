@@ -2,6 +2,7 @@
 package web
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -9,8 +10,8 @@ import (
 )
 
 // listTime writes the time of the newest message for the sidebar, the way a
-// phone does: the clock for today, "Yesterday", the weekday within a week,
-// and the date after that.
+// phone does: the clock for today, "I går", the weekday within a week, and
+// the date after that.
 func listTime(at, now time.Time) string {
 	at, now = at.Local(), now.Local()
 
@@ -18,24 +19,24 @@ func listTime(at, now time.Time) string {
 	case sameDay(at, now):
 		return at.Format("15:04")
 	case sameDay(at, now.AddDate(0, 0, -1)):
-		return "Yesterday"
+		return "I går"
 	case now.Sub(at) < 6*24*time.Hour:
-		return at.Format("Monday")
+		return weekday(at)
 	case at.Year() == now.Year():
-		return at.Format("2 Jan")
+		return shortDate(at)
 	default:
-		return at.Format("2 Jan 2006")
+		return shortDate(at) + " " + strconv.Itoa(at.Year())
 	}
 }
 
 // preview writes the newest message of a conversation in one short line,
-// with the first name of the writer in front, or "You" for the reader.
+// with the first name of the writer in front, or "Dig" for the reader.
 func preview(summary chat.Summary) string {
 	if summary.LastBody == "" {
-		return "No messages yet"
+		return "Ingen beskeder endnu"
 	}
 
-	writer := "You"
+	writer := "Dig"
 
 	if !summary.LastMine {
 		if parts := splitName(summary.LastAuthor); len(parts) > 0 {
@@ -54,7 +55,9 @@ func clock(at time.Time) string {
 
 // fullTime writes the whole moment, which every bubble carries in its title.
 func fullTime(at time.Time) string {
-	return at.Local().Format("2 January 2006 at 15:04")
+	at = at.Local()
+
+	return longDate(at) + " kl. " + at.Format("15:04")
 }
 
 // splitName cuts a full name into its parts.

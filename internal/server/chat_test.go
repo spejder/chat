@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"html"
 	"net/http"
 	"net/http/httptest"
@@ -245,7 +246,7 @@ func TestAConversationNeedsSomebody(t *testing.T) {
 		t.Errorf("status = %d, want %d", answer.Code, http.StatusUnprocessableEntity)
 	}
 
-	if !strings.Contains(answer.Body.String(), "Choose at least one other person") {
+	if !strings.Contains(answer.Body.String(), "Vælg mindst én anden person") {
 		t.Errorf("the answer does not say what is missing: %s", answer.Body.String())
 	}
 }
@@ -282,7 +283,7 @@ func TestARefusedFormKeepsTheChoice(t *testing.T) {
 	body := answer.Body.String()
 
 	for _, want := range []string{
-		"Write a subject.",
+		"Skriv et emne.",
 		`data-tui-dialog-initial-open="true"`,
 		`value="` + grace.ID.String() + `" checked`,
 		"Are you in?",
@@ -420,7 +421,7 @@ func TestAReadChangesTheVersion(t *testing.T) {
 		t.Fatalf("the poll after the reading gave %d, want %d", answer.Code, http.StatusOK)
 	}
 
-	if !strings.Contains(answer.Body.String(), "Read") {
+	if !strings.Contains(answer.Body.String(), "Læst") {
 		t.Errorf("the answer carries no mark: %s", answer.Body.String())
 	}
 }
@@ -491,7 +492,7 @@ func TestAReadReachesTheSidebar(t *testing.T) {
 		t.Fatalf("the page holds no version for the list: %s", before.Body.String())
 	}
 
-	if strings.Contains(before.Body.String(), ">Read<") {
+	if strings.Contains(before.Body.String(), ">Læst<") {
 		t.Error("the message counts as read before the other person opened it")
 	}
 
@@ -502,7 +503,7 @@ func TestAReadReachesTheSidebar(t *testing.T) {
 		t.Fatalf("the poll after the read gave %d, want %d", after.Code, http.StatusOK)
 	}
 
-	if !strings.Contains(after.Body.String(), ">Read<") {
+	if !strings.Contains(after.Body.String(), ">Læst<") {
 		t.Errorf("the list misses the read mark: %s", after.Body.String())
 	}
 }
@@ -549,7 +550,7 @@ func TestAConversationComesInPages(t *testing.T) {
 		t.Error("the page holds the oldest message although it is one page behind")
 	}
 
-	if !strings.Contains(body, "Show older messages") {
+	if !strings.Contains(body, "Vis ældre beskeder") {
 		t.Error("the page offers no way to the older messages")
 	}
 
@@ -569,7 +570,7 @@ func TestAConversationComesInPages(t *testing.T) {
 }
 
 // oneUnread is the badge of a conversation with one unread message.
-const oneUnread = `1<span class="sr-only"> unread</span>`
+const oneUnread = `1<span class="sr-only"> ulæste</span>`
 
 // breadcrumbPage reads the last item of the top bar, which names the people.
 func breadcrumbPage(body string) string {
@@ -582,4 +583,58 @@ func breadcrumbPage(body string) string {
 	names, _, _ := strings.Cut(after, "<")
 
 	return strings.TrimSpace(names)
+}
+
+// TestARefusalTravelsInASCII makes sure that the reason for a refused
+// message reaches the page in a header of plain ASCII, because a browser
+// reads the bytes of a header as Latin-1 and would garble the Danish
+// letters.
+func TestARefusalTravelsInASCII(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the writer: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650114")
+	if err != nil {
+		t.Fatalf("create the reader: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Frokost"},
+		"person":  {grace.ID.String()},
+		"body":    {"Er du med?"},
+	}, session)
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, started.Header().Get("Location")+"/messages",
+		strings.NewReader(url.Values{"body": {strings.Repeat("ø", 4001)}}.Encode()))
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("HX-Request", "true")
+	request.AddCookie(session)
+
+	answer := httptest.NewRecorder()
+	handler.ServeHTTP(answer, request)
+
+	header := answer.Header().Get("HX-Trigger")
+
+	for _, r := range header {
+		if r >= 0x80 {
+			t.Fatalf("HX-Trigger = %q, want plain ASCII", header)
+		}
+	}
+
+	var trigger map[string]string
+	if err := json.Unmarshal([]byte(header), &trigger); err != nil {
+		t.Fatalf("read HX-Trigger %q: %v", header, err)
+	}
+
+	if trigger["chat:error"] != "Teksten er for lang." {
+		t.Errorf("the reason reads %q, want the Danish text", trigger["chat:error"])
+	}
 }

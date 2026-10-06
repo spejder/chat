@@ -10,10 +10,10 @@ import (
 
 // Login renders the sign in page around one of the panels.
 templ Login(panel templ.Component) {
-	@Layout("Sign in to Chat", "Sign in to Chat with a passkey or a code from an SMS.") {
+	@Layout("Log ind på Chat", "Log ind på Chat med en adgangsnøgle eller en kode fra en SMS.") {
 		<main class="flex items-center justify-center p-6">
 			<div class="flex w-full max-w-md flex-col gap-6 rounded-xl border bg-card p-8 text-card-foreground shadow-sm">
-				<h1 class="text-2xl font-semibold tracking-tight">Sign in</h1>
+				<h1 class="text-2xl font-semibold tracking-tight">Log ind</h1>
 				<div id="auth-panel" class="flex flex-col gap-6">
 					@panel
 				</div>
@@ -38,7 +38,7 @@ templ EmailPanel(email, message string) {
 	>
 		<div class="flex flex-col gap-2">
 			@label.Label(label.Props{For: "email"}) {
-				Email address
+				E-mailadresse
 			}
 			@input.Input(input.Props{
 				ID:          "email",
@@ -46,7 +46,7 @@ templ EmailPanel(email, message string) {
 				Type:        "email",
 				Value:       email,
 				Required:    true,
-				Placeholder: "you@example.com",
+				Placeholder: "dig@eksempel.dk",
 				Attributes: templ.Attributes{
 					"autocomplete": "username webauthn",
 					"autofocus":    true,
@@ -55,7 +55,7 @@ templ EmailPanel(email, message string) {
 		</div>
 		@errorMessage(message)
 		@button.Button(button.Props{Type: button.TypeSubmit}) {
-			Continue
+			Fortsæt
 		}
 	</form>
 }
@@ -70,19 +70,19 @@ templ PasskeyPanel(email, options, challenge string) {
 		data-challenge={ challenge }
 	>
 		<p class="text-sm text-muted-foreground">
-			Use the passkey for { email }.
+			Brug adgangsnøglen til { email }.
 		</p>
 		@errorMessage("")
 		@button.Button(button.Props{
 			Attributes: templ.Attributes{"data-passkey-start": true},
 		}) {
-			Use passkey
+			Brug adgangsnøgle
 		}
 		<form method="post" action="/login" data-hx-post="/login" data-hx-target="#auth-panel" data-hx-swap="innerHTML">
 			<input type="hidden" name="email" value={ email }/>
 			<input type="hidden" name="method" value="code"/>
 			@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantGhost, Size: button.SizeSm}) {
-				Send a code instead
+				Send en kode i stedet
 			}
 		</form>
 	</div>
@@ -99,12 +99,12 @@ templ CodePanel(email, message string) {
 		data-hx-swap="innerHTML"
 	>
 		<p class="text-sm text-muted-foreground">
-			If { email } belongs to an account, a code is on its way by SMS. It works for 10 minutes.
+			Hvis { email } hører til en konto, er en kode på vej med SMS. Den virker i 10 minutter.
 		</p>
 		<input type="hidden" name="email" value={ email }/>
 		<div class="flex flex-col gap-2">
 			@label.Label(label.Props{For: "code"}) {
-				Six digit code
+				Kode med seks cifre
 			}
 			// The component holds one real field under the six boxes. That
 			// field carries autocomplete="one-time-code", so a browser can
@@ -130,7 +130,7 @@ templ CodePanel(email, message string) {
 		</div>
 		@errorMessage(message)
 		@button.Button(button.Props{Type: button.TypeSubmit}) {
-			Sign in
+			Log ind
 		}
 	</form>
 }
@@ -145,16 +145,16 @@ templ PasskeyOffer(options, challenge string) {
 		data-challenge={ challenge }
 	>
 		<p class="text-sm text-muted-foreground">
-			You are signed in. Create a passkey, and the next sign in needs no SMS.
+			Du er logget ind. Opret en adgangsnøgle, så skal du ikke bruge en SMS næste gang.
 		</p>
 		@errorMessage("")
 		@button.Button(button.Props{
 			Attributes: templ.Attributes{"data-passkey-start": true},
 		}) {
-			Create a passkey
+			Opret en adgangsnøgle
 		}
 		@button.Button(button.Props{Href: "/", Variant: button.VariantGhost, Size: button.SizeSm}) {
-			Not now
+			Ikke nu
 		}
 	</div>
 }
@@ -163,9 +163,9 @@ templ PasskeyOffer(options, challenge string) {
 // step.
 templ SignedIn() {
 	<div class="flex flex-col gap-4">
-		<p class="text-sm text-muted-foreground">You are signed in.</p>
+		<p class="text-sm text-muted-foreground">Du er logget ind.</p>
 		@button.Button(button.Props{Href: "/"}) {
-			Go to the start page
+			Gå til forsiden
 		}
 	</div>
 }

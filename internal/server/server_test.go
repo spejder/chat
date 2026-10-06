@@ -232,7 +232,7 @@ func TestCompression(t *testing.T) {
 			t.Fatalf("unpack the answer: %v", err)
 		}
 
-		if !strings.Contains(string(body), "Sign in") {
+		if !strings.Contains(string(body), "Log ind") {
 			t.Errorf("the unpacked answer misses the page: %s", body)
 		}
 	})
@@ -247,7 +247,7 @@ func TestCompression(t *testing.T) {
 			t.Errorf("Content-Encoding = %q, want none", got)
 		}
 
-		if !strings.Contains(recorder.Body.String(), "Sign in") {
+		if !strings.Contains(recorder.Body.String(), "Log ind") {
 			t.Error("the answer misses the page")
 		}
 	})

@@ -74,10 +74,10 @@ func TestTheShellHoldsThePersonAndTheList(t *testing.T) {
 	for _, want := range []string{
 		"Ada Lovelace",
 		"ada@example.com",
-		"Sign out",
+		"Log ud",
 		"Lunch",
-		`2<span class="sr-only"> unread</span>`,
-		"Start a conversation",
+		`2<span class="sr-only"> ulæste</span>`,
+		"Start en samtale",
 		`aria-controls="new-conversation"`,
 		`data-hx-get="/conversations/list?v=abc123&amp;current=` + conversation.ID.String() + `"`,
 		`data-unread="2"`,
@@ -209,7 +209,7 @@ func TestAnEmptyListOffersTheDialog(t *testing.T) {
 	t.Parallel()
 
 	list := render(t, web.ConversationList(nil, uuid.Nil(), "abc123"), nil)
-	if !strings.Contains(list, "Start a conversation") || !strings.Contains(list, `aria-controls="new-conversation"`) {
+	if !strings.Contains(list, "Start en samtale") || !strings.Contains(list, `aria-controls="new-conversation"`) {
 		t.Errorf("the empty list offers no way to start: %s", list)
 	}
 
@@ -263,14 +263,14 @@ func TestALineShowsWhoAndWhetherItWasRead(t *testing.T) {
 		`title="Alan Turing, Grace Hopper"`,
 		`data-conversation="` + two.ID.String() + `"`,
 		"data-preview",
-		">Read<",
+		">Læst<",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the list misses %q", want)
 		}
 	}
 
-	if strings.Count(body, ">Read<") != 1 {
+	if strings.Count(body, ">Læst<") != 1 {
 		t.Error("more than one line carries the read mark")
 	}
 }
@@ -344,9 +344,9 @@ func TestTheShellCarriesTheCard(t *testing.T) {
 		`data-nudge-step="install" hidden`,
 		`data-nudge-step="notify" hidden`,
 		"data-nudge-later",
-		"Not now",
-		"Add to Home Screen",
-		"Turn on",
+		"Ikke nu",
+		"Føj til hjemmeskærm",
+		"Slå til",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page misses %q", want)
@@ -356,5 +356,24 @@ func TestTheShellCarriesTheCard(t *testing.T) {
 	// The card stands above the person, inside the foot of the sidebar.
 	if strings.Index(body, "data-nudge") > strings.Index(body, "ada@example.com") {
 		t.Error("the card stands below the person, want it above")
+	}
+}
+
+// TestTheRegistrySpeaksDanish makes sure that the labels inside the registry
+// components stay Danish. A new version of a component writes its English
+// labels again, so translate them again after an upgrade.
+func TestTheRegistrySpeaksDanish(t *testing.T) {
+	t.Parallel()
+
+	body := render(t, web.Shell(web.ShellPage{Title: "Chat", Subject: "Frokost"}), web.Conversations())
+
+	for _, english := range []string{"Toggle Sidebar", "Displays the mobile sidebar", ">Sidebar<", ">Close<", `"Close"`, `"Breadcrumb"`} {
+		if strings.Contains(body, english) {
+			t.Errorf("the page holds the English label %q of a registry component", english)
+		}
+	}
+
+	if !strings.Contains(body, `lang="da"`) {
+		t.Error("the page does not say that it is Danish")
 	}
 }

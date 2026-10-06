@@ -340,10 +340,10 @@ templ Sidebar(props ...Props) {
 			}) {
 				@sheet.Header(sheet.HeaderProps{Class: "sr-only"}) {
 					@sheet.Title() {
-						Sidebar
+						Sidepanel
 					}
 					@sheet.Description() {
-						Displays the mobile sidebar.
+						Viser sidepanelet på mobilen.
 					}
 				}
 				<div class="flex h-full w-full flex-col" data-tui-sidebar-mobile-portal={ p.ID }></div>
@@ -432,7 +432,7 @@ templ Trigger(props ...TriggerProps) {
 		),
 	}) {
 		@icon.PanelLeft(icon.Props{Class: ""})
-		<span class="sr-only">Toggle Sidebar</span>
+		<span class="sr-only">Vis eller skjul sidepanelet</span>
 	}
 }
 
@@ -449,9 +449,9 @@ templ Rail(props ...RailProps) {
 		data-tui-sidebar-trigger
 		data-tui-sidebar-target={ sidebarID(ctx) }
 		data-tui-sidebar-rail
-		aria-label="Toggle Sidebar"
+		aria-label="Vis eller skjul sidepanelet"
 		tabindex="-1"
-		title="Toggle Sidebar"
+		title="Vis eller skjul sidepanelet"
 		class={ utils.CN(
 			"hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
 			"in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",

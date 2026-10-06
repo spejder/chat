@@ -189,7 +189,7 @@ must be short because it travels in an SMS. The list and the dialog keep
   holds the routes.
 - `internal/web/shell.templ` wraps every page that a signed in person sees.
   It follows the block sidebar-01 of shadcn-templ: the name and the mark at
-  the top, one group "Conversations" with the list, and the person at the
+  the top, one group "Samtaler" with the list, and the person at the
   bottom in the shape of the user menu of sidebar-07. The page itself sits in
   `sidebar.Inset`.
 - A handler renders a page through `chatHandlers.shell` with a
@@ -231,7 +231,7 @@ must be short because it travels in an SMS. The list and the dialog keep
   form or a listener on the document, as the switches of the person menu
   do in `assets/js/app.js`.
 - A line of the sidebar reads like a phone: the subject and the time of the
-  newest message, then the first name of its writer, or "You", and the start
+  newest message, then the first name of its writer, or "Dig", and the start
   of its text. `ListConversations` brings the newest message with a lateral
   join. `listTime` and `preview` in `internal/web/format.go` write the two
   texts. An unread conversation carries a bold subject and the dark badge
@@ -240,9 +240,9 @@ must be short because it travels in an SMS. The list and the dialog keep
   conversation of two, a group icon for more. It is hidden from a screen
   reader, and its title names the people.
 - When the reader wrote the newest message and every other person has
-  opened the conversation since, the line says "Read". The query uses the
+  opened the conversation since, the line says "Læst". The query uses the
   same rule as the read mark of the conversation page.
-- A conversation with an unsent draft shows "Draft:" and the draft in place
+- A conversation with an unsent draft shows "Kladde:" and the draft in place
   of the preview. The draft lives only in the browser, so `assets/js/app.js`
   writes that line after every load and every swap, and leaves the open
   conversation alone.
@@ -331,7 +331,7 @@ must be short because it travels in an SMS. The list and the dialog keep
   `HX-Trigger` header, and a message that goes out answers with the list and
   the header `chat:sent`. htmx 4 swaps whatever comes back, including the body
   of an error, so an error body would wipe the conversation.
-- `assets/js/chat.js` shows the notice "The connection is down" while the
+- `assets/js/chat.js` shows the notice "Forbindelsen er afbrudt" while the
   stream of changes is broken (`chat:offline` and `chat:online` from
   `app.js`) and after a failed request.
 - A hidden line with `aria-live` carries one sentence for a screen reader when
@@ -363,7 +363,7 @@ must be short because it travels in an SMS. The list and the dialog keep
   the server answers 204 and htmx swaps nothing, which keeps the scrolling,
   the selected text and the work in the browser. The version is the number of
   messages, the newest identifier and today's date. The date belongs in it,
-  because the date lines read Today and Yesterday.
+  because the date lines read "I dag" and "I går".
 - `MarkRead` returns the time it replaces, and the page draws the line for the
   unread messages from it. The page carries that time through the refresh
   address as `since`, so the line stays where it is while the page is open.
@@ -422,7 +422,7 @@ versions, read marks and pages stay in the routes that already had them.
 - A typing event goes through the same line. `chat.js` posts to
   `/conversations/{id}/typing` at most every three seconds while the field
   holds text, and the service tells the other people, never the writer. The
-  page shows "Arne is writing…" below the messages, outside the list that a
+  page shows "Arne skriver…" below the messages, outside the list that a
   swap replaces, and drops a name after seven seconds without a word, or when
   a message of that person arrives. Nothing is stored.
 - The tests of `internal/server` run a real listener, so a change travels
@@ -486,14 +486,14 @@ browser, also when no tab of the site is open.
     `default`, so nobody asked yet.
 - The card respects a decision. A `denied` permission is a no. A `granted`
   permission without a subscription means that the person turned the switch
-  off, also a no. "Not now" rests the card for 30 days. After the
-  second "Not now" it never comes back on that device. The count lives in
+  off, also a no. "Ikke nu" (not now) rests the card for 30 days. After the
+  second "Ikke nu" it never comes back on that device. The count lives in
   `localStorage` under `chat:nudge`. A no to the install question of the browser and a closed
-  permission question count as "Not now". The switch in the person menu
+  permission question count as "Ikke nu". The switch in the person menu
   stays the way back.
 - No browser says from a tab that the site is installed, except through the
   missing `beforeinstallprompt`. Safari says nothing, so the home step
-  reads "Open Chat from your Home Screen", which is right for a person who
+  reads "Åbn Chat fra din hjemmeskærm", which is right for a person who
   added it already.
 - The site carries a manifest at `/manifest.webmanifest`, so it installs as
   an app. An iPhone delivers a push only to a site on the home screen. The
@@ -515,7 +515,7 @@ browser, also when no tab of the site is open.
   `assets/js/sw.js` reads the notification of the conversation that still
   shows (`getNotifications` with its tag). The first message alerts. The
   next ones replace the notification without a sound and count up:
-  "3 new messages" above the newest line.
+  "3 nye beskeder" above the newest line.
 - A conversation sounds again after 15 minutes without an alert
   (`realertMs`, the wait of the SMS). The count and the time of the last
   alert live in the `data` of the notification, because a worker keeps no
@@ -573,11 +573,11 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
 - The claim returns the full names of the writers of what the person
   missed, the earliest first. The SMS starts with their first names,
   because the writer decides whether the person looks now. It reads
-  `Chat: Arne wrote in "Lunch".`, with `Arne and Grace` or
-  `Arne and 2 others` for more writers.
+  `Chat: Arne skrev i "Lunch".`, with `Arne og Grace` or
+  `Arne og 2 andre` for more writers.
 - A person who is due in several conversations at once gets one SMS for
   all of them. It reads
-  `Chat: Arne and Grace wrote in "Lunch", "Camp" and 1 more.`, and its
+  `Chat: Arne og Grace skrev i "Lunch", "Camp" og 1 til.`, and its
   link leads to the list (`/conversations?t=<token>`). The row of such
   a link holds NULL as the conversation. The queries turn it into the nil
   UUID, so Go never sees a nullable column.
@@ -615,8 +615,8 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
   browser of somebody else ends that session first, because the device now
   belongs to the person of the link.
 - Two switches in the person menu belong to the person, not to the
-  browser. "SMS reminders" writes `users.sms_reminders` through
-  `PUT /sms-reminders`. "Quiet nights" writes `users.quiet_nights` through
+  browser. "SMS-påmindelser" writes `users.sms_reminders` through
+  `PUT /sms-reminders`. "Stille nætter" writes `users.quiet_nights` through
   `PUT /quiet-nights`, and governs both the SMS and the push. Both are on
   for everybody until they turn them off.
 - Both switches are `settingSwitch` in `internal/web/shell.templ`, and
@@ -638,6 +638,35 @@ migrations, and drops the database when the test ends. A test without
 The address `/` holds no page. It sends a signed in person to
 `/conversations` and everybody else to `/login`. The hello world page and the
 `/greet` route that tested the stack are gone.
+
+## Language
+
+Every text that a person reads is Danish: the pages, the labels for a
+screen reader, the error messages, the SMS, the notifications and the
+manifest. The code, the comments, the logs, the commit messages and this
+file stay in English.
+
+- The layout sets `<html lang="da">`, and the manifest carries
+  `"lang": "da"`.
+- The time package of Go writes month and day names in English only.
+  `internal/web/danish.go` holds the Danish names, and `longDate`,
+  `shortDate` and `weekday` write "6. oktober 2026", "6. okt." and
+  "mandag". Danish writes them in lower case.
+- A browser reads the bytes of a response header as Latin-1, so a Danish
+  letter in UTF-8 arrives garbled. `headerJSON` in
+  `internal/server/chat.go` writes every character outside ASCII as a
+  `\u` escape. Use it for every header that carries text, such as
+  `HX-Trigger`.
+- The registry components carry a few labels in their markup that no prop
+  can change: Close, Sidebar and Breadcrumb. They are translated in place
+  in `internal/components`. An upgrade of a component writes the English
+  labels again, and `TestTheRegistrySpeaksDanish` in
+  `internal/web/web_test.go` then fails.
+- The browser writes its own passkey errors in English. `readable` in
+  `assets/js/auth.js` gives them a Danish line.
+- The passkey is an "adgangsnøgle", as Apple and Google call it in Danish.
+- The texts of the iPhone steps follow the Danish iOS: "Del" and "Føj til
+  hjemmeskærm".
 
 ## Web platform rules
 

@@ -456,7 +456,7 @@ func (s *Service) sendCode(ctx context.Context, person user.User) error {
 // a browser may offer to fill it in.
 func (s *Service) codeText(code string) string {
 	return fmt.Sprintf(
-		"Your code for Chat is %s. It works for %d minutes.\n\n@%s #%s",
+		"Din kode til Chat er %s. Den virker i %d minutter.\n\n@%s #%s",
 		code, int(CodeLifetime.Minutes()), s.domain, code,
 	)
 }

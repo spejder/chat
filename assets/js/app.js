@@ -165,7 +165,7 @@
 
 			const label = document.createElement("span");
 			label.className = "font-medium text-foreground";
-			label.textContent = "Draft: ";
+			label.textContent = "Kladde: ";
 
 			preview.replaceChildren(label, draft.replace(/\s+/g, " "));
 		}

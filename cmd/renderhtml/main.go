@@ -53,7 +53,7 @@ func run() error {
 
 	conversation := chat.Conversation{
 		ID:        uuid.MustParse("01a0beac-c12a-7474-9a13-a077fb9162ad"),
-		Subject:   "Lunch",
+		Subject:   "Frokost",
 		CreatedAt: at,
 	}
 
@@ -65,10 +65,10 @@ func run() error {
 	// Two people across two days, so the markup holds a date line, both
 	// sides and a group that runs over more than one message.
 	messages := []chat.Message{
-		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Are you in?", CreatedAt: at.AddDate(0, 0, -1)},
-		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "I am in", CreatedAt: at},
-		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "Twelve o'clock?", CreatedAt: at.Add(time.Minute)},
-		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "See you there", CreatedAt: at.Add(2 * time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Er du med?", CreatedAt: at.AddDate(0, 0, -1)},
+		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "Jeg er med", CreatedAt: at},
+		{ID: uuid.NewV7(), AuthorID: people[1].ID, AuthorName: people[1].FullName, Body: "Klokken tolv?", CreatedAt: at.Add(time.Minute)},
+		{ID: uuid.NewV7(), AuthorID: people[0].ID, AuthorName: people[0].FullName, Body: "Vi ses der", CreatedAt: at.Add(2 * time.Minute)},
 	}
 
 	summaries := []chat.Summary{{Conversation: conversation, Others: "Grace Hopper", OtherNames: []string{"Grace Hopper"}, LastMessageAt: at, Unread: 2}}
@@ -89,7 +89,7 @@ func run() error {
 		"login.html": web.Login(web.EmailPanel("", "")),
 		"conversations.html": inShell(web.ShellPage{
 			Summaries: summaries,
-			Title:     "Conversations",
+			Title:     "Samtaler",
 		}, web.Conversations()),
 		"conversation.html": inShell(web.ShellPage{
 			Summaries: summaries,
@@ -102,13 +102,13 @@ func run() error {
 		// an open dialog with every field filled must hold too.
 		"new-conversation.html": inShell(web.ShellPage{
 			Summaries: summaries,
-			Title:     "Start a conversation",
+			Title:     "Start en samtale",
 			NewConversation: web.NewConversationForm{
 				People:  people[1:],
-				Subject: "Lunch",
-				Body:    "Are you in?",
+				Subject: "Frokost",
+				Body:    "Er du med?",
 				Chosen:  []uuid.UUID{people[1].ID},
-				Message: "Write a message.",
+				Message: "Skriv en besked.",
 				Open:    true,
 			},
 		}, web.Conversations()),
@@ -118,7 +118,7 @@ func run() error {
 		"conversation-list.html": web.ConversationList(summaries, conversation.ID, "abc123"),
 		"messages.html":          web.Messages(messages, panel),
 		"older-block.html":       web.OlderBlock(conversation, messages, web.Panel{Reader: people[0], People: 2, History: true}, true),
-		"login-code.html":        web.CodePanel("ada@example.com", "That code is wrong. Try again."),
+		"login-code.html":        web.CodePanel("ada@example.com", "Koden er forkert. Prøv igen."),
 		"login-passkey.html":     web.PasskeyPanel("ada@example.com", `{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
 		"login-offer.html":       web.PasskeyOffer(`{"publicKey":{}}`, "01a0beac-c12a-7474-9a13-a077fb9162ad"),
 	}

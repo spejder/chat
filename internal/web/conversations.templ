@@ -55,14 +55,14 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 	}) {
 		if len(summaries) == 0 {
 			<li class="flex flex-col items-start gap-3 px-2 py-1.5 text-sm text-muted-foreground">
-				No conversations yet.
+				Ingen samtaler endnu.
 				@button.Button(button.Props{
 					Variant:    button.VariantOutline,
 					Size:       button.SizeSm,
 					Attributes: dialog.TriggerFor(newConversationDialog),
 				}) {
 					@icon.SquarePen()
-					Start a conversation
+					Start en samtale
 				}
 			</li>
 		}
@@ -96,14 +96,14 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 						<span class="flex items-center gap-2">
 							<span data-preview class={ "truncate text-xs", templ.KV("text-muted-foreground", !unread) }>{ preview(summary) }</span>
 							if summary.LastRead {
-								<span class="ml-auto shrink-0 text-xs text-muted-foreground">Read</span>
+								<span class="ml-auto shrink-0 text-xs text-muted-foreground">Læst</span>
 							}
 							if unread {
 								@badge.Badge(badge.Props{Class: "ml-auto h-5 min-w-5 shrink-0 rounded-full px-1.5 tabular-nums"}) {
 									// The space sits inside the expression, because
 									// templ drops the white space between an
 									// expression and a tag.
-									{ strconv.Itoa(summary.Unread) }<span class="sr-only">{ " unread" }</span>
+									{ strconv.Itoa(summary.Unread) }<span class="sr-only">{ " ulæste" }</span>
 								}
 							}
 						</span>

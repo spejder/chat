@@ -463,7 +463,7 @@ func Content(props ...ContentProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <span class=\"sr-only\">Close</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " <span class=\"sr-only\">Luk</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -476,7 +476,7 @@ func Content(props ...ContentProps) templ.Component {
 					Attributes: templ.Attributes{
 						"data-slot":             "dialog-close",
 						"data-tui-dialog-close": true,
-						"aria-label":            "Close",
+						"aria-label":            "Luk",
 					},
 				}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {

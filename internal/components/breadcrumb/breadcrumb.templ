@@ -52,7 +52,7 @@ templ Breadcrumb(props ...Props) {
 				p.Class,
 			),
 		}
-		aria-label="Breadcrumb"
+		aria-label="Brødkrummesti"
 		{ p.Attributes... }
 	>
 		{ children... }
@@ -188,6 +188,6 @@ templ Page(props ...ItemProps) {
 templ Ellipsis() {
 	<span aria-hidden="true" data-slot="breadcrumb-ellipsis" role="presentation" class="size-5 [&>svg]:size-4 flex items-center justify-center">
 		@icon.Ellipsis()
-		<span class="sr-only">More</span>
+		<span class="sr-only">Mere</span>
 	</span>
 }

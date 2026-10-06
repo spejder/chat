@@ -70,7 +70,7 @@ func TestSignInWithACode(t *testing.T) {
 		t.Fatalf("status = %d, want %d", answer.Code, http.StatusOK)
 	}
 
-	if !strings.Contains(answer.Body.String(), "Create a passkey") {
+	if !strings.Contains(answer.Body.String(), "Opret en adgangsnøgle") {
 		t.Errorf("the answer does not offer a passkey: %s", answer.Body.String())
 	}
 
@@ -144,7 +144,7 @@ func TestWrongCode(t *testing.T) {
 
 	answer := postForm(t, handler, "/login/code", url.Values{"email": {person.Email}, "code": {"000000"}})
 
-	if !strings.Contains(answer.Body.String(), "That code is wrong") {
+	if !strings.Contains(answer.Body.String(), "Koden er forkert") {
 		t.Errorf("the answer does not report the wrong code: %s", answer.Body.String())
 	}
 
@@ -185,7 +185,7 @@ func TestLoginPage(t *testing.T) {
 	}
 
 	body := recorder.Body.String()
-	for _, want := range []string{`name="email"`, "js/auth.js", "Sign in"} {
+	for _, want := range []string{`name="email"`, "js/auth.js", "Log ind"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page misses %q", want)
 		}

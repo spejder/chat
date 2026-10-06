@@ -77,7 +77,7 @@ func ConversationPage(conversation chat.Conversation, messages []chat.Message, p
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p id=\"typing\" hidden class=\"px-1 pt-2 text-xs text-muted-foreground\"></p></div></div><p id=\"announce\" class=\"sr-only\" aria-live=\"polite\"></p><div class=\"pointer-events-none relative z-10 flex flex-col items-center gap-1\"><p id=\"offline\" hidden class=\"-mt-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground shadow-xs\">The connection is down. Trying again.</p><button id=\"jump\" type=\"button\" hidden class=\"pointer-events-auto -mt-2 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground shadow-xs transition-colors hover:bg-primary/90\">New messages</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p id=\"typing\" hidden class=\"px-1 pt-2 text-xs text-muted-foreground\"></p></div></div><p id=\"announce\" class=\"sr-only\" aria-live=\"polite\"></p><div class=\"pointer-events-none relative z-10 flex flex-col items-center gap-1\"><p id=\"offline\" hidden class=\"-mt-2 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground shadow-xs\">Forbindelsen er afbrudt. Prøver igen.</p><button id=\"jump\" type=\"button\" hidden class=\"pointer-events-auto -mt-2 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground shadow-xs transition-colors hover:bg-primary/90\">Nye beskeder</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -220,7 +220,7 @@ func OlderButton(conversation chat.Conversation, before uuid.UUID) templ.Compone
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" data-hx-swap=\"outerHTML\">Show older messages</button>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" data-hx-swap=\"outerHTML\">Vis ældre beskeder</button>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -289,7 +289,7 @@ func Messages(messages []chat.Message, panel Panel) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(messages) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"py-8 text-center text-sm text-muted-foreground\">No messages yet. Write the first one.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"py-8 text-center text-sm text-muted-foreground\">Ingen beskeder endnu. Skriv den første.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -301,7 +301,7 @@ func Messages(messages []chat.Message, panel Panel) templ.Component {
 			}
 			for _, row := range day {
 				if row.FirstUnread {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <div data-unread-line class=\"flex items-center gap-2 py-3\"><span class=\"h-px flex-1 bg-border\"></span> <span class=\"text-xs font-medium text-muted-foreground\">New messages</span> <span class=\"h-px flex-1 bg-border\"></span></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <div data-unread-line class=\"flex items-center gap-2 py-3\"><span class=\"h-px flex-1 bg-border\"></span> <span class=\"text-xs font-medium text-muted-foreground\">Nye beskeder</span> <span class=\"h-px flex-1 bg-border\"></span></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -615,12 +615,12 @@ func WriteForm(conversation chat.Conversation, since time.Time, message string) 
 			Name:        "body",
 			Rows:        1,
 			Class:       "max-h-48 min-h-8 resize-none border-0 bg-transparent px-2 py-1 shadow-none focus-visible:ring-0",
-			Placeholder: "Write a message",
+			Placeholder: "Skriv en besked",
 			Attributes: templ.Attributes{
 				// The hint lives in the title, not in the placeholder. The
 				// field sizes itself to its content, so a long placeholder
 				// makes the field two lines tall on a phone.
-				"title":     "Enter sends the message, Shift and Enter write a new line",
+				"title":     "Enter sender beskeden, Shift og Enter giver en ny linje",
 				"required":  true,
 				"maxlength": "4000",
 				"autofocus": true,
@@ -693,7 +693,7 @@ func messagesURL(conversationID uuid.UUID, since time.Time, version string) stri
 // reader hears.
 func authorLabel(row bubble) string {
 	if row.Mine {
-		return "You"
+		return "Dig"
 	}
 
 	return row.Message.AuthorName

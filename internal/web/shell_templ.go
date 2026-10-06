@@ -148,7 +148,7 @@ func Shell(page ShellPage) templ.Component {
 									}()
 								}
 								ctx = templ.InitializeContext(ctx)
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "Conversations")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "Samtaler")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -190,7 +190,7 @@ func Shell(page ShellPage) templ.Component {
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " <span class=\"sr-only\">Start a conversation</span>")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " <span class=\"sr-only\">Start en samtale</span>")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -221,7 +221,7 @@ func Shell(page ShellPage) templ.Component {
 										}()
 									}
 									ctx = templ.InitializeContext(ctx)
-									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "Start a conversation")
+									templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "Start en samtale")
 									if templ_7745c5c3_Err != nil {
 										return templ_7745c5c3_Err
 									}
@@ -602,7 +602,7 @@ func Shell(page ShellPage) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(page.Title, "Conversations in Chat.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout(page.Title, "Samtaler i Chat.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -925,8 +925,8 @@ func personMenu(pushKey string) templ.Component {
 							templ_7745c5c3_Err = settingSwitch(
 								"/sms-reminders",
 								person.SMSReminders,
-								"SMS reminders",
-								"An SMS when you miss a message and notifications are off on all your devices.",
+								"SMS-påmindelser",
+								"En SMS, når du går glip af en besked og har slået notifikationer fra på alle dine enheder.",
 								icon.MessageSquareText(icon.Props{Class: "size-4 text-muted-foreground"}),
 							).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
@@ -939,8 +939,8 @@ func personMenu(pushKey string) templ.Component {
 							templ_7745c5c3_Err = settingSwitch(
 								"/quiet-nights",
 								person.QuietNights,
-								"Quiet nights",
-								"From 22 to 7, notifications make no sound, and SMS reminders wait until morning.",
+								"Stille nætter",
+								"Fra 22 til 7 er notifikationer lydløse, og SMS-påmindelser venter til morgenen.",
 								icon.Moon(icon.Props{Class: "size-4 text-muted-foreground"}),
 							).Render(ctx, templ_7745c5c3_Buffer)
 							if templ_7745c5c3_Err != nil {
@@ -974,7 +974,7 @@ func personMenu(pushKey string) templ.Component {
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
-								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " Sign out")
+								templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " Log ud")
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
@@ -1064,7 +1064,7 @@ func pushSwitch(pushKey, personID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "Notifications</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "Notifikationer</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1076,7 +1076,7 @@ func pushSwitch(pushKey, personID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</label><p data-push-note hidden class=\"max-w-56 pt-1 text-xs text-muted-foreground\">This browser blocks notifications from Chat. Allow them in the settings of the browser.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "</label><p data-push-note hidden class=\"max-w-56 pt-1 text-xs text-muted-foreground\">Denne browser blokerer notifikationer fra Chat. Tillad dem i browserens indstillinger.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1236,7 +1236,7 @@ func nudge() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<p><span class=\"block font-medium\">Open Chat from your Home Screen</span> <span class=\"mt-1 block text-muted-foreground\">An iPhone shows notifications only there. To add it, tap Share")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<p><span class=\"block font-medium\">Åbn Chat fra din hjemmeskærm</span> <span class=\"mt-1 block text-muted-foreground\">En iPhone viser kun notifikationer der. Tryk på Del")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1244,7 +1244,7 @@ func nudge() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "and then Add to Home Screen.</span></p></div><div data-nudge-step=\"install\" hidden class=\"flex gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "og derefter Føj til hjemmeskærm.</span></p></div><div data-nudge-step=\"install\" hidden class=\"flex gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1252,7 +1252,7 @@ func nudge() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p><span class=\"block font-medium\">Install Chat</span> <span class=\"mt-1 block text-muted-foreground\">Open it from your home screen like any other app.</span></p></div><div data-nudge-step=\"notify\" hidden class=\"flex gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p><span class=\"block font-medium\">Installer Chat</span> <span class=\"mt-1 block text-muted-foreground\">Åbn den fra din hjemmeskærm som enhver anden app.</span></p></div><div data-nudge-step=\"notify\" hidden class=\"flex gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1260,7 +1260,7 @@ func nudge() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<p><span class=\"block font-medium\">Know when somebody writes</span> <span class=\"mt-1 block text-muted-foreground\">Get a notification for a new message, also while Chat is closed.</span></p></div><div class=\"flex justify-end gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<p><span class=\"block font-medium\">Få besked, når nogen skriver</span> <span class=\"mt-1 block text-muted-foreground\">Få en notifikation om nye beskeder, også når Chat er lukket.</span></p></div><div class=\"flex justify-end gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1276,7 +1276,7 @@ func nudge() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "Not now")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "Ikke nu")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1302,7 +1302,7 @@ func nudge() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "Install")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "Installer")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1327,7 +1327,7 @@ func nudge() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "Turn on")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "Slå til")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

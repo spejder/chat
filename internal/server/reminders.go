@@ -19,7 +19,7 @@ func setting(name string, set func(ctx context.Context, id uuid.UUID, on bool) (
 
 		if _, err := set(r.Context(), person.ID, r.FormValue("on") != ""); err != nil {
 			slog.Error("could not store a switch", "switch", name, "error", err)
-			http.Error(w, "The switch could not be stored.", http.StatusInternalServerError)
+			http.Error(w, "Indstillingen kunne ikke gemmes.", http.StatusInternalServerError)
 
 			return
 		}

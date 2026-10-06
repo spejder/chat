@@ -1,7 +1,8 @@
 {
   "name": "Chat",
   "short_name": "Chat",
-  "description": "Conversations in Chat.",
+  "description": "Samtaler i Chat.",
+  "lang": "da",
   "id": "/",
   "start_url": "/conversations",
   "scope": "/",

@@ -97,7 +97,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 			}
 			ctx = templ.InitializeContext(ctx)
 			if len(summaries) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<li class=\"flex flex-col items-start gap-3 px-2 py-1.5 text-sm text-muted-foreground\">No conversations yet.")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<li class=\"flex flex-col items-start gap-3 px-2 py-1.5 text-sm text-muted-foreground\">Ingen samtaler endnu.")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -117,7 +117,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " Start a conversation")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " Start en samtale")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -285,7 +285,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 							return templ_7745c5c3_Err
 						}
 						if summary.LastRead {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"ml-auto shrink-0 text-xs text-muted-foreground\">Read</span> ")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"ml-auto shrink-0 text-xs text-muted-foreground\">Læst</span> ")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
@@ -321,9 +321,9 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 									return templ_7745c5c3_Err
 								}
 								var templ_7745c5c3_Var18 string
-								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" unread")
+								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" ulæste")
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 106, Col: 74}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 106, Col: 75}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 								if templ_7745c5c3_Err != nil {

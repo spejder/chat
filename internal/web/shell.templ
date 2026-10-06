@@ -22,7 +22,7 @@ templ Shell(page ShellPage) {
 	{{ appIntegrity := assets.Integrity("js/app.js") }}
 	{{ pushIntegrity := assets.Integrity("js/push.js") }}
 	{{ reader, _ := auth.UserFrom(ctx) }}
-	@Layout(page.Title, "Conversations in Chat.") {
+	@Layout(page.Title, "Samtaler i Chat.") {
 		@sidebar.Provider(sidebar.ProviderProps{
 			// The height of the window as it is right now, with or without
 			// the toolbars of a mobile browser, so a page inside can fill it
@@ -41,7 +41,7 @@ templ Shell(page ShellPage) {
 				@sidebar.Content() {
 					@sidebar.Group() {
 						@sidebar.GroupLabel() {
-							Conversations
+							Samtaler
 						}
 						// The pen opens the dialog. The dialog lives outside
 						// the sidebar, because on a phone the sidebar is a
@@ -57,10 +57,10 @@ templ Shell(page ShellPage) {
 								),
 							}) {
 								@icon.SquarePen()
-								<span class="sr-only">Start a conversation</span>
+								<span class="sr-only">Start en samtale</span>
 							}
 							@tooltip.Content(tooltip.ContentProps{Side: tooltip.SideRight}) {
-								Start a conversation
+								Start en samtale
 							}
 						}
 						@sidebar.GroupContent() {
@@ -177,15 +177,15 @@ templ personMenu(pushKey string) {
 						@settingSwitch(
 							"/sms-reminders",
 							person.SMSReminders,
-							"SMS reminders",
-							"An SMS when you miss a message and notifications are off on all your devices.",
+							"SMS-påmindelser",
+							"En SMS, når du går glip af en besked og har slået notifikationer fra på alle dine enheder.",
 							icon.MessageSquareText(icon.Props{Class: "size-4 text-muted-foreground"}),
 						)
 						@settingSwitch(
 							"/quiet-nights",
 							person.QuietNights,
-							"Quiet nights",
-							"From 22 to 7, notifications make no sound, and SMS reminders wait until morning.",
+							"Stille nætter",
+							"Fra 22 til 7 er notifikationer lydløse, og SMS-påmindelser venter til morgenen.",
 							icon.Moon(icon.Props{Class: "size-4 text-muted-foreground"}),
 						)
 						@dropdownmenu.Separator()
@@ -200,7 +200,7 @@ templ personMenu(pushKey string) {
 								Class:   "w-full justify-start gap-2",
 							}) {
 								@icon.LogOut()
-								Sign out
+								Log ud
 							}
 						</form>
 					}
@@ -222,7 +222,7 @@ templ pushSwitch(pushKey, personID string) {
 		<label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
 			<span class="flex items-center gap-2">
 				@icon.Bell(icon.Props{Class: "size-4 text-muted-foreground"})
-				Notifications
+				Notifikationer
 			</span>
 			@switchInput(templ.Attributes{
 				"data-push-switch": true,
@@ -231,7 +231,7 @@ templ pushSwitch(pushKey, personID string) {
 			})
 		</label>
 		<p data-push-note hidden class="max-w-56 pt-1 text-xs text-muted-foreground">
-			This browser blocks notifications from Chat. Allow them in the settings of the browser.
+			Denne browser blokerer notifikationer fra Chat. Tillad dem i browserens indstillinger.
 		</p>
 	</div>
 }
@@ -290,26 +290,26 @@ templ nudge() {
 		<div data-nudge-step="home" hidden class="flex gap-2">
 			@icon.Smartphone(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
 			<p>
-				<span class="block font-medium">Open Chat from your Home Screen</span>
+				<span class="block font-medium">Åbn Chat fra din hjemmeskærm</span>
 				<span class="mt-1 block text-muted-foreground">
-					An iPhone shows notifications only there. To add it, tap Share
+					En iPhone viser kun notifikationer der. Tryk på Del
 					@icon.Share(icon.Props{Class: "inline size-3.5 align-[-2px]"})
-					and then Add to Home Screen.
+					og derefter Føj til hjemmeskærm.
 				</span>
 			</p>
 		</div>
 		<div data-nudge-step="install" hidden class="flex gap-2">
 			@icon.Smartphone(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
 			<p>
-				<span class="block font-medium">Install Chat</span>
-				<span class="mt-1 block text-muted-foreground">Open it from your home screen like any other app.</span>
+				<span class="block font-medium">Installer Chat</span>
+				<span class="mt-1 block text-muted-foreground">Åbn den fra din hjemmeskærm som enhver anden app.</span>
 			</p>
 		</div>
 		<div data-nudge-step="notify" hidden class="flex gap-2">
 			@icon.Bell(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
 			<p>
-				<span class="block font-medium">Know when somebody writes</span>
-				<span class="mt-1 block text-muted-foreground">Get a notification for a new message, also while Chat is closed.</span>
+				<span class="block font-medium">Få besked, når nogen skriver</span>
+				<span class="mt-1 block text-muted-foreground">Få en notifikation om nye beskeder, også når Chat er lukket.</span>
 			</p>
 		</div>
 		<div class="flex justify-end gap-2">
@@ -318,19 +318,19 @@ templ nudge() {
 				Size:       button.SizeSm,
 				Attributes: templ.Attributes{"data-nudge-later": true},
 			}) {
-				Not now
+				Ikke nu
 			}
 			@button.Button(button.Props{
 				Size:       button.SizeSm,
 				Attributes: templ.Attributes{"data-nudge-install": true, "hidden": true},
 			}) {
-				Install
+				Installer
 			}
 			@button.Button(button.Props{
 				Size:       button.SizeSm,
 				Attributes: templ.Attributes{"data-nudge-notify": true, "hidden": true},
 			}) {
-				Turn on
+				Slå til
 			}
 		</div>
 	</div>

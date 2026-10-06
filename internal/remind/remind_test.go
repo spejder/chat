@@ -87,12 +87,12 @@ func TestAnSMSNamesTheWriter(t *testing.T) {
 		t.Fatalf("sent %d messages, want 2", len(sent))
 	}
 
-	want := "Chat: Arne wrote in \"Lunch\".\nhttps://chat.example" + address.Conversation(lunch) + "?t=token"
+	want := "Chat: Arne skrev i \"Lunch\".\nhttps://chat.example" + address.Conversation(lunch) + "?t=token"
 	if sent[0].Text != want || sent[0].To != "+4521650113" {
 		t.Errorf("the first SMS reads %+v, want %q to +4521650113", sent[0], want)
 	}
 
-	if !strings.HasPrefix(sent[1].Text, "Chat: Arne and 2 others wrote in \"Camp\".") {
+	if !strings.HasPrefix(sent[1].Text, "Chat: Arne og 2 andre skrev i \"Camp\".") {
 		t.Errorf("the second SMS reads %q, want the first writer and a count", sent[1].Text)
 	}
 
@@ -129,7 +129,7 @@ func TestSeveralConversationsMakeOneSMS(t *testing.T) {
 		t.Fatalf("sent %d messages, want 1", len(sent))
 	}
 
-	want := "Chat: Arne and Grace wrote in \"Lunch\", \"Camp\" and 1 more.\nhttps://chat.example/conversations?t=token"
+	want := "Chat: Arne og Grace skrev i \"Lunch\", \"Camp\" og 1 til.\nhttps://chat.example/conversations?t=token"
 	if sent[0].Text != want {
 		t.Errorf("the SMS reads %q, want %q", sent[0].Text, want)
 	}

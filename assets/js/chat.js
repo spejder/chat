@@ -91,7 +91,7 @@
 			return;
 		}
 
-		button.textContent = waiting === 1 ? "1 new message" : waiting + " new messages";
+		button.textContent = waiting === 1 ? "1 ny besked" : waiting + " nye beskeder";
 		button.hidden = false;
 	};
 
@@ -143,11 +143,11 @@
 		}
 
 		if (names.length === 1) {
-			line.textContent = names[0] + " is writing…";
+			line.textContent = names[0] + " skriver…";
 		} else if (names.length === 2) {
-			line.textContent = names[0] + " and " + names[1] + " are writing…";
+			line.textContent = names[0] + " og " + names[1] + " skriver…";
 		} else {
-			line.textContent = "Several people are writing…";
+			line.textContent = "Flere skriver…";
 		}
 
 		line.hidden = false;
@@ -444,7 +444,7 @@
 		const detail = event.detail;
 		const message = detail && typeof detail === "object" ? detail.value : detail;
 
-		line.textContent = message || "The message did not go out.";
+		line.textContent = message || "Beskeden blev ikke sendt.";
 	});
 
 	// A failed request also means the line is down. The stream decides when

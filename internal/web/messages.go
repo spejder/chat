@@ -162,9 +162,9 @@ func markRead(rows []bubble, panel Panel) {
 	case len(names) == 0:
 		return
 	case len(names) == others:
-		rows[newest].ReadMark = "Read"
+		rows[newest].ReadMark = "Læst"
 	default:
-		rows[newest].ReadMark = "Read by " + strings.Join(names, ", ")
+		rows[newest].ReadMark = "Læst af " + strings.Join(names, ", ")
 	}
 }
 
@@ -194,11 +194,11 @@ func dateLabel(at time.Time) string {
 
 	switch {
 	case sameDay(at, now):
-		return "Today"
+		return "I dag"
 	case sameDay(at, now.AddDate(0, 0, -1)):
-		return "Yesterday"
+		return "I går"
 	default:
-		return at.Local().Format("2 January 2006")
+		return longDate(at.Local())
 	}
 }
 

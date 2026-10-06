@@ -20,10 +20,10 @@ templ NewConversation(form NewConversationForm) {
 		@dialog.Content(dialog.ContentProps{Class: "sm:max-w-lg"}) {
 			@dialog.Header() {
 				@dialog.Title() {
-					Start a conversation
+					Start en samtale
 				}
 				@dialog.Description() {
-					The people are fixed once the conversation starts.
+					Deltagerne kan ikke ændres, når samtalen er startet.
 				}
 			}
 			// The ids carry a prefix, because the page behind the dialog has
@@ -31,7 +31,7 @@ templ NewConversation(form NewConversationForm) {
 			<form id="new-conversation-form" class="flex flex-col gap-6" method="post" action="/conversations">
 				<div class="flex flex-col gap-2">
 					@label.Label(label.Props{For: "new-subject"}) {
-						Subject
+						Emne
 					}
 					@input.Input(input.Props{
 						ID:       "new-subject",
@@ -46,9 +46,9 @@ templ NewConversation(form NewConversationForm) {
 					})
 				</div>
 				<fieldset class="flex flex-col gap-3">
-					<legend class="pb-2 text-sm font-medium">Who takes part</legend>
+					<legend class="pb-2 text-sm font-medium">Hvem er med</legend>
 					if len(form.People) == 0 {
-						<p class="text-sm text-muted-foreground">There is nobody else to write to yet.</p>
+						<p class="text-sm text-muted-foreground">Der er ingen andre at skrive til endnu.</p>
 					}
 					for _, person := range form.People {
 						<div class="flex items-center gap-2">
@@ -72,14 +72,14 @@ templ NewConversation(form NewConversationForm) {
 				</fieldset>
 				<div class="flex flex-col gap-2">
 					@label.Label(label.Props{For: "new-body"}) {
-						First message
+						Første besked
 					}
 					@textarea.Textarea(textarea.Props{
 						ID:          "new-body",
 						Name:        "body",
 						Value:       form.Body,
 						Rows:        4,
-						Placeholder: "Write the first message",
+						Placeholder: "Skriv den første besked",
 						Attributes: templ.Attributes{
 							"required":  true,
 							"maxlength": "4000",
@@ -93,7 +93,7 @@ templ NewConversation(form NewConversationForm) {
 					Variant:    button.VariantOutline,
 					Attributes: dialog.CloseFor(newConversationDialog),
 				}) {
-					Cancel
+					Annuller
 				}
 				// The button sits outside the form in the footer of the
 				// dialog, and the form attribute ties the two together.

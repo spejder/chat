@@ -40,7 +40,7 @@ func Layout(title, description string) templ.Component {
 		// markup and protects nothing.
 		styleIntegrity := assets.Integrity("dist/styles.css")
 		scriptIntegrity := assets.Integrity("js/htmx.min.js")
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"h-full\"><head><meta charset=\"utf-8\"><!-- resizes-content makes Chrome and Firefox on Android shrink the page when the keyboard opens, so the top bar and the write field stay on screen. Safari ignores it. --><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, interactive-widget=resizes-content\"><meta name=\"color-scheme\" content=\"light dark\"><meta name=\"description\" content=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"da\" class=\"h-full\"><head><meta charset=\"utf-8\"><!-- resizes-content makes Chrome and Firefox on Android shrink the page when the keyboard opens, so the top bar and the write field stay on screen. Safari ignores it. --><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, interactive-widget=resizes-content\"><meta name=\"color-scheme\" content=\"light dark\"><meta name=\"description\" content=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
