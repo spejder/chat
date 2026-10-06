@@ -114,23 +114,26 @@ func (q *Queries) InsertVAPIDKeys(ctx context.Context, arg InsertVAPIDKeysParams
 }
 
 const listSubscriptionsForUsers = `-- name: ListSubscriptionsForUsers :many
-SELECT ps.user_id, ps.endpoint, ps.p256dh, ps.auth
+SELECT ps.user_id, ps.endpoint, ps.p256dh, ps.auth, u.quiet_nights
 FROM push_subscriptions ps
 JOIN sessions s ON s.token_hash = ps.session_key
+JOIN users u ON u.id = ps.user_id
 WHERE ps.user_id = ANY($1::uuid[])
   AND s.expires_at > now()
 ORDER BY ps.created_at
 `
 
 type ListSubscriptionsForUsersRow struct {
-	UserID   uuid.UUID
-	Endpoint string
-	P256dh   string
-	Auth     string
+	UserID      uuid.UUID
+	Endpoint    string
+	P256dh      string
+	Auth        string
+	QuietNights bool
 }
 
-// ListSubscriptionsForUsers reads the browsers of some people. A browser
-// whose session ran out hears nothing, although its row is still there.
+// ListSubscriptionsForUsers reads the browsers of some people, with the
+// wish of each person for quiet nights. A browser whose session ran out
+// hears nothing, although its row is still there.
 func (q *Queries) ListSubscriptionsForUsers(ctx context.Context, userIds []uuid.UUID) ([]ListSubscriptionsForUsersRow, error) {
 	rows, err := q.db.Query(ctx, listSubscriptionsForUsers, userIds)
 	if err != nil {
@@ -145,6 +148,7 @@ func (q *Queries) ListSubscriptionsForUsers(ctx context.Context, userIds []uuid.
 			&i.Endpoint,
 			&i.P256dh,
 			&i.Auth,
+			&i.QuietNights,
 		); err != nil {
 			return nil, err
 		}

@@ -92,7 +92,9 @@ func New(config Config) http.Handler {
 	mux.Handle("POST /push/subscriptions", requireUser(http.HandlerFunc(notifications.subscribe)))
 	mux.Handle("DELETE /push/subscriptions", requireUser(http.HandlerFunc(notifications.unsubscribe)))
 
-	mux.Handle("PUT /sms-reminders", requireUser(http.HandlerFunc(conversations.smsReminders)))
+	// The switches of the person menu.
+	mux.Handle("PUT /sms-reminders", requireUser(setting("sms reminders", config.Users.SetSMSReminders)))
+	mux.Handle("PUT /quiet-nights", requireUser(setting("quiet nights", config.Users.SetQuietNights)))
 
 	return secure(compress(handlers.authenticate(mux)))
 }

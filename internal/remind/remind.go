@@ -5,7 +5,8 @@
 // in the same step, so one unread stretch of one conversation costs one SMS
 // at most. A person who missed messages in several conversations gets one
 // SMS for all of them. The SMS names the writers and carries a link that
-// signs the person in. No SMS goes out at night.
+// signs the person in. No SMS goes out at night to a person who wants quiet
+// nights, which is the default.
 package remind
 
 import (
@@ -65,10 +66,11 @@ type Due struct {
 
 // Store finds the people who are due and notes the SMS for them in the same
 // step. A message counts when it was written after notBefore and up to
-// dueBefore. The rows of one person come together. The store in
-// internal/postgres carries it out.
+// dueBefore. In the night it leaves out the people who want quiet nights.
+// The rows of one person come together. The store in internal/postgres
+// carries it out.
 type Store interface {
-	Claim(ctx context.Context, dueBefore, notBefore time.Time) ([]Due, error)
+	Claim(ctx context.Context, dueBefore, notBefore time.Time, night bool) ([]Due, error)
 }
 
 // Links makes the link that signs a person in. The nil UUID as the
@@ -133,18 +135,15 @@ func (s *Service) Run(ctx context.Context) {
 	}
 }
 
-// Sweep sends one SMS to every person who is due now, and nothing in the
-// night of internal/quiet. A sweep in the night claims nothing, so a message
-// that falls due then gets its SMS from the first sweep in the morning. The store notes an SMS before it goes out, so a failed send
+// Sweep sends one SMS to every person who is due now. In the night of
+// internal/quiet it claims only the people who turned the quiet nights off,
+// so for everybody else a message that falls due then gets its SMS from the
+// first sweep in the morning. The store notes an SMS before it goes out, so a failed send
 // costs that SMS and never sends two.
 func (s *Service) Sweep(ctx context.Context) error {
 	now := s.now()
 
-	if quiet.Night(now) {
-		return nil
-	}
-
-	due, err := s.store.Claim(ctx, now.Add(-Delay), now.Add(-MaxAge))
+	due, err := s.store.Claim(ctx, now.Add(-Delay), now.Add(-MaxAge), quiet.Night(now))
 	if err != nil {
 		return fmt.Errorf("find the people who missed a message: %w", err)
 	}

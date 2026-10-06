@@ -37,6 +37,10 @@ type Subscription struct {
 type Target struct {
 	UserID       uuid.UUID
 	Subscription Subscription
+
+	// QuietNights is the wish of the person for silent notifications in
+	// the night.
+	QuietNights bool
 }
 
 // Store keeps the key pair and the subscriptions. The store in

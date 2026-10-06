@@ -234,7 +234,7 @@ func (s *Service) MessageWritten(ctx context.Context, conversation chat.Conversa
 		night := quiet.Night(time.Now())
 
 		for _, target := range targets {
-			data, err := json.Marshal(payloadFor(conversation, message, unread[target.UserID], night))
+			data, err := json.Marshal(payloadFor(conversation, message, unread[target.UserID], night && target.QuietNights))
 			if err != nil {
 				slog.Error("could not write the push message", "error", err)
 

@@ -343,7 +343,7 @@ func (q *Queries) ListMessagesBefore(ctx context.Context, arg ListMessagesBefore
 }
 
 const listParticipants = `-- name: ListParticipants :many
-SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number, users.sms_reminders FROM conversation_participants
+SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number, users.sms_reminders, users.quiet_nights FROM conversation_participants
 JOIN users ON users.id = conversation_participants.user_id
 WHERE conversation_participants.conversation_id = $1
 ORDER BY users.full_name
@@ -366,6 +366,7 @@ func (q *Queries) ListParticipants(ctx context.Context, conversationID uuid.UUID
 			&i.UpdatedAt,
 			&i.PhoneNumber,
 			&i.SmsReminders,
+			&i.QuietNights,
 		); err != nil {
 			return nil, err
 		}

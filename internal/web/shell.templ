@@ -174,7 +174,20 @@ templ personMenu(pushKey string) {
 						if pushKey != "" {
 							@pushSwitch(pushKey, person.ID.String())
 						}
-						@smsSwitch(person.SMSReminders)
+						@settingSwitch(
+							"/sms-reminders",
+							person.SMSReminders,
+							"SMS reminders",
+							"An SMS when you miss a message and notifications are off on all your devices.",
+							icon.MessageSquareText(icon.Props{Class: "size-4 text-muted-foreground"}),
+						)
+						@settingSwitch(
+							"/quiet-nights",
+							person.QuietNights,
+							"Quiet nights",
+							"From 22 to 7, notifications make no sound, and SMS reminders wait until morning.",
+							icon.Moon(icon.Props{Class: "size-4 text-muted-foreground"}),
+						)
 						@dropdownmenu.Separator()
 						// A form, not a menu item: a plain submit works with
 						// the keyboard, with no script, and without htmx. The
@@ -223,27 +236,27 @@ templ pushSwitch(pushKey, personID string) {
 	</div>
 }
 
-// smsSwitch turns the SMS about missed messages on and off. assets/js/app.js
-// stores it on every change, because the person menu moves its content
-// into <body>, where htmx no longer listens. The server keeps the switch
-// for the person, not for the browser, so the page renders the state
-// itself.
-templ smsSwitch(on bool) {
+// settingSwitch is a switch of the person menu that the server keeps for the
+// person, not for the browser, so the page renders the state itself.
+// assets/js/app.js sends it to the address in data-setting on every change,
+// because the person menu moves its content into <body>, where htmx no
+// longer listens.
+templ settingSwitch(address string, on bool, label, note string, symbol templ.Component) {
 	<div class="px-2 py-1.5">
 		<label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
 			<span class="flex items-center gap-2">
-				@icon.MessageSquareText(icon.Props{Class: "size-4 text-muted-foreground"})
-				SMS reminders
+				@symbol
+				{ label }
 			</span>
 			@switchInput(templ.Attributes{
-				"name":            "on",
-				"value":           "true",
-				"checked":         on,
-				"data-sms-switch": true,
+				"name":         "on",
+				"value":        "true",
+				"checked":      on,
+				"data-setting": address,
 			})
 		</label>
 		<p class="max-w-56 pt-1 text-xs text-muted-foreground">
-			An SMS when you miss a message and notifications are off on all your devices.
+			{ note }
 		</p>
 	</div>
 }

@@ -97,7 +97,7 @@ func (s *PushStore) Targets(ctx context.Context, userIDs []uuid.UUID) ([]push.Ta
 	targets := make([]push.Target, 0, len(rows))
 
 	for _, row := range rows {
-		target := push.Target{UserID: row.UserID}
+		target := push.Target{UserID: row.UserID, QuietNights: row.QuietNights}
 		target.Subscription.Endpoint = row.Endpoint
 		target.Subscription.Keys.P256dh = row.P256dh
 		target.Subscription.Keys.Auth = row.Auth

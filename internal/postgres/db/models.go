@@ -82,6 +82,7 @@ type User struct {
 	UpdatedAt    time.Time
 	PhoneNumber  string
 	SmsReminders bool
+	QuietNights  bool
 }
 
 type VapidKey struct {

@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, full_name, email, phone_number)
 VALUES ($1, $2, $3, $4)
-RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights
 `
 
 type CreateUserParams struct {
@@ -42,12 +42,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights FROM users
 WHERE id = $1
 `
 
@@ -62,12 +63,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights FROM users
 WHERE lower(email) = lower($1::text)
 `
 
@@ -82,12 +84,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights FROM users
 ORDER BY id
 `
 
@@ -110,6 +113,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.UpdatedAt,
 			&i.PhoneNumber,
 			&i.SmsReminders,
+			&i.QuietNights,
 		); err != nil {
 			return nil, err
 		}
@@ -121,11 +125,40 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const setQuietNights = `-- name: SetQuietNights :one
+UPDATE users
+SET quiet_nights = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights
+`
+
+type SetQuietNightsParams struct {
+	ID          uuid.UUID
+	QuietNights bool
+}
+
+// SetQuietNights turns the quiet nights on or off.
+func (q *Queries) SetQuietNights(ctx context.Context, arg SetQuietNightsParams) (User, error) {
+	row := q.db.QueryRow(ctx, setQuietNights, arg.ID, arg.QuietNights)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PhoneNumber,
+		&i.SmsReminders,
+		&i.QuietNights,
+	)
+	return i, err
+}
+
 const setSMSReminders = `-- name: SetSMSReminders :one
 UPDATE users
 SET sms_reminders = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights
 `
 
 type SetSMSRemindersParams struct {
@@ -145,6 +178,7 @@ func (q *Queries) SetSMSReminders(ctx context.Context, arg SetSMSRemindersParams
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }
@@ -153,7 +187,7 @@ const setUserPhone = `-- name: SetUserPhone :one
 UPDATE users
 SET phone_number = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders, quiet_nights
 `
 
 type SetUserPhoneParams struct {
@@ -174,6 +208,7 @@ func (q *Queries) SetUserPhone(ctx context.Context, arg SetUserPhoneParams) (Use
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }

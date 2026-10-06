@@ -68,7 +68,7 @@ func (s remindStores) claim(t *testing.T) []remind.Due {
 
 	now := time.Now()
 
-	due, err := s.remind.Claim(t.Context(), now.Add(time.Minute), now.Add(-time.Hour))
+	due, err := s.remind.Claim(t.Context(), now.Add(time.Minute), now.Add(-time.Hour), false)
 	if err != nil {
 		t.Fatalf("claim: %v", err)
 	}
@@ -136,12 +136,12 @@ func TestAMessageWaitsAndGrowsOld(t *testing.T) {
 	stores := newRemindStores(t)
 	now := time.Now()
 
-	young, err := stores.remind.Claim(t.Context(), now.Add(-time.Minute), now.Add(-time.Hour))
+	young, err := stores.remind.Claim(t.Context(), now.Add(-time.Minute), now.Add(-time.Hour), false)
 	if err != nil || len(young) != 0 {
 		t.Errorf("a young message: due = %+v, %v, want nothing", young, err)
 	}
 
-	old, err := stores.remind.Claim(t.Context(), now.Add(time.Hour), now.Add(time.Minute))
+	old, err := stores.remind.Claim(t.Context(), now.Add(time.Hour), now.Add(time.Minute), false)
 	if err != nil || len(old) != 0 {
 		t.Errorf("an old message: due = %+v, %v, want nothing", old, err)
 	}
@@ -236,5 +236,61 @@ func TestALinkLivesAndDies(t *testing.T) {
 	got, ok, err = stores.auth.Link(t.Context(), []byte("list"))
 	if err != nil || !ok || got != list {
 		t.Errorf("list link = %+v, %v, %v, want %+v", got, ok, err, list)
+	}
+}
+
+// TestTheNightWaitsForTheMorning makes sure that a claim in the night leaves
+// out a person with quiet nights, which is the default, and takes a person
+// who turned them off.
+func TestTheNightWaitsForTheMorning(t *testing.T) {
+	t.Parallel()
+
+	stores := newRemindStores(t)
+	now := time.Now()
+
+	if !stores.grace.QuietNights {
+		t.Fatal("a new person has no quiet nights, want them on by default")
+	}
+
+	night, err := stores.remind.Claim(t.Context(), now.Add(time.Minute), now.Add(-time.Hour), true)
+	if err != nil || len(night) != 0 {
+		t.Fatalf("a night claim = %+v, %v, want nobody with quiet nights", night, err)
+	}
+
+	if _, err := stores.users.SetQuietNights(t.Context(), stores.grace.ID, false); err != nil {
+		t.Fatalf("turn off: %v", err)
+	}
+
+	night, err = stores.remind.Claim(t.Context(), now.Add(time.Minute), now.Add(-time.Hour), true)
+	if err != nil || len(night) != 1 {
+		t.Errorf("a night claim = %+v, %v, want the person without quiet nights", night, err)
+	}
+}
+
+// TestTargetsCarryTheQuietNights makes sure that the push targets carry the
+// wish of their person.
+func TestTargetsCarryTheQuietNights(t *testing.T) {
+	t.Parallel()
+
+	stores := newRemindStores(t)
+
+	key := []byte(uuid.NewV7().String())
+	if err := stores.auth.SaveSession(t.Context(), key, stores.grace.ID, time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("save the session: %v", err)
+	}
+
+	if err := stores.push.Save(t.Context(), stores.grace.ID, key, subscription("https://push.example/quiet")); err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+
+	for _, on := range []bool{true, false} {
+		if _, err := stores.users.SetQuietNights(t.Context(), stores.grace.ID, on); err != nil {
+			t.Fatalf("set: %v", err)
+		}
+
+		targets, err := stores.push.Targets(t.Context(), []uuid.UUID{stores.grace.ID})
+		if err != nil || len(targets) != 1 || targets[0].QuietNights != on {
+			t.Errorf("targets = %+v, %v, want one with quiet nights %v", targets, err, on)
+		}
 	}
 }

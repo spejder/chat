@@ -19,13 +19,14 @@ WITH due AS (
     JOIN users u ON u.id = p.user_id
     WHERE u.sms_reminders
       AND u.phone_number <> ''
+      AND NOT ($1::boolean AND u.quiet_nights)
       AND EXISTS (
           SELECT 1 FROM messages m
           WHERE m.conversation_id = p.conversation_id
             AND m.author_id <> p.user_id
             AND m.created_at > coalesce(p.last_read_at, '-infinity'::timestamptz)
-            AND m.created_at > $1::timestamptz
-            AND m.created_at <= $2::timestamptz
+            AND m.created_at > $2::timestamptz
+            AND m.created_at <= $3::timestamptz
       )
       AND NOT EXISTS (
           SELECT 1 FROM push_subscriptions ps
@@ -70,6 +71,7 @@ ORDER BY claimed.user_id, claimed.conversation_id
 `
 
 type ClaimRemindersParams struct {
+	Night     bool
 	NotBefore time.Time
 	DueBefore time.Time
 }
@@ -89,9 +91,10 @@ type ClaimRemindersRow struct {
 //     person, and was written between not_before and due_before,
 //  2. the person has no browser with a live push subscription,
 //  3. the person left the SMS on and has a phone number,
-//  4. no SMS for this pair went out after the last reading.
+//  4. no SMS for this pair went out after the last reading,
+//  5. in the night, the person turned the quiet nights off.
 func (q *Queries) ClaimReminders(ctx context.Context, arg ClaimRemindersParams) ([]ClaimRemindersRow, error) {
-	rows, err := q.db.Query(ctx, claimReminders, arg.NotBefore, arg.DueBefore)
+	rows, err := q.db.Query(ctx, claimReminders, arg.Night, arg.NotBefore, arg.DueBefore)
 	if err != nil {
 		return nil, err
 	}

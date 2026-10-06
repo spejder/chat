@@ -80,6 +80,20 @@ func (s *UserStore) SetSMSReminders(ctx context.Context, id uuid.UUID, on bool) 
 	return toUser(row), nil
 }
 
+// SetQuietNights turns the quiet nights on or off.
+func (s *UserStore) SetQuietNights(ctx context.Context, id uuid.UUID, on bool) (user.User, error) {
+	row, err := s.queries.SetQuietNights(ctx, db.SetQuietNightsParams{ID: id, QuietNights: on})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user.User{}, user.ErrNotFound
+		}
+
+		return user.User{}, fmt.Errorf("set the quiet nights: %w", err)
+	}
+
+	return toUser(row), nil
+}
+
 // Get reads one user by identifier.
 func (s *UserStore) Get(ctx context.Context, id uuid.UUID) (user.User, error) {
 	row, err := s.queries.GetUser(ctx, id)
@@ -132,6 +146,7 @@ func toUser(row db.User) user.User {
 		Email:        row.Email,
 		PhoneNumber:  row.PhoneNumber,
 		SMSReminders: row.SmsReminders,
+		QuietNights:  row.QuietNights,
 		CreatedAt:    row.CreatedAt,
 		UpdatedAt:    row.UpdatedAt,
 	}

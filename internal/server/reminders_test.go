@@ -267,7 +267,7 @@ func TestTheSMSSwitchIsStored(t *testing.T) {
 // smsSwitch finds the input of the SMS switch, and checkedAttribute the
 // bare attribute, not the word in a class such as checked:bg-primary.
 var (
-	smsSwitch        = regexp.MustCompile(`<input[^>]*data-sms-switch[^>]*>`)
+	smsSwitch        = regexp.MustCompile(`<input[^>]*data-setting="/sms-reminders"[^>]*>`)
 	checkedAttribute = regexp.MustCompile(`\schecked[\s>]`)
 )
 
@@ -324,5 +324,45 @@ func TestTheOldAddressMoves(t *testing.T) {
 
 	if unknown := get(t, handler, "/conversations/nothing", session); unknown.Code != http.StatusNotFound {
 		t.Errorf("a broken old address answers %d, want %d", unknown.Code, http.StatusNotFound)
+	}
+}
+
+// TestTheQuietNightsAreStored turns the quiet nights off and on again.
+func TestTheQuietNightsAreStored(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the user: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	for _, on := range []bool{false, true} {
+		values := url.Values{}
+		if on {
+			values.Set("on", "true")
+		}
+
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/quiet-nights", strings.NewReader(values.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.AddCookie(session)
+
+		answer := httptest.NewRecorder()
+		handler.ServeHTTP(answer, request)
+
+		if answer.Code != http.StatusNoContent {
+			t.Fatalf("set %v: status = %d, want %d", on, answer.Code, http.StatusNoContent)
+		}
+
+		if person, _ := users.Get(t.Context(), ada.ID); person.QuietNights != on {
+			t.Errorf("the quiet nights are %v, want %v", person.QuietNights, on)
+		}
+	}
+
+	if !strings.Contains(get(t, handler, "/conversations", session).Body.String(), `data-setting="/quiet-nights"`) {
+		t.Error("the page holds no switch for the quiet nights")
 	}
 }

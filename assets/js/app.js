@@ -258,14 +258,14 @@
 		);
 	};
 
-	// The switch for the SMS reminders stores itself on every change. The
-	// person menu moves its content into <body>, where htmx no longer
-	// listens, so a listener on the document does the work. A checkbox sends
-	// its value only while it is on, and a failed request puts the switch
-	// back.
-	const watchSmsSwitch = () => {
+	// A switch of the person menu stores itself on every change, at the
+	// address in its data-setting. The person menu moves its content into
+	// <body>, where htmx no longer listens, so a listener on the document
+	// does the work. A checkbox sends its value only while it is on, and a
+	// failed request puts the switch back.
+	const watchSettings = () => {
 		document.addEventListener("change", async (event) => {
-			const toggle = event.target instanceof Element ? event.target.closest("[data-sms-switch]") : null;
+			const toggle = event.target instanceof Element ? event.target.closest("[data-setting]") : null;
 
 			if (!toggle) {
 				return;
@@ -278,13 +278,13 @@
 			}
 
 			try {
-				const answer = await fetch("/sms-reminders", { method: "PUT", body });
+				const answer = await fetch(toggle.dataset.setting, { method: "PUT", body });
 
 				if (!answer.ok) {
 					throw new Error(`the server answered ${answer.status}`);
 				}
 			} catch (error) {
-				console.warn("sms reminders: the switch failed", error);
+				console.warn("settings: the switch failed", error);
 				toggle.checked = !toggle.checked;
 			}
 		});
@@ -295,7 +295,7 @@
 		openOnPhone();
 		listen();
 		watchSwipes();
-		watchSmsSwitch();
+		watchSettings();
 	};
 
 	document.addEventListener("htmx:after:swap", update);

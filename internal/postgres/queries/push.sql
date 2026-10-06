@@ -30,12 +30,14 @@ WHERE endpoint = $1 AND user_id = $2;
 DELETE FROM push_subscriptions
 WHERE endpoint = $1;
 
--- ListSubscriptionsForUsers reads the browsers of some people. A browser
--- whose session ran out hears nothing, although its row is still there.
+-- ListSubscriptionsForUsers reads the browsers of some people, with the
+-- wish of each person for quiet nights. A browser whose session ran out
+-- hears nothing, although its row is still there.
 -- name: ListSubscriptionsForUsers :many
-SELECT ps.user_id, ps.endpoint, ps.p256dh, ps.auth
+SELECT ps.user_id, ps.endpoint, ps.p256dh, ps.auth, u.quiet_nights
 FROM push_subscriptions ps
 JOIN sessions s ON s.token_hash = ps.session_key
+JOIN users u ON u.id = ps.user_id
 WHERE ps.user_id = ANY(@user_ids::uuid[])
   AND s.expires_at > now()
 ORDER BY ps.created_at;

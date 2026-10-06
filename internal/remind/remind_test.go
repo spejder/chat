@@ -17,12 +17,12 @@ import (
 // fakeStore hands out a fixed list once and notes the times it got.
 type fakeStore struct {
 	due                  []remind.Due
-	claimed              bool
+	night                bool
 	dueBefore, notBefore time.Time
 }
 
-func (f *fakeStore) Claim(_ context.Context, dueBefore, notBefore time.Time) ([]remind.Due, error) {
-	f.claimed = true
+func (f *fakeStore) Claim(_ context.Context, dueBefore, notBefore time.Time, night bool) ([]remind.Due, error) {
+	f.night = night
 	f.dueBefore, f.notBefore = dueBefore, notBefore
 	due := f.due
 	f.due = nil
@@ -172,25 +172,23 @@ func TestLongSubjectsFitInOneSMS(t *testing.T) {
 	}
 }
 
-// TestTheNightIsQuiet makes sure that a sweep in the quiet hours claims
-// nothing, so the SMS waits for the morning.
-func TestTheNightIsQuiet(t *testing.T) {
+// TestTheSweepTellsTheNight makes sure that the store hears whether it is
+// night, so it can leave out the people who want quiet nights. The store in
+// internal/postgres holds that rule, and its tests cover it.
+func TestTheSweepTellsTheNight(t *testing.T) {
 	t.Parallel()
 
-	due := func() []remind.Due {
-		return []remind.Due{{UserID: uuid.NewV7(), ConversationID: uuid.NewV7(), PhoneNumber: "+4521650113", Subject: "Lunch"}}
-	}
-
-	for _, hour := range []int{quiet.From, 23, 0, 3, quiet.Until - 1} {
-		sent, store, _ := sweep(t, hour, due())
-		if len(sent) != 0 || store.claimed {
-			t.Errorf("at %d:30 the sweep claimed %v and sent %d, want nothing", hour, store.claimed, len(sent))
-		}
-	}
-
-	for _, hour := range []int{quiet.Until, 12, quiet.From - 1} {
-		if sent, _, _ := sweep(t, hour, due()); len(sent) != 1 {
-			t.Errorf("at %d:30 the sweep sent %d, want 1", hour, len(sent))
+	for _, test := range []struct {
+		hours []int
+		night bool
+	}{
+		{[]int{quiet.From, 23, 0, 3, quiet.Until - 1}, true},
+		{[]int{quiet.Until, 12, quiet.From - 1}, false},
+	} {
+		for _, hour := range test.hours {
+			if _, store, _ := sweep(t, hour, nil); store.night != test.night {
+				t.Errorf("at %d:30 the store heard night = %v, want %v", hour, store.night, test.night)
+			}
 		}
 	}
 }

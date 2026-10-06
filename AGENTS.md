@@ -228,8 +228,8 @@ must be short because it travels in an SMS. The list and the dialog keep
   at all.
 - The person menu moves its content into `<body>`, and htmx does not listen
   to markup there. A control in the menu that must send a request uses a
-  form or a listener on the document, as the switch for the SMS reminders
-  does in `assets/js/app.js`.
+  form or a listener on the document, as the switches of the person menu
+  do in `assets/js/app.js`.
 - A line of the sidebar reads like a phone: the subject and the time of the
   newest message, then the first name of its writer, or "You", and the start
   of its text. `ListConversations` brings the newest message with a lateral
@@ -526,9 +526,10 @@ browser, also when no tab of the site is open.
   `conversation-<uuid>` is written in Go and read in both scripts, so
   change all three together. A notification on another device stays until
   that device opens the conversation.
-- In the night of `internal/quiet` the payload carries `quiet`, and the
-  worker shows the notification with `silent: true`, without sound or
-  vibration. The specification refuses `silent` together with `renotify`,
+- In the night of `internal/quiet` the payload carries `quiet` for a
+  person with quiet nights, and the worker shows the notification with
+  `silent: true`, without sound or vibration. `ListSubscriptionsForUsers`
+  brings the wish of each person with the subscription. The specification refuses `silent` together with `renotify`,
   so a quiet notification never renotifies. Safari ignores `silent`, and
   the phone then follows its own Do Not Disturb.
 - The body starts with the first name of the writer, like the SMS, because
@@ -549,7 +550,7 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
 
 - A sweep runs every minute (`remind.Every`). `ClaimReminders` in
   `internal/postgres/queries/remind.sql` finds every person and conversation
-  that is due, and notes the SMS in the same statement. When all four rules
+  that is due, and notes the SMS in the same statement. When all five rules
   hold, a pair is due:
   1. A message from somebody else is newer than the reading of the person,
      and it is between 15 minutes (`remind.Delay`) and 24 hours
@@ -557,6 +558,7 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
   2. The person has no live push subscription. Push wins over SMS.
   3. The person left the switch on and has a phone number.
   4. No SMS for this pair went out after the reading of the person.
+  5. In the night, the person turned the quiet nights off.
 - The fourth rule gives one SMS per unread stretch. The next SMS for that
   conversation comes only after the person read it and then missed new
   messages again. An open page reads at once, so a person who looks never
@@ -579,10 +581,11 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
   link leads to the list (`/conversations?t=<token>`). The row of such
   a link holds NULL as the conversation. The queries turn it into the nil
   UUID, so Go never sees a nullable column.
-- No SMS goes out in the night of `internal/quiet`: from 22:00 to 07:00 in
-  `Europe/Copenhagen`. A sweep in the night claims nothing, so a message
-  that falls due in the night gets its SMS from the first sweep at 07:00.
-  The 24 hours of `MaxAge` cover a whole night.
+- The night of `internal/quiet` runs from 22:00 to 07:00 in
+  `Europe/Copenhagen`. A sweep in the night claims only the people who
+  turned the quiet nights off. For everybody else, a message that falls
+  due in the night gets its SMS from the first sweep at 07:00. The 24
+  hours of `MaxAge` cover a whole night.
 - `internal/quiet` is the one home of the night, for the SMS and for push.
   It imports `time/tzdata`, because the image starts from scratch and
   holds no time zone files.
@@ -611,9 +614,15 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
 - A browser that is signed in as the same person gets no new session. A
   browser of somebody else ends that session first, because the device now
   belongs to the person of the link.
-- The switch "SMS reminders" in the person menu writes
-  `users.sms_reminders` through `PUT /sms-reminders`. A form on another site
-  cannot send PUT. The switch is on for everybody until they turn it off.
+- Two switches in the person menu belong to the person, not to the
+  browser. "SMS reminders" writes `users.sms_reminders` through
+  `PUT /sms-reminders`. "Quiet nights" writes `users.quiet_nights` through
+  `PUT /quiet-nights`, and governs both the SMS and the push. Both are on
+  for everybody until they turn them off.
+- Both switches are `settingSwitch` in `internal/web/shell.templ`, and
+  `setting` in `internal/server/reminders.go` stores them. The address
+  lives in `data-setting`, which `watchSettings` in `assets/js/app.js`
+  reads. A form on another site cannot send PUT.
 - Check a change by hand: write a message with a `created_at` 20 minutes in
   the past with `psql`, and the SMS appears in the log of the server within
   a minute.

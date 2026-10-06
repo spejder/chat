@@ -243,7 +243,7 @@ func (q *Queries) GetLatestCode(ctx context.Context, userID uuid.UUID) (OtpCode,
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number, users.sms_reminders FROM sessions
+SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number, users.sms_reminders, users.quiet_nights FROM sessions
 JOIN users ON users.id = sessions.user_id
 WHERE sessions.token_hash = $1 AND sessions.expires_at > now()
 `
@@ -260,6 +260,7 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (User, e
 		&i.UpdatedAt,
 		&i.PhoneNumber,
 		&i.SmsReminders,
+		&i.QuietNights,
 	)
 	return i, err
 }

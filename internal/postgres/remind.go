@@ -24,9 +24,9 @@ func NewRemindStore(pool *pgxpool.Pool) *RemindStore {
 }
 
 // Claim finds the due pairs of person and conversation and notes the SMS for
-// them. Only one server instance claims at a time: the others find the lock
+// them. In the night it leaves out the people who want quiet nights. Only one server instance claims at a time: the others find the lock
 // taken and claim nothing, so nobody gets two SMS.
-func (s *RemindStore) Claim(ctx context.Context, dueBefore, notBefore time.Time) ([]remind.Due, error) {
+func (s *RemindStore) Claim(ctx context.Context, dueBefore, notBefore time.Time, night bool) ([]remind.Due, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("start the transaction: %w", err)
@@ -47,6 +47,7 @@ func (s *RemindStore) Claim(ctx context.Context, dueBefore, notBefore time.Time)
 	}
 
 	rows, err := queries.ClaimReminders(ctx, db.ClaimRemindersParams{
+		Night:     night,
 		NotBefore: notBefore,
 		DueBefore: dueBefore,
 	})

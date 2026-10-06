@@ -24,6 +24,11 @@ type User struct {
 	// they missed. It is on unless the person turned it off.
 	SMSReminders bool
 
+	// QuietNights says that nothing may sound in the night: a push
+	// notification arrives silently, and an SMS reminder waits for the
+	// morning. It is on unless the person turned it off.
+	QuietNights bool
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

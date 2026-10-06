@@ -5,7 +5,8 @@
 --      person, and was written between not_before and due_before,
 --   2. the person has no browser with a live push subscription,
 --   3. the person left the SMS on and has a phone number,
---   4. no SMS for this pair went out after the last reading.
+--   4. no SMS for this pair went out after the last reading,
+--   5. in the night, the person turned the quiet nights off.
 --
 -- name: ClaimReminders :many
 WITH due AS (
@@ -14,6 +15,7 @@ WITH due AS (
     JOIN users u ON u.id = p.user_id
     WHERE u.sms_reminders
       AND u.phone_number <> ''
+      AND NOT (@night::boolean AND u.quiet_nights)
       AND EXISTS (
           SELECT 1 FROM messages m
           WHERE m.conversation_id = p.conversation_id
