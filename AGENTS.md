@@ -520,8 +520,8 @@ browser, also when no tab of the site is open.
 ## SMS reminders
 
 A person who misses a message and has no push notifications receives an
-SMS with the subject and a link. The link signs the person in and opens the
-conversation. `internal/remind` holds the rules and the sweep,
+SMS. It names the writers and the subject, and carries a link. The link signs the
+person in and opens the conversation. `internal/remind` holds the rules and the sweep,
 `internal/postgres/remind.go` the claim, and `withLink` in
 `internal/server/auth.go` reads the token.
 
@@ -546,7 +546,24 @@ conversation. `internal/remind` holds the rules and the sweep,
   taken and claims nothing, so nobody gets two SMS.
 - The claim is stored before the SMS goes out. A failed send costs that SMS
   and goes to the log. It never causes a second SMS.
-- The SMS keeps to the GSM alphabet where it can. The subject gets the room
+- The claim returns the full names of the writers of what the person
+  missed, the earliest first. The SMS starts with their first names,
+  because the writer decides whether the person looks now. It reads
+  `Chat: Arne wrote in "Lunch".`, with `Arne and Grace` or
+  `Arne and 2 others` for more writers.
+- A person who is due in several conversations at once gets one SMS for
+  all of them. It reads
+  `Chat: Arne and Grace wrote in "Lunch", "Camp" and 1 more.`, and its
+  link leads to the list (`/conversations?t=<token>`). The row of such
+  a link holds NULL as the conversation. The queries turn it into the nil
+  UUID, so Go never sees a nullable column.
+- No SMS goes out from 22:00 to 07:00 in `Europe/Copenhagen`
+  (`remind.QuietFrom`, `remind.QuietUntil`, `remind.Zone`). A sweep in the
+  night claims nothing, so a message that falls due in the night gets its
+  SMS from the first sweep at 07:00. The 24 hours of `MaxAge` cover a whole
+  night. `internal/remind` imports `time/tzdata`, because the image starts
+  from scratch and holds no time zone files.
+- The SMS keeps to the GSM alphabet where it can. The subjects get the room
   that the rest leaves of 160 characters, and a cut ends in three dots, not
   in an ellipsis character. One character outside the alphabet halves the
   room of an SMS.
@@ -557,7 +574,7 @@ conversation. `internal/remind` holds the rules and the sweep,
   is looked up by its hash, so its form can change without breaking the
   links that already went out.
 - The token signs in only for the conversation of its row, so it cannot
-  open another one.
+  open another one. A token for the list signs in only on the list.
 - `withLink` answers every request with `t` with a redirect to the same
   address without it. The token leaves the address bar, the history and
   any address that the person copies. The page then meets `requireUser`

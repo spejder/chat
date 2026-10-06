@@ -1,6 +1,7 @@
 package postgres_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 	"uuid"
@@ -92,8 +93,9 @@ func TestAMissedMessageCostsOneSMS(t *testing.T) {
 		ConversationID: stores.conversation,
 		PhoneNumber:    "+4521650114",
 		Subject:        "Lunch",
+		Writers:        []string{"Ada Lovelace"},
 	}
-	if due[0] != want {
+	if !reflect.DeepEqual(due[0], want) {
 		t.Errorf("due = %+v, want %+v", due[0], want)
 	}
 
@@ -222,5 +224,17 @@ func TestALinkLivesAndDies(t *testing.T) {
 
 	if _, ok, err := stores.auth.Link(t.Context(), []byte("old")); err != nil || ok {
 		t.Errorf("old link found = %v, %v, want nothing", ok, err)
+	}
+
+	// A link to the list belongs to no conversation.
+	list := auth.Link{UserID: stores.grace.ID, ConversationID: uuid.Nil()}
+
+	if err := stores.auth.SaveLink(t.Context(), []byte("list"), list, time.Now().Add(time.Hour)); err != nil {
+		t.Fatalf("save the list link: %v", err)
+	}
+
+	got, ok, err = stores.auth.Link(t.Context(), []byte("list"))
+	if err != nil || !ok || got != list {
+		t.Errorf("list link = %+v, %v, %v, want %+v", got, ok, err, list)
 	}
 }

@@ -65,6 +65,7 @@ func (s *RemindStore) Claim(ctx context.Context, dueBefore, notBefore time.Time)
 			ConversationID: row.ConversationID,
 			PhoneNumber:    row.PhoneNumber,
 			Subject:        row.Subject,
+			Writers:        row.Writers,
 		})
 	}
 

@@ -65,7 +65,7 @@ func New(config Config) http.Handler {
 	mux.HandleFunc("POST /logout", handlers.logout)
 
 	// Every conversation route needs a person behind it.
-	mux.Handle("GET /conversations", requireUser(http.HandlerFunc(conversations.list)))
+	mux.Handle("GET /conversations", handlers.withLink(requireUser(http.HandlerFunc(conversations.list))))
 	mux.Handle("GET /conversations/list", requireUser(http.HandlerFunc(conversations.listFragment)))
 	mux.Handle("GET /conversations/new", requireUser(http.HandlerFunc(conversations.newForm)))
 	mux.Handle("POST /conversations", requireUser(http.HandlerFunc(conversations.start)))

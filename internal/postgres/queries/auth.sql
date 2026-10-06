@@ -79,14 +79,26 @@ WHERE token_hash = $1;
 DELETE FROM sessions
 WHERE expires_at <= now();
 
+-- CreateSignInLink stores a link. Go writes the nil UUID for a link to the
+-- list, and the row holds NULL, because the column refers to a
+-- conversation.
 -- name: CreateSignInLink :exec
 INSERT INTO sign_in_links (token_hash, user_id, conversation_id, expires_at)
-VALUES ($1, $2, $3, $4);
+VALUES (
+    @token_hash,
+    @user_id,
+    NULLIF(@conversation_id::uuid, '00000000-0000-0000-0000-000000000000'::uuid),
+    @expires_at
+);
 
 -- GetSignInLink reads a live link. A link works more than once until it
--- expires, because a messaging app may open it for a preview first.
+-- expires, because a messaging app may open it for a preview first. A link
+-- to the list returns the nil UUID.
 -- name: GetSignInLink :one
-SELECT * FROM sign_in_links
+SELECT
+    user_id,
+    coalesce(conversation_id, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS conversation_id
+FROM sign_in_links
 WHERE token_hash = $1 AND expires_at > now();
 
 -- name: DeleteExpiredSignInLinks :exec

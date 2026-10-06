@@ -225,7 +225,8 @@ func (h *authHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 // withLink signs a person in through the token of a link from an SMS. The
-// link is the address of the conversation with the token in t. The token
+// link is the address of the conversation, or of the list for an SMS about
+// several conversations, with the token in t. The token
 // leaves the address at once through a redirect, so it stays out of the
 // address bar, the history and any address that the person copies. The
 // page itself then meets requireUser as usual, which sends a browser
@@ -253,7 +254,7 @@ func (h *authHandlers) withLink(next http.Handler) http.Handler {
 
 		h.followLink(w, r, token)
 
-		//nolint:gosec // The mux matched /c/{id}, so this is a path here.
+		//nolint:gosec // The mux matched /c/{id} or /conversations, so this is a path here.
 		http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
 	})
 }
@@ -261,9 +262,17 @@ func (h *authHandlers) withLink(next http.Handler) http.Handler {
 // followLink writes a new session cookie when the token is good. A bad or
 // old token changes nothing.
 func (h *authHandlers) followLink(w http.ResponseWriter, r *http.Request, token string) {
-	conversationID, err := address.ConversationID(r.PathValue("id"))
-	if err != nil {
-		return
+	// The list carries no identifier, and a link to the list carries the
+	// nil UUID, so the two match.
+	conversationID := uuid.Nil()
+
+	if id := r.PathValue("id"); id != "" {
+		parsed, err := address.ConversationID(id)
+		if err != nil {
+			return
+		}
+
+		conversationID = parsed
 	}
 
 	current, signedIn := auth.UserFrom(r.Context())

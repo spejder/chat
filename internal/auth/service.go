@@ -364,7 +364,8 @@ func (s *Service) SignOut(ctx context.Context, token string) error {
 }
 
 // IssueLink makes a link that signs the person in and opens the
-// conversation, and returns its token. The store keeps only the hash.
+// conversation, and returns its token. The nil UUID as the conversation
+// makes a link to the list. The store keeps only the hash.
 func (s *Service) IssueLink(ctx context.Context, userID, conversationID uuid.UUID) (string, error) {
 	// base62 writes the 128 bits in 22 characters, four fewer than
 	// rand.Text, because the token travels in an SMS.

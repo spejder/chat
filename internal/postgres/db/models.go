@@ -63,7 +63,7 @@ type Session struct {
 type SignInLink struct {
 	TokenHash      []byte
 	UserID         uuid.UUID
-	ConversationID uuid.UUID
+	ConversationID pgtype.UUID
 	ExpiresAt      time.Time
 	CreatedAt      time.Time
 }

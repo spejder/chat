@@ -289,3 +289,25 @@ func TestALinkSignsInUntilItExpires(t *testing.T) {
 		t.Errorf("an unknown link: error = %v, want %v", err, ErrNoLink)
 	}
 }
+
+// TestAListLinkOpensOnlyTheList makes sure that a link without a
+// conversation signs in on the list, and on no conversation.
+func TestAListLinkOpensOnlyTheList(t *testing.T) {
+	t.Parallel()
+
+	service, _, _, person := testService(t)
+
+	token, err := service.IssueLink(t.Context(), person.ID, uuid.Nil())
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+
+	if _, err := service.FollowLink(t.Context(), token, uuid.NewV7(), uuid.Nil()); !errors.Is(err, ErrNoLink) {
+		t.Errorf("on a conversation: error = %v, want %v", err, ErrNoLink)
+	}
+
+	session, err := service.FollowLink(t.Context(), token, uuid.Nil(), uuid.Nil())
+	if err != nil || session == "" {
+		t.Errorf("on the list: session %q, error %v, want a session", session, err)
+	}
+}

@@ -45,10 +45,27 @@ claimed AS (
     ON CONFLICT (user_id, conversation_id) DO UPDATE SET sent_at = excluded.sent_at
     RETURNING user_id, conversation_id
 )
-SELECT claimed.user_id, claimed.conversation_id, u.phone_number, c.subject
+SELECT
+    claimed.user_id,
+    claimed.conversation_id,
+    u.phone_number,
+    c.subject,
+    -- The people who wrote what this person missed, the earliest first.
+    ARRAY(
+        SELECT w.full_name
+        FROM messages m
+        JOIN users w ON w.id = m.author_id
+        WHERE m.conversation_id = claimed.conversation_id
+          AND m.author_id <> claimed.user_id
+          AND m.created_at > coalesce(p.last_read_at, '-infinity'::timestamptz)
+        GROUP BY w.full_name
+        ORDER BY min(m.created_at)
+    )::text[] AS writers
 FROM claimed
 JOIN users u ON u.id = claimed.user_id
 JOIN conversations c ON c.id = claimed.conversation_id
+JOIN conversation_participants p
+  ON p.conversation_id = claimed.conversation_id AND p.user_id = claimed.user_id
 ORDER BY claimed.user_id, claimed.conversation_id
 `
 
@@ -62,6 +79,7 @@ type ClaimRemindersRow struct {
 	ConversationID uuid.UUID
 	PhoneNumber    string
 	Subject        string
+	Writers        []string
 }
 
 // ClaimReminders finds every person who missed a message in a conversation
@@ -86,6 +104,7 @@ func (q *Queries) ClaimReminders(ctx context.Context, arg ClaimRemindersParams) 
 			&i.ConversationID,
 			&i.PhoneNumber,
 			&i.Subject,
+			&i.Writers,
 		); err != nil {
 			return nil, err
 		}

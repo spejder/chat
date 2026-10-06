@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"uuid"
 )
 
 // sessionFrom returns the session cookie that an answer writes, or nil.
@@ -105,6 +106,21 @@ func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 
 	if old := get(t, built.handler, "/conversations", adaSession); old.Code != http.StatusSeeOther {
 		t.Errorf("the old session answers %d, want it ended", old.Code)
+	}
+
+	// A link about several conversations opens the list.
+	listToken, err := built.auth.IssueLink(t.Context(), grace.ID, uuid.Nil())
+	if err != nil {
+		t.Fatalf("issue the list link: %v", err)
+	}
+
+	list := get(t, built.handler, "/conversations?t="+listToken, nil)
+	if list.Header().Get("Location") != "/conversations" || sessionFrom(list) == nil {
+		t.Errorf("the list link: %d to %q, want a session and the list", list.Code, list.Header().Get("Location"))
+	}
+
+	if wrong := get(t, built.handler, path+"?t="+listToken, nil); sessionFrom(wrong) != nil {
+		t.Error("the list link signed in on a conversation")
 	}
 }
 
