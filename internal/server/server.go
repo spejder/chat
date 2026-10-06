@@ -45,9 +45,13 @@ func New(config Config) http.Handler {
 
 	mux := http.NewServeMux()
 
+	// The guard of every route that needs a person. It notes the page, so
+	// the person returns to it after signing in.
+	requireUser := handlers.requireUser
+
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", static(http.FileServerFS(assets.FS))))
 	mux.Handle("GET /components/{bundle}", components.ScriptsHandler())
-	mux.HandleFunc("GET /{$}", start)
+	mux.HandleFunc("GET /{$}", handlers.home)
 	mux.HandleFunc("GET /sw.js", serviceWorker)
 	mux.HandleFunc("GET /manifest.webmanifest", manifest)
 
@@ -57,14 +61,13 @@ func New(config Config) http.Handler {
 	mux.HandleFunc("POST /login/passkey", handlers.passkeyLogin)
 	mux.HandleFunc("POST /login/passkey/register", handlers.passkeyRegister)
 	mux.HandleFunc("POST /logout", handlers.logout)
-	mux.HandleFunc("GET /l/{token}", handlers.link)
 
 	// Every conversation route needs a person behind it.
 	mux.Handle("GET /conversations", requireUser(http.HandlerFunc(conversations.list)))
 	mux.Handle("GET /conversations/list", requireUser(http.HandlerFunc(conversations.listFragment)))
 	mux.Handle("GET /conversations/new", requireUser(http.HandlerFunc(conversations.newForm)))
 	mux.Handle("POST /conversations", requireUser(http.HandlerFunc(conversations.start)))
-	mux.Handle("GET /conversations/{id}", requireUser(http.HandlerFunc(conversations.show)))
+	mux.Handle("GET /conversations/{id}", handlers.withLink(requireUser(http.HandlerFunc(conversations.show))))
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
 	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
@@ -80,16 +83,30 @@ func New(config Config) http.Handler {
 	return secure(compress(handlers.authenticate(mux)))
 }
 
-// start sends a visitor where they belong. The application has one job, so
+// home sends a visitor where they belong. The application has one job, so
 // the address / holds no page of its own.
-func start(w http.ResponseWriter, r *http.Request) {
-	if _, ok := auth.UserFrom(r.Context()); ok {
-		http.Redirect(w, r, "/conversations", http.StatusSeeOther)
+//
+// Every way of signing in ends here, so a person who had to sign in on the
+// way to a page goes back to it, which requireUser noted in a cookie.
+func (h *authHandlers) home(w http.ResponseWriter, r *http.Request) {
+	if _, ok := auth.UserFrom(r.Context()); !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
 
 		return
 	}
 
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	target := "/conversations"
+
+	if cookie, err := r.Cookie(returnCookie); err == nil {
+		h.clearReturn(w)
+
+		if localPath(cookie.Value) {
+			target = cookie.Value
+		}
+	}
+
+	//nolint:gosec // localPath allows only a path on this site.
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 // static tells the browser how long it can keep an embedded file.

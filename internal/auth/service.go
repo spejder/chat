@@ -374,37 +374,34 @@ func (s *Service) IssueLink(ctx context.Context, userID, conversationID uuid.UUI
 	return token, nil
 }
 
-// FollowLink reads a link and starts a session for its person. A browser
-// that is already signed in as that person, which signedIn names, needs no
-// new session, and the returned session is then empty.
+// FollowLink reads the token of a link and starts a session for its
+// person. The link counts only for the conversation that it was made for,
+// which is the conversation in the address. A browser that is already
+// signed in as that person, which signedIn names, needs no new session, and
+// the returned session is then empty.
 //
 // A link works more than once until it expires, because a messaging app may
 // open it for a preview before the person taps it. The SMS is the same proof
 // as a sign in code, so the session gets the normal lifetime.
-func (s *Service) FollowLink(ctx context.Context, token string, signedIn uuid.UUID) (Link, string, error) {
+func (s *Service) FollowLink(ctx context.Context, token string, conversationID, signedIn uuid.UUID) (string, error) {
 	if token == "" {
-		return Link{}, "", ErrNoLink
+		return "", ErrNoLink
 	}
 
 	link, ok, err := s.store.Link(ctx, hashToken(token))
 	if err != nil {
-		return Link{}, "", fmt.Errorf("read the link: %w", err)
+		return "", fmt.Errorf("read the link: %w", err)
 	}
 
-	if !ok {
-		return Link{}, "", ErrNoLink
+	if !ok || link.ConversationID != conversationID {
+		return "", ErrNoLink
 	}
 
 	if link.UserID == signedIn {
-		return link, "", nil
+		return "", nil
 	}
 
-	session, err := s.newSession(ctx, link.UserID)
-	if err != nil {
-		return Link{}, "", err
-	}
-
-	return link, session, nil
+	return s.newSession(ctx, link.UserID)
 }
 
 // HasPasskey says whether a person can sign in without a message.

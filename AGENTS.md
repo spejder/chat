@@ -138,8 +138,16 @@ passkey.
   with an unclear browser error.
 - `internal/sms` prints the message instead of sending it. There is no
   provider yet.
-- An SMS reminder carries a link `/l/<token>` that signs the person in. See
-  "SMS reminders".
+- An SMS reminder carries the address of the conversation with a token in
+  `t`, which signs the person in for 12 hours. See "SMS reminders".
+- `requireUser` notes the path of a page that a visitor wanted in the
+  cookie `chat_return`, and `GET /` sends the person there after the sign
+  in. Every way of signing in ends on `/`, so none of them needs to know.
+  Only a page request counts: a GET with `text/html` in `Accept` and
+  without `HX-Request`. The stream of events of an open page asks again
+  after its session ended, and must not become the place to return to.
+  `localPath` refuses a value that starts with `//` or `/\`, which a
+  browser reads as another site.
 - The last line of the message is `@<host> #<code>`. Keep it. Some browsers
   read the code from that line, and the line binds the code to this site.
 - A Go test cannot run a passkey ceremony, because that needs an
@@ -491,8 +499,8 @@ browser, also when no tab of the site is open.
 A person who misses a message and has no push notifications receives an
 SMS with the subject and a link. The link signs the person in and opens the
 conversation. `internal/remind` holds the rules and the sweep,
-`internal/postgres/remind.go` the claim, and `internal/server/auth.go` the
-route of the link.
+`internal/postgres/remind.go` the claim, and `withLink` in
+`internal/server/auth.go` reads the token.
 
 - A sweep runs every minute (`remind.Every`). `ClaimReminders` in
   `internal/postgres/queries/remind.sql` finds every person and conversation
@@ -515,15 +523,24 @@ route of the link.
   taken and claims nothing, so nobody gets two SMS.
 - The claim is stored before the SMS goes out. A failed send costs that SMS
   and goes to the log. It never causes a second SMS.
-- The SMS keeps to the GSM alphabet where it can. A subject over 40
-  characters ends in three dots, not in an ellipsis character, because one
-  character outside the alphabet halves the room of an SMS.
-- The link is `/l/<token>`. The token comes from `rand.Text`, and
-  `sign_in_links` keeps its hash, like a session. The path is short, so the
-  SMS fits in 160 characters.
-- A link works for 12 hours (`auth.LinkLifetime`), and more than once,
+- The SMS keeps to the GSM alphabet where it can. The subject gets the room
+  that the rest leaves of 160 characters, and a cut ends in three dots, not
+  in an ellipsis character. One character outside the alphabet halves the
+  room of an SMS.
+- The link is the address of the conversation with the token in `t`:
+  `/conversations/<id>?t=<token>`. The address works as long as the
+  conversation exists. The token comes from `rand.Text`, and
+  `sign_in_links` keeps its hash, like a session.
+- The token signs in only for the conversation of its row, so it cannot
+  open another one.
+- `withLink` answers every request with `t` with a redirect to the same
+  address without it. The token leaves the address bar, the history and
+  any address that the person copies. The page then meets `requireUser`
+  as usual.
+- A token works for 12 hours (`auth.LinkLifetime`), and more than once,
   because a messaging app sometimes opens it for a preview before the
-  person taps it. After 12 hours it leads to `/login`.
+  person taps it. After 12 hours the address leads to the sign in, and
+  `chat_return` brings the person back to the conversation.
 - The link starts a session of the normal lifetime. The SMS is the same
   proof as a sign in code, which also arrives by SMS.
 - A browser that is signed in as the same person gets no new session. A

@@ -18,6 +18,17 @@ import (
 // sessionCookie carries the session token.
 const sessionCookie = "chat_session"
 
+// returnCookie notes the page that a visitor wanted before the sign in. It
+// holds a path, never a query, so the token of a link never lands in it.
+const (
+	returnCookie   = "chat_return"
+	returnLifetime = time.Hour
+)
+
+// linkParameter is the name of the query parameter that carries the token
+// of a link from an SMS.
+const linkParameter = "t"
+
 // authHandlers holds the routes that sign a person in and out.
 type authHandlers struct {
 	service *auth.Service
@@ -211,12 +222,47 @@ func (h *authHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 	h.renderPanel(w, r, web.EmailPanel("", "Something went wrong. Try again."))
 }
 
-// link follows a link from an SMS. It signs the person in and opens the
-// conversation. A browser that is signed in as somebody else ends that
-// session first, because the device now belongs to the person of the link.
-// An unknown or old link leads to the sign in page.
-func (h *authHandlers) link(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
+// withLink signs a person in through the token of a link from an SMS. The
+// link is the address of the conversation with the token in t. The token
+// leaves the address at once through a redirect, so it stays out of the
+// address bar, the history and any address that the person copies. The
+// page itself then meets requireUser as usual, which sends a browser
+// without a session to the sign in, also after the token expired.
+//
+// A browser that is signed in as somebody else ends that session first,
+// because the device now belongs to the person of the link.
+func (h *authHandlers) withLink(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+
+		token := query.Get(linkParameter)
+		if token == "" {
+			next.ServeHTTP(w, r)
+
+			return
+		}
+
+		query.Del(linkParameter)
+
+		clean := *r.URL
+		clean.RawQuery = query.Encode()
+
+		w.Header().Set("Cache-Control", "no-store")
+
+		h.followLink(w, r, token)
+
+		//nolint:gosec // The mux matched /conversations/{id}, so this is a path here.
+		http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
+	})
+}
+
+// followLink writes a new session cookie when the token is good. A bad or
+// old token changes nothing.
+func (h *authHandlers) followLink(w http.ResponseWriter, r *http.Request, token string) {
+	conversationID, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		return
+	}
 
 	current, signedIn := auth.UserFrom(r.Context())
 
@@ -225,28 +271,80 @@ func (h *authHandlers) link(w http.ResponseWriter, r *http.Request) {
 		signedInID = current.ID
 	}
 
-	link, session, err := h.service.FollowLink(r.Context(), r.PathValue("token"), signedInID)
+	session, err := h.service.FollowLink(r.Context(), token, conversationID, signedInID)
 	if err != nil {
 		if !errors.Is(err, auth.ErrNoLink) {
 			slog.Error("could not follow a link", "error", err)
 		}
 
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-
 		return
 	}
 
-	if session != "" {
-		if cookie, err := r.Cookie(sessionCookie); err == nil && signedIn {
-			if err := h.service.SignOut(r.Context(), cookie.Value); err != nil {
-				slog.Error("could not end the session of the other person", "error", err)
-			}
-		}
-
-		h.setSession(w, session)
+	if session == "" {
+		return
 	}
 
-	http.Redirect(w, r, "/conversations/"+link.ConversationID.String(), http.StatusSeeOther)
+	if cookie, err := r.Cookie(sessionCookie); err == nil && signedIn {
+		if err := h.service.SignOut(r.Context(), cookie.Value); err != nil {
+			slog.Error("could not end the session of the other person", "error", err)
+		}
+	}
+
+	h.setSession(w, session)
+}
+
+// requireUser sends a visitor without a session to the sign in page. A
+// visitor who asked for a whole page gets the path noted, so the sign in
+// ends on that page. A fragment of htmx and the stream of events, which an
+// open page asks for again after its session ended, are no page to return
+// to, which the Accept header tells apart.
+func (h *authHandlers) requireUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := auth.UserFrom(r.Context()); ok {
+			next.ServeHTTP(w, r)
+
+			return
+		}
+
+		page := r.Method == http.MethodGet &&
+			r.Header.Get("HX-Request") == "" &&
+			strings.Contains(r.Header.Get("Accept"), "text/html")
+
+		if page && localPath(r.URL.Path) {
+			//nolint:gosec // Secure is true as soon as the origin is https.
+			http.SetCookie(w, &http.Cookie{
+				Name:     returnCookie,
+				Value:    r.URL.Path,
+				Path:     "/",
+				MaxAge:   int(returnLifetime.Seconds()),
+				HttpOnly: true,
+				Secure:   h.secureCookies,
+				SameSite: http.SameSiteLaxMode,
+			})
+		}
+
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	})
+}
+
+// clearReturn removes the note of requireUser.
+func (h *authHandlers) clearReturn(w http.ResponseWriter) {
+	//nolint:gosec // The flags match the cookie that requireUser writes.
+	http.SetCookie(w, &http.Cookie{
+		Name:     returnCookie,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   h.secureCookies,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+// localPath answers whether a value is a path on this site. A value that
+// starts with // or /\ is an address of another site to a browser.
+func localPath(value string) bool {
+	return strings.HasPrefix(value, "/") && !strings.HasPrefix(value, "//") && !strings.HasPrefix(value, "/\\")
 }
 
 // setSession writes the cookie that keeps the browser signed in.

@@ -558,16 +558,3 @@ func readableError(err error) (string, bool) {
 		return "", false
 	}
 }
-
-// requireUser sends a visitor without a session to the sign in page.
-func requireUser(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := auth.UserFrom(r.Context()); !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}

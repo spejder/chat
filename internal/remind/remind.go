@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 	"uuid"
@@ -31,9 +32,14 @@ const (
 	// Every is the pause between two sweeps.
 	Every = time.Minute
 
-	// subjectRunes is the longest subject that the SMS quotes in full, so
-	// the text fits in one SMS of 160 characters.
-	subjectRunes = 40
+	// smsLength is the room of one SMS in the GSM alphabet. The subject
+	// gets what the rest of the text leaves of it.
+	smsLength = 160
+
+	// minSubject is the shortest cut of a subject. A very long address can
+	// leave less room, and the SMS then splits in two rather than losing
+	// the subject.
+	minSubject = 12
 )
 
 // Due is one person who missed a message in one conversation.
@@ -118,7 +124,7 @@ func (s *Service) Sweep(ctx context.Context) error {
 
 		message := sms.Message{
 			To:   person.PhoneNumber,
-			Text: s.text(person.Subject, token),
+			Text: s.text(person.Subject, person.ConversationID, token),
 		}
 
 		if err := s.sender.Send(ctx, message); err != nil {
@@ -129,19 +135,28 @@ func (s *Service) Sweep(ctx context.Context) error {
 	return nil
 }
 
-// text writes the SMS. Every character stays in the GSM alphabet unless the
-// subject brings another one, because one character outside it halves the
-// room of an SMS.
-func (s *Service) text(subject, token string) string {
-	return fmt.Sprintf("New messages in \"%s\" in Chat.\n%s/l/%s", shorten(subject), s.origin, token)
+// text writes the SMS. The link is the address of the conversation, which
+// works for as long as the conversation exists. The token in it signs the
+// person in during its first hours.
+//
+// Every character stays in the GSM alphabet unless the subject brings
+// another one, because one character outside it halves the room of an SMS.
+func (s *Service) text(subject string, conversationID uuid.UUID, token string) string {
+	const format = "New messages in \"%s\" in Chat.\n%s"
+
+	link := s.origin + "/conversations/" + conversationID.String() + "?t=" + url.QueryEscape(token)
+	room := smsLength - len(fmt.Sprintf(format, "", link))
+
+	return fmt.Sprintf(format, shorten(subject, max(room, minSubject)), link)
 }
 
-// shorten cuts a long subject and marks the cut with three dots.
-func shorten(subject string) string {
+// shorten cuts a subject to at most limit characters and marks the cut with
+// three dots.
+func shorten(subject string, limit int) string {
 	runes := []rune(strings.TrimSpace(subject))
-	if len(runes) <= subjectRunes {
+	if len(runes) <= limit {
 		return string(runes)
 	}
 
-	return strings.TrimSpace(string(runes[:subjectRunes-3])) + "..."
+	return strings.TrimSpace(string(runes[:limit-3])) + "..."
 }

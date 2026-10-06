@@ -12,8 +12,13 @@ import (
 
 // sessionFrom returns the session cookie that an answer writes, or nil.
 func sessionFrom(answer *httptest.ResponseRecorder) *http.Cookie {
+	return cookieFrom(answer, "chat_session")
+}
+
+// cookieFrom returns a cookie with a value that an answer writes, or nil.
+func cookieFrom(answer *httptest.ResponseRecorder, name string) *http.Cookie {
 	for _, cookie := range answer.Result().Cookies() {
-		if cookie.Name == "chat_session" && cookie.Value != "" {
+		if cookie.Name == name && cookie.Value != "" {
 			return cookie
 		}
 	}
@@ -21,9 +26,9 @@ func sessionFrom(answer *httptest.ResponseRecorder) *http.Cookie {
 	return nil
 }
 
-// TestALinkSignsInAndOpensTheConversation follows a link from an SMS in a
-// browser without a session, in a browser of the same person, and in a
-// browser of somebody else.
+// TestALinkSignsInAndOpensTheConversation follows the link of an SMS in a
+// browser without a session, in a browser of the same person, in a browser
+// of somebody else, and on another conversation.
 func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 	t.Parallel()
 
@@ -41,22 +46,28 @@ func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 
 	adaSession := signIn(t, built.handler, built.messages, ada)
 
-	started := postAs(t, built.handler, "/conversations", url.Values{
-		"subject": {"Lunch"},
-		"person":  {grace.ID.String()},
-		"body":    {"Are you in?"},
-	}, adaSession)
+	start := func(subject string) string {
+		started := postAs(t, built.handler, "/conversations", url.Values{
+			"subject": {subject},
+			"person":  {grace.ID.String()},
+			"body":    {"Are you in?"},
+		}, adaSession)
 
-	path := started.Header().Get("Location")
-	conversation := uuid.MustParse(strings.TrimPrefix(path, "/conversations/"))
+		return started.Header().Get("Location")
+	}
 
-	token, err := built.auth.IssueLink(t.Context(), grace.ID, conversation)
+	path := start("Lunch")
+	other := start("Dinner")
+
+	token, err := built.auth.IssueLink(t.Context(), grace.ID, uuid.MustParse(strings.TrimPrefix(path, "/conversations/")))
 	if err != nil {
 		t.Fatalf("issue the link: %v", err)
 	}
 
+	link := path + "?t=" + token
+
 	// A browser without a session.
-	answer := get(t, built.handler, "/l/"+token, nil)
+	answer := get(t, built.handler, link, nil)
 	if answer.Code != http.StatusSeeOther || answer.Header().Get("Location") != path {
 		t.Fatalf("follow: %d to %q, want %d to %q", answer.Code, answer.Header().Get("Location"), http.StatusSeeOther, path)
 	}
@@ -75,12 +86,20 @@ func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 	}
 
 	// The same person again: no new session.
-	if again := get(t, built.handler, "/l/"+token, graceSession); sessionFrom(again) != nil {
+	if again := get(t, built.handler, link, graceSession); sessionFrom(again) != nil {
 		t.Error("the link wrote a second session for a browser that is signed in")
 	}
 
+	// The token on another conversation signs nobody in, and leaves the
+	// address anyway.
+	elsewhere := get(t, built.handler, other+"?t="+token, nil)
+	if sessionFrom(elsewhere) != nil || elsewhere.Header().Get("Location") != other {
+		t.Errorf("the token on another conversation: %d to %q with a session %v, want no session",
+			elsewhere.Code, elsewhere.Header().Get("Location"), sessionFrom(elsewhere) != nil)
+	}
+
 	// Somebody else: the link takes over, and the old session ends.
-	taken := get(t, built.handler, "/l/"+token, adaSession)
+	taken := get(t, built.handler, link, adaSession)
 	if sessionFrom(taken) == nil {
 		t.Fatal("the link kept the session of the other person")
 	}
@@ -88,11 +107,88 @@ func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 	if old := get(t, built.handler, "/conversations", adaSession); old.Code != http.StatusSeeOther {
 		t.Errorf("the old session answers %d, want it ended", old.Code)
 	}
+}
 
-	// An unknown link.
-	unknown := get(t, built.handler, "/l/made-up", nil)
-	if unknown.Code != http.StatusSeeOther || unknown.Header().Get("Location") != "/login" || sessionFrom(unknown) != nil {
-		t.Errorf("an unknown link: %d to %q, want %d to /login", unknown.Code, unknown.Header().Get("Location"), http.StatusSeeOther)
+// TestAnOldLinkStillLeadsToTheConversation follows a link with an unknown
+// token. The address stays good: the sign in ends on the conversation.
+func TestAnOldLinkStillLeadsToTheConversation(t *testing.T) {
+	t.Parallel()
+
+	built := buildServer(t)
+
+	ada, err := built.users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the writer: %v", err)
+	}
+
+	grace, err := built.users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650114")
+	if err != nil {
+		t.Fatalf("create the reader: %v", err)
+	}
+
+	started := postAs(t, built.handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, signIn(t, built.handler, built.messages, ada))
+
+	path := started.Header().Get("Location")
+
+	answer := get(t, built.handler, path+"?t=EXPIRED", nil)
+	if answer.Code != http.StatusSeeOther || answer.Header().Get("Location") != path || sessionFrom(answer) != nil {
+		t.Fatalf("follow: %d to %q, want %d to %q without a session",
+			answer.Code, answer.Header().Get("Location"), http.StatusSeeOther, path)
+	}
+
+	// The stream of events of an open page notes nothing.
+	stream := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/events", nil)
+	stream.Header.Set("Accept", "text/event-stream")
+
+	streamed := httptest.NewRecorder()
+	built.handler.ServeHTTP(streamed, stream)
+
+	if cookieFrom(streamed, "chat_return") != nil {
+		t.Error("the stream of events noted itself as the page to return to")
+	}
+
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+	request.Header.Set("Accept", "text/html,application/xhtml+xml")
+
+	page := httptest.NewRecorder()
+	built.handler.ServeHTTP(page, request)
+
+	if page.Header().Get("Location") != "/login" {
+		t.Fatalf("the page sends a visitor to %q, want /login", page.Header().Get("Location"))
+	}
+
+	noted := cookieFrom(page, "chat_return")
+	if noted == nil || noted.Value != path {
+		t.Fatalf("the return cookie is %v, want %q", noted, path)
+	}
+
+	session := signIn(t, built.handler, built.messages, grace)
+
+	request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+	request.AddCookie(session)
+	request.AddCookie(noted)
+
+	home := httptest.NewRecorder()
+	built.handler.ServeHTTP(home, request)
+
+	if home.Header().Get("Location") != path {
+		t.Errorf("after the sign in the start page leads to %q, want %q", home.Header().Get("Location"), path)
+	}
+
+	// A note that points at another site leads to the list.
+	request = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+	request.AddCookie(session)
+	request.AddCookie(&http.Cookie{Name: "chat_return", Value: "//evil.example/"}) //nolint:gosec // A cookie that a browser sends.
+
+	home = httptest.NewRecorder()
+	built.handler.ServeHTTP(home, request)
+
+	if home.Header().Get("Location") != "/conversations" {
+		t.Errorf("a foreign note leads to %q, want /conversations", home.Header().Get("Location"))
 	}
 }
 

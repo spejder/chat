@@ -245,8 +245,8 @@ func TestAnUnknownSessionIsNobody(t *testing.T) {
 }
 
 // TestALinkSignsInUntilItExpires makes sure that a link starts a session
-// more than once within its lifetime, needs no new session for the same
-// person, and fails after its lifetime.
+// more than once within its lifetime, only for its own conversation, needs
+// no new session for the same person, and fails after its lifetime.
 func TestALinkSignsInUntilItExpires(t *testing.T) {
 	t.Parallel()
 
@@ -259,13 +259,9 @@ func TestALinkSignsInUntilItExpires(t *testing.T) {
 	}
 
 	for range 2 {
-		link, session, err := service.FollowLink(t.Context(), token, uuid.Nil())
+		session, err := service.FollowLink(t.Context(), token, conversation, uuid.Nil())
 		if err != nil {
 			t.Fatalf("follow: %v", err)
-		}
-
-		if link.UserID != person.ID || link.ConversationID != conversation {
-			t.Errorf("link = %+v, want the person and the conversation", link)
 		}
 
 		signedIn, ok, err := service.Session(t.Context(), session)
@@ -274,18 +270,22 @@ func TestALinkSignsInUntilItExpires(t *testing.T) {
 		}
 	}
 
-	_, session, err := service.FollowLink(t.Context(), token, person.ID)
+	session, err := service.FollowLink(t.Context(), token, conversation, person.ID)
 	if err != nil || session != "" {
 		t.Errorf("follow while signed in: session %q, error %v, want no new session", session, err)
 	}
 
+	if _, err := service.FollowLink(t.Context(), token, uuid.NewV7(), uuid.Nil()); !errors.Is(err, ErrNoLink) {
+		t.Errorf("another conversation: error = %v, want %v", err, ErrNoLink)
+	}
+
 	*clock = clock.Add(LinkLifetime + time.Minute)
 
-	if _, _, err := service.FollowLink(t.Context(), token, uuid.Nil()); !errors.Is(err, ErrNoLink) {
+	if _, err := service.FollowLink(t.Context(), token, conversation, uuid.Nil()); !errors.Is(err, ErrNoLink) {
 		t.Errorf("an old link: error = %v, want %v", err, ErrNoLink)
 	}
 
-	if _, _, err := service.FollowLink(t.Context(), "made-up", uuid.Nil()); !errors.Is(err, ErrNoLink) {
+	if _, err := service.FollowLink(t.Context(), "made-up", conversation, uuid.Nil()); !errors.Is(err, ErrNoLink) {
 		t.Errorf("an unknown link: error = %v, want %v", err, ErrNoLink)
 	}
 }
