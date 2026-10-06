@@ -191,13 +191,13 @@
 		const form = field.closest("form");
 		const now = Date.now();
 
-		if (!form || !form.dataset.conversation || !field.value.trim() || now - lastTyping < typingEveryMs) {
+		if (!form || !form.dataset.typing || !field.value.trim() || now - lastTyping < typingEveryMs) {
 			return;
 		}
 
 		lastTyping = now;
 
-		fetch("/conversations/" + form.dataset.conversation + "/typing", { method: "POST" }).catch(() => {});
+		fetch(form.dataset.typing, { method: "POST" }).catch(() => {});
 	};
 
 	// grow lets the field follow the text instead of scrolling from the first

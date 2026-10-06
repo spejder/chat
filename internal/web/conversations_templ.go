@@ -9,6 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"github.com/spejder/chat/internal/address"
 	"net/url"
 	"strconv"
 	"strings"
@@ -203,7 +204,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 						var templ_7745c5c3_Var9 string
 						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(summary.Subject)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 90, Col: 86}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 91, Col: 86}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 						if templ_7745c5c3_Err != nil {
@@ -238,7 +239,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 						var templ_7745c5c3_Var12 string
 						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(listTime(summary.LastMessageAt, now))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 92, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 93, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 						if templ_7745c5c3_Err != nil {
@@ -273,7 +274,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 						var templ_7745c5c3_Var15 string
 						templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(preview(summary))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 96, Col: 117}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 97, Col: 117}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 						if templ_7745c5c3_Err != nil {
@@ -309,7 +310,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 								var templ_7745c5c3_Var17 string
 								templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(summary.Unread))
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 105, Col: 39}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 106, Col: 39}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 								if templ_7745c5c3_Err != nil {
@@ -322,7 +323,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 								var templ_7745c5c3_Var18 string
 								templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(" unread")
 								if templ_7745c5c3_Err != nil {
-									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 105, Col: 74}
+									return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 106, Col: 74}
 								}
 								_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 								if templ_7745c5c3_Err != nil {
@@ -346,7 +347,7 @@ func ConversationList(summaries []chat.Summary, current uuid.UUID, version strin
 						return nil
 					})
 					templ_7745c5c3_Err = sidebar.MenuButton(sidebar.MenuButtonProps{
-						Href:     "/conversations/" + summary.ID.String(),
+						Href:     address.Conversation(summary.ID),
 						IsActive: summary.ID == current,
 						Size:     sidebar.MenuButtonSizeLg,
 						// app.js finds the line of a conversation with an unsent
@@ -416,7 +417,7 @@ func avatar(names []string) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(strings.Join(names, ", "))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 123, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 124, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -430,7 +431,7 @@ func avatar(names []string) templ.Component {
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(initials(names[0]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 127, Col: 23}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/conversations.templ`, Line: 128, Col: 23}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {

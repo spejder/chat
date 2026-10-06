@@ -15,6 +15,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/a-h/templ"
 
 	"github.com/spejder/chat/internal/auth"
@@ -185,7 +187,7 @@ func (h *chatHandlers) start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/conversations/"+conversation.ID.String(), http.StatusSeeOther)
+	http.Redirect(w, r, address.Conversation(conversation.ID), http.StatusSeeOther)
 }
 
 // show draws one conversation.
@@ -530,9 +532,10 @@ func sidebarOpen(r *http.Request) bool {
 	return cookie.Value != "false"
 }
 
-// conversationID reads the identifier out of the path.
+// conversationID reads the identifier out of the path, in the short form or
+// as a UUID.
 func conversationID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
-	id, err := uuid.Parse(r.PathValue("id"))
+	id, err := address.ConversationID(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 

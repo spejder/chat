@@ -3,7 +3,11 @@ package server_test
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
+	"uuid"
+
+	"github.com/spejder/chat/internal/address"
 
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
@@ -141,4 +145,16 @@ func newTestHandler(t *testing.T) http.Handler {
 	handler, _, _ := newHandler(t)
 
 	return handler
+}
+
+// conversationOf reads the conversation out of a short address /c/<base62>.
+func conversationOf(t *testing.T, path string) uuid.UUID {
+	t.Helper()
+
+	id, err := address.ConversationID(strings.TrimPrefix(path, "/c/"))
+	if err != nil || !strings.HasPrefix(path, "/c/") {
+		t.Fatalf("%q is no address of a conversation: %v", path, err)
+	}
+
+	return id
 }

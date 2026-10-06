@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/spejder/chat/internal/address"
 	"net/url"
 	"strconv"
 	"time"
@@ -197,10 +198,11 @@ templ WriteForm(conversation chat.Conversation, since time.Time, message string)
 	<form
 		id="write"
 		data-conversation={ conversation.ID.String() }
+		data-typing={ address.Typing(conversation.ID) }
 		class="border-t p-4"
 		method="post"
-		action={ templ.SafeURL("/conversations/" + conversation.ID.String() + "/messages") }
-		data-hx-post={ "/conversations/" + conversation.ID.String() + "/messages" }
+		action={ templ.SafeURL(address.Messages(conversation.ID)) }
+		data-hx-post={ address.Messages(conversation.ID) }
 		data-hx-target="#message-list"
 		data-hx-swap="outerHTML"
 	>
@@ -246,13 +248,13 @@ templ WriteForm(conversation chat.Conversation, since time.Time, message string)
 // that nothing changed, and the mark keeps the line for the unread messages
 // where it is.
 func messagesURL(conversationID uuid.UUID, since time.Time, version string) string {
-	address := "/conversations/" + conversationID.String() + "/messages?v=" + url.QueryEscape(version)
+	target := address.Messages(conversationID) + "?v=" + url.QueryEscape(version)
 
 	if !since.IsZero() {
-		address += "&since=" + strconv.FormatInt(since.Unix(), 10)
+		target += "&since=" + strconv.FormatInt(since.Unix(), 10)
 	}
 
-	return address
+	return target
 }
 
 // authorLabel names the writer of a message for the hidden line that a screen
@@ -267,5 +269,5 @@ func authorLabel(row bubble) string {
 
 // olderURL points the button at the messages in front of one message.
 func olderURL(conversationID, before uuid.UUID) string {
-	return "/conversations/" + conversationID.String() + "/older?before=" + before.String()
+	return address.Older(conversationID) + "?before=" + before.String()
 }

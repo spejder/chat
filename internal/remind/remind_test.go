@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 	"uuid"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/spejder/chat/internal/remind"
 	"github.com/spejder/chat/internal/sms"
 )
@@ -47,7 +49,7 @@ func TestASweepSendsTheLink(t *testing.T) {
 			UserID:         uuid.NewV7(),
 			ConversationID: second,
 			PhoneNumber:    "+4521650114",
-			Subject:        "Planning the summer camp of the whole group in Ebeltoft next July",
+			Subject:        "Planning the summer camp of the whole group in Ebeltoft next July, with the tents, the food, the canoes and every parent who drives",
 		},
 	}}
 	messages := &sms.Recorder{}
@@ -65,17 +67,19 @@ func TestASweepSendsTheLink(t *testing.T) {
 		t.Fatalf("sent %d messages, want 2", len(sent))
 	}
 
-	want := "New messages in \"Lunch\" in Chat.\nhttps://chat.example/conversations/" + first.String() + "?t=token"
+	want := "New messages in \"Lunch\" in Chat.\nhttps://chat.example" + address.Conversation(first) + "?t=token"
 	if sent[0].Text != want || sent[0].To != "+4521650113" {
 		t.Errorf("the first SMS reads %+v, want %q to +4521650113", sent[0], want)
 	}
 
-	if !strings.Contains(sent[1].Text, "...\" in Chat.") || !strings.HasSuffix(sent[1].Text, second.String()+"?t=token") {
+	if !strings.Contains(sent[1].Text, "...\" in Chat.") || !strings.HasSuffix(sent[1].Text, address.Conversation(second)+"?t=token") {
 		t.Errorf("the second SMS reads %q, want the subject cut and the link whole", sent[1].Text)
 	}
 
-	if got := utf8.RuneCountInString(sent[1].Text); got != 160 {
-		t.Errorf("the second SMS holds %d characters, want 160", got)
+	// The cut drops a space at its end, so the SMS can come out one
+	// character short of the limit.
+	if got := utf8.RuneCountInString(sent[1].Text); got > 160 || got < 155 {
+		t.Errorf("the second SMS holds %d characters, want close to 160 and never more", got)
 	}
 
 	if got := before.Sub(store.dueBefore).Round(time.Minute); got != remind.Delay {

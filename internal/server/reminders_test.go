@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-	"uuid"
 )
 
 // sessionFrom returns the session cookie that an answer writes, or nil.
@@ -59,7 +58,7 @@ func TestALinkSignsInAndOpensTheConversation(t *testing.T) {
 	path := start("Lunch")
 	other := start("Dinner")
 
-	token, err := built.auth.IssueLink(t.Context(), grace.ID, uuid.MustParse(strings.TrimPrefix(path, "/conversations/")))
+	token, err := built.auth.IssueLink(t.Context(), grace.ID, conversationOf(t, path))
 	if err != nil {
 		t.Fatalf("issue the link: %v", err)
 	}
@@ -266,4 +265,48 @@ func switchOn(t *testing.T, page string) bool {
 	}
 
 	return checkedAttribute.MatchString(input)
+}
+
+// TestTheOldAddressMoves makes sure that /conversations/<uuid> leads to the
+// short address with the query kept, and that a part still answers under
+// the old address.
+func TestTheOldAddressMoves(t *testing.T) {
+	t.Parallel()
+
+	handler, messages, users := newHandler(t)
+
+	ada, err := users.Create(t.Context(), "Ada Lovelace", "ada@example.com", "+4521650113")
+	if err != nil {
+		t.Fatalf("create the writer: %v", err)
+	}
+
+	grace, err := users.Create(t.Context(), "Grace Hopper", "grace@example.com", "+4521650114")
+	if err != nil {
+		t.Fatalf("create the reader: %v", err)
+	}
+
+	session := signIn(t, handler, messages, ada)
+
+	started := postAs(t, handler, "/conversations", url.Values{
+		"subject": {"Lunch"},
+		"person":  {grace.ID.String()},
+		"body":    {"Are you in?"},
+	}, session)
+
+	path := started.Header().Get("Location")
+	old := "/conversations/" + conversationOf(t, path).String()
+
+	moved := get(t, handler, old+"?t=TOKEN", nil)
+	if moved.Code != http.StatusPermanentRedirect || moved.Header().Get("Location") != path+"?t=TOKEN" {
+		t.Errorf("the old address: %d to %q, want %d to %q",
+			moved.Code, moved.Header().Get("Location"), http.StatusPermanentRedirect, path+"?t=TOKEN")
+	}
+
+	if part := get(t, handler, old+"/messages", session); part.Code != http.StatusOK {
+		t.Errorf("an old part answers %d, want %d", part.Code, http.StatusOK)
+	}
+
+	if unknown := get(t, handler, "/conversations/nothing", session); unknown.Code != http.StatusNotFound {
+		t.Errorf("a broken old address answers %d, want %d", unknown.Code, http.StatusNotFound)
+	}
 }

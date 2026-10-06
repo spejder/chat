@@ -1,6 +1,7 @@
 package web
 
 import (
+	"github.com/spejder/chat/internal/address"
 	"net/url"
 	"strconv"
 	"strings"
@@ -74,7 +75,7 @@ templ ConversationList(summaries []chat.Summary, current uuid.UUID, version stri
 				// unread conversation carries a bold subject and a dark
 				// badge, so it stands out at a glance.
 				@sidebar.MenuButton(sidebar.MenuButtonProps{
-					Href:     "/conversations/" + summary.ID.String(),
+					Href:     address.Conversation(summary.ID),
 					IsActive: summary.ID == current,
 					Size:     sidebar.MenuButtonSizeLg,
 					// app.js finds the line of a conversation with an unsent

@@ -9,6 +9,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/a-h/templ"
 
 	"github.com/spejder/chat/internal/auth"
@@ -251,7 +253,7 @@ func (h *authHandlers) withLink(next http.Handler) http.Handler {
 
 		h.followLink(w, r, token)
 
-		//nolint:gosec // The mux matched /conversations/{id}, so this is a path here.
+		//nolint:gosec // The mux matched /c/{id}, so this is a path here.
 		http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
 	})
 }
@@ -259,7 +261,7 @@ func (h *authHandlers) withLink(next http.Handler) http.Handler {
 // followLink writes a new session cookie when the token is good. A bad or
 // old token changes nothing.
 func (h *authHandlers) followLink(w http.ResponseWriter, r *http.Request, token string) {
-	conversationID, err := uuid.Parse(r.PathValue("id"))
+	conversationID, err := address.ConversationID(r.PathValue("id"))
 	if err != nil {
 		return
 	}

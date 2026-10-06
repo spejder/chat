@@ -15,6 +15,8 @@ import (
 	"unicode/utf8"
 	"uuid"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/SherClockHolmes/webpush-go"
 
 	"github.com/spejder/chat/internal/chat"
@@ -247,7 +249,7 @@ func payloadFor(conversation chat.Conversation, message chat.Message, unread int
 	return Payload{
 		Title:  conversation.Subject,
 		Body:   message.AuthorName + ": " + shorten(message.Body),
-		URL:    "/conversations/" + conversation.ID.String(),
+		URL:    address.Conversation(conversation.ID),
 		Tag:    "conversation-" + conversation.ID.String(),
 		Unread: unread,
 	}

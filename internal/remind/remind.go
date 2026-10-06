@@ -16,6 +16,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/spejder/chat/internal/sms"
 )
 
@@ -144,7 +146,7 @@ func (s *Service) Sweep(ctx context.Context) error {
 func (s *Service) text(subject string, conversationID uuid.UUID, token string) string {
 	const format = "New messages in \"%s\" in Chat.\n%s"
 
-	link := s.origin + "/conversations/" + conversationID.String() + "?t=" + url.QueryEscape(token)
+	link := s.origin + address.Conversation(conversationID) + "?t=" + url.QueryEscape(token)
 	room := smsLength - len(fmt.Sprintf(format, "", link))
 
 	return fmt.Sprintf(format, shorten(subject, max(room, minSubject)), link)

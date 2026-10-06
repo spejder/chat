@@ -15,6 +15,8 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/spejder/chat/internal/base62"
+
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 
@@ -364,7 +366,13 @@ func (s *Service) SignOut(ctx context.Context, token string) error {
 // IssueLink makes a link that signs the person in and opens the
 // conversation, and returns its token. The store keeps only the hash.
 func (s *Service) IssueLink(ctx context.Context, userID, conversationID uuid.UUID) (string, error) {
-	token := rand.Text()
+	// base62 writes the 128 bits in 22 characters, four fewer than
+	// rand.Text, because the token travels in an SMS.
+	token, err := base62.Random()
+	if err != nil {
+		return "", fmt.Errorf("make the token: %w", err)
+	}
+
 	link := Link{UserID: userID, ConversationID: conversationID}
 
 	if err := s.store.SaveLink(ctx, hashToken(token), link, s.now().Add(LinkLifetime)); err != nil {

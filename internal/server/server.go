@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/spejder/chat/internal/address"
+
 	"github.com/spejder/chat/assets"
 	"github.com/spejder/chat/internal/auth"
 	"github.com/spejder/chat/internal/chat"
@@ -67,7 +69,19 @@ func New(config Config) http.Handler {
 	mux.Handle("GET /conversations/list", requireUser(http.HandlerFunc(conversations.listFragment)))
 	mux.Handle("GET /conversations/new", requireUser(http.HandlerFunc(conversations.newForm)))
 	mux.Handle("POST /conversations", requireUser(http.HandlerFunc(conversations.start)))
-	mux.Handle("GET /conversations/{id}", handlers.withLink(requireUser(http.HandlerFunc(conversations.show))))
+
+	// One conversation lives under the short address /c/<base62>, which
+	// internal/address writes.
+	mux.Handle("GET /c/{id}", handlers.withLink(requireUser(http.HandlerFunc(conversations.show))))
+	mux.Handle("GET /c/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
+	mux.Handle("GET /c/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
+	mux.Handle("POST /c/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
+	mux.Handle("POST /c/{id}/typing", requireUser(http.HandlerFunc(conversations.typing)))
+
+	// The old address of a page leads to the new one, so a bookmark, a sent
+	// SMS and a waiting notification still work. The parts answer under the
+	// old address too, for a tab that was open during the deploy.
+	mux.HandleFunc("GET /conversations/{id}", movedConversation)
 	mux.Handle("GET /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.messages)))
 	mux.Handle("GET /conversations/{id}/older", requireUser(http.HandlerFunc(conversations.older)))
 	mux.Handle("POST /conversations/{id}/messages", requireUser(http.HandlerFunc(conversations.write)))
@@ -107,6 +121,26 @@ func (h *authHandlers) home(w http.ResponseWriter, r *http.Request) {
 
 	//nolint:gosec // localPath allows only a path on this site.
 	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+// movedConversation sends the old address /conversations/<uuid> to the
+// short one with 308, which keeps the query, so the token of an SMS link
+// survives the move.
+func movedConversation(w http.ResponseWriter, r *http.Request) {
+	id, err := address.ConversationID(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+
+		return
+	}
+
+	target := address.Conversation(id)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+
+	//nolint:gosec // address.Conversation writes a path on this site.
+	http.Redirect(w, r, target, http.StatusPermanentRedirect)
 }
 
 // static tells the browser how long it can keep an embedded file.

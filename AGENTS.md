@@ -161,6 +161,29 @@ A conversation carries a subject and a fixed set of people. The word is
 conversation everywhere: the tables, the routes and the types. Do not write
 thread or room.
 
+The one exception is the address of one conversation, `/c/<id>`, which
+must be short because it travels in an SMS. The list and the dialog keep
+`/conversations` and `/conversations/new`.
+
+- The `<id>` in the address is the UUID of the conversation in base62, 22
+  characters of 0-9, a-z and A-Z (`internal/base62`). The database keeps
+  the UUID, so the short form needs no column, no lookup and cannot
+  collide. Go writes a-z before A-Z in base62, so a value from another
+  base62 library does not match.
+- `internal/address` is the one place that writes the address and its
+  parts (`/messages`, `/older`, `/typing`) and reads the identifier back.
+  Never build a conversation address by hand. The pages, the payload of a
+  push, the SMS and the routes all call it.
+- `address.ConversationID` reads both the short form and a UUID with
+  dashes. `GET /conversations/<uuid>` answers 308 to the short address and
+  keeps the query. A bookmark, a sent SMS with its token and a waiting
+  notification therefore still work. The four parts still answer under the old
+  address too, for a tab that was open during the deploy. Those four
+  aliases can go once no such tab can be left.
+- `data-conversation` on the write form and the sidebar lines keeps the
+  UUID, because the drafts live under `chat:draft:<uuid>` in the browser.
+  The typing request reads its address from `data-typing`.
+
 - `internal/chat` holds the rules and knows no SQL.
   `internal/postgres/chat.go` holds the queries, and `internal/server/chat.go`
   holds the routes.
@@ -528,9 +551,11 @@ conversation. `internal/remind` holds the rules and the sweep,
   in an ellipsis character. One character outside the alphabet halves the
   room of an SMS.
 - The link is the address of the conversation with the token in `t`:
-  `/conversations/<id>?t=<token>`. The address works as long as the
-  conversation exists. The token comes from `rand.Text`, and
-  `sign_in_links` keeps its hash, like a session.
+  `/c/<id>?t=<token>`. The address works as long as the conversation
+  exists. The token is 128 random bits in base62 (`base62.Random`), 22
+  characters, and `sign_in_links` keeps its hash, like a session. A token
+  is looked up by its hash, so its form can change without breaking the
+  links that already went out.
 - The token signs in only for the conversation of its row, so it cannot
   open another one.
 - `withLink` answers every request with `t` with a redirect to the same

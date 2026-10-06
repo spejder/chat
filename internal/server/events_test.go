@@ -48,7 +48,7 @@ func TestAMessageRingsTheStream(t *testing.T) {
 	}, adaSession)
 
 	path := started.Header().Get("Location")
-	conversation := strings.TrimPrefix(path, "/conversations/")
+	conversation := conversationOf(t, path).String()
 
 	// A real server, because a recorder cannot stream.
 	server := httptest.NewServer(handler)

@@ -17,7 +17,7 @@ import (
 var listVersionInPage = regexp.MustCompile(`/conversations/list\?v=([^"&]+)`)
 
 // olderAddress reads the address behind the button for the older messages.
-var olderAddress = regexp.MustCompile(`/conversations/[a-f0-9-]+/older\?before=[a-f0-9-]+`)
+var olderAddress = regexp.MustCompile(`/c/[0-9a-zA-Z]{22}/older\?before=[a-f0-9-]+`)
 
 // versionInPage reads the version of the list out of the page.
 var versionInPage = regexp.MustCompile(`/messages\?v=([^"&]+)`)
@@ -118,7 +118,7 @@ func TestAConversationFromStartToAnswer(t *testing.T) {
 	}
 
 	path := started.Header().Get("Location")
-	if !strings.HasPrefix(path, "/conversations/") {
+	if !strings.HasPrefix(path, "/c/") {
 		t.Fatalf("Location = %q, want a conversation", path)
 	}
 
