@@ -69,6 +69,9 @@ templ Shell(page ShellPage) {
 					}
 				}
 				@sidebar.Footer() {
+					if page.PushKey != "" {
+						@nudge()
+					}
 					@personMenu(page.PushKey)
 				}
 				@sidebar.Rail()
@@ -226,6 +229,63 @@ templ pushSwitch(pushKey, personID string) {
 		<p data-push-note hidden class="max-w-56 pt-1 text-xs text-muted-foreground">
 			This browser blocks notifications from Chat. Allow them in the settings of the browser.
 		</p>
+	</div>
+}
+
+// nudge suggests the next step towards notifications on this device: the
+// home screen on an iPhone, the install button of the browser on a phone,
+// or the notifications themselves. It starts hidden, and assets/js/push.js
+// shows at most one step, and none to a person who said no. The card is
+// plain classes in the look of the registry card, which this one box does
+// not justify adding.
+templ nudge() {
+	<div data-nudge hidden class="flex flex-col gap-3 rounded-lg border bg-card p-3 text-sm text-card-foreground shadow-xs">
+		<div data-nudge-step="home" hidden class="flex gap-2">
+			@icon.Smartphone(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
+			<p>
+				<span class="block font-medium">Open Chat from your Home Screen</span>
+				<span class="mt-1 block text-muted-foreground">
+					An iPhone shows notifications only there. To add it, tap Share
+					@icon.Share(icon.Props{Class: "inline size-3.5 align-[-2px]"})
+					and then Add to Home Screen.
+				</span>
+			</p>
+		</div>
+		<div data-nudge-step="install" hidden class="flex gap-2">
+			@icon.Smartphone(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
+			<p>
+				<span class="block font-medium">Install Chat</span>
+				<span class="mt-1 block text-muted-foreground">Open it from your home screen like any other app.</span>
+			</p>
+		</div>
+		<div data-nudge-step="notify" hidden class="flex gap-2">
+			@icon.Bell(icon.Props{Class: "mt-0.5 size-4 shrink-0 text-muted-foreground"})
+			<p>
+				<span class="block font-medium">Know when somebody writes</span>
+				<span class="mt-1 block text-muted-foreground">Get a notification for a new message, also while Chat is closed.</span>
+			</p>
+		</div>
+		<div class="flex justify-end gap-2">
+			@button.Button(button.Props{
+				Variant:    button.VariantGhost,
+				Size:       button.SizeSm,
+				Attributes: templ.Attributes{"data-nudge-later": true},
+			}) {
+				Not now
+			}
+			@button.Button(button.Props{
+				Size:       button.SizeSm,
+				Attributes: templ.Attributes{"data-nudge-install": true, "hidden": true},
+			}) {
+				Install
+			}
+			@button.Button(button.Props{
+				Size:       button.SizeSm,
+				Attributes: templ.Attributes{"data-nudge-notify": true, "hidden": true},
+			}) {
+				Turn on
+			}
+		</div>
 	</div>
 }
 

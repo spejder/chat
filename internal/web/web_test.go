@@ -324,3 +324,37 @@ func TestTheConversationHoldsTheNewParts(t *testing.T) {
 		t.Error("the typing line sits inside the message list")
 	}
 }
+
+// TestTheShellCarriesTheCard makes sure that the card with the suggestions
+// renders hidden with all three steps, and only when the server can send a
+// push. The script chooses the step.
+func TestTheShellCarriesTheCard(t *testing.T) {
+	t.Parallel()
+
+	without := render(t, web.Shell(web.ShellPage{Title: "Chat"}), web.Conversations())
+	if strings.Contains(without, "data-nudge") {
+		t.Error("the card shows without a push key, want it left out")
+	}
+
+	body := render(t, web.Shell(web.ShellPage{Title: "Chat", PushKey: "key"}), web.Conversations())
+
+	for _, want := range []string{
+		`<div data-nudge hidden`,
+		`data-nudge-step="home" hidden`,
+		`data-nudge-step="install" hidden`,
+		`data-nudge-step="notify" hidden`,
+		"data-nudge-later",
+		"Not now",
+		"Add to Home Screen",
+		"Turn on",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page misses %q", want)
+		}
+	}
+
+	// The card stands above the person, inside the foot of the sidebar.
+	if strings.Index(body, "data-nudge") > strings.Index(body, "ada@example.com") {
+		t.Error("the card stands below the person, want it above")
+	}
+}

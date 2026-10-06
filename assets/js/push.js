@@ -4,6 +4,10 @@
 // hands the subscription to the server, which posts to it when a message
 // arrives. The service worker /sw.js shows the notification.
 //
+// The card at the bottom of the sidebar suggests the same thing once, and
+// on an iPhone or a phone with Chrome it first suggests the home screen,
+// because an iPhone delivers a push only to the app there.
+//
 // The conversion between base64url and bytes is written out by hand, like in
 // auth.js, because there is no function for it in the Baseline target.
 (() => {
@@ -13,14 +17,12 @@
 	const toggle = document.querySelector("[data-push-switch]");
 	const note = document.querySelector("[data-push-note]");
 
-	const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-
-	// A browser without push never sees the switch.
-	if (!supported || !box || !toggle || !note) {
+	// The server renders the switch only when it can send a push.
+	if (!box || !toggle || !note) {
 		return;
 	}
 
-	box.hidden = false;
+	const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
 	const key = toggle.dataset.pushKey;
 	const person = toggle.dataset.pushUser;
@@ -146,21 +148,25 @@
 		note.hidden = !denied;
 	};
 
+	// The browser shows its question only in answer to a click, so this
+	// call comes before anything else in a click handler.
+	const turnOn = async () => {
+		const permission = await Notification.requestPermission();
+
+		if (permission !== "granted") {
+			throw new Error(`the permission is ${permission}`);
+		}
+
+		toggle.disabled = true;
+		await subscribe();
+	};
+
 	toggle.addEventListener("change", async () => {
 		const wanted = toggle.checked;
 
 		try {
 			if (wanted) {
-				// The browser shows its question only in answer to a click,
-				// so this call comes before anything else.
-				const permission = await Notification.requestPermission();
-
-				if (permission !== "granted") {
-					throw new Error(`the permission is ${permission}`);
-				}
-
-				toggle.disabled = true;
-				await subscribe();
+				await turnOn();
 			} else {
 				toggle.disabled = true;
 				await unsubscribe();
@@ -171,6 +177,9 @@
 			console.warn("notifications: the switch failed", error);
 			show(!wanted);
 		}
+
+		// The switch is an answer too, so the card leaves.
+		suggest();
 	});
 
 	// The page opens with the switch in the state of this browser. A browser
@@ -198,8 +207,166 @@
 		show(true);
 	};
 
-	start().catch((error) => {
-		console.warn("notifications: could not read the state of this browser", error);
-		show(false);
+	// The card in the sidebar suggests the next step towards notifications
+	// on this device, and never to somebody who said no. A permission that
+	// is denied is a no. A permission that is granted without a
+	// subscription means that the person turned the switch off, which is a
+	// no too. Only a browser that never asked hears about notifications.
+	const card = document.querySelector("[data-nudge]");
+
+	// "Not now" rests the card for 30 days. After the second time it
+	// never comes back on this device.
+	const laterKey = "chat:nudge";
+	const laterMs = 30 * 24 * 60 * 60 * 1000;
+	const laterMax = 2;
+
+	// Chrome and Edge fire this event only while the site is not installed.
+	// The event is the only way to show their install question from a
+	// button. Safari and Firefox never fire it.
+	let installEvent = null;
+
+	const later = () => {
+		try {
+			const value = JSON.parse(localStorage.getItem(laterKey));
+
+			return value && typeof value === "object" ? value : {};
+		} catch {
+			return {};
+		}
+	};
+
+	const rest = () => {
+		const count = (Number(later().count) || 0) + 1;
+
+		try {
+			localStorage.setItem(laterKey, JSON.stringify({ count, until: Date.now() + laterMs }));
+		} catch {
+			// A private window refuses the store. The card then comes back
+			// with the next page, which is a small price.
+		}
+	};
+
+	const resting = () => {
+		const { count = 0, until = 0 } = later();
+
+		return count >= laterMax || until > Date.now();
+	};
+
+	const installed = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+
+	const phone = () => matchMedia("(pointer: coarse)").matches;
+
+	// Safari on an iPhone or an iPad is the one browser that has
+	// navigator.standalone. It is false in a tab, and such a tab can never
+	// receive a push, only the app on the home screen can.
+	const appleTab = () => "standalone" in navigator && !navigator.standalone && phone();
+
+	const step = () => {
+		if (resting()) {
+			return null;
+		}
+
+		if (!installed() && appleTab()) {
+			return "home";
+		}
+
+		if (!installed() && installEvent && phone()) {
+			return "install";
+		}
+
+		if (supported && Notification.permission === "default") {
+			return "notify";
+		}
+
+		return null;
+	};
+
+	function suggest() {
+		if (!card) {
+			return;
+		}
+
+		const chosen = step();
+
+		for (const part of card.querySelectorAll("[data-nudge-step]")) {
+			part.hidden = part.dataset.nudgeStep !== chosen;
+		}
+
+		card.querySelector("[data-nudge-install]").hidden = chosen !== "install";
+		card.querySelector("[data-nudge-notify]").hidden = chosen !== "notify";
+		card.hidden = chosen === null;
+	}
+
+	window.addEventListener("beforeinstallprompt", (event) => {
+		// The browser keeps its own question for the button in the card,
+		// and the install item in its menu stays.
+		event.preventDefault();
+		installEvent = event;
+		suggest();
 	});
+
+	window.addEventListener("appinstalled", () => {
+		installEvent = null;
+		suggest();
+	});
+
+	if (card) {
+		card.querySelector("[data-nudge-later]").addEventListener("click", () => {
+			rest();
+			suggest();
+		});
+
+		card.querySelector("[data-nudge-install]").addEventListener("click", async () => {
+			const event = installEvent;
+
+			if (!event) {
+				return;
+			}
+
+			installEvent = null;
+			event.prompt();
+
+			// A no to the question of the browser counts as "Not now".
+			const { outcome } = await event.userChoice;
+
+			if (outcome !== "accepted") {
+				rest();
+			}
+
+			suggest();
+		});
+
+		card.querySelector("[data-nudge-notify]").addEventListener("click", async () => {
+			try {
+				await turnOn();
+				show(true);
+			} catch (error) {
+				console.warn("notifications: the card failed", error);
+				show(false);
+
+				// A question that the person closed without an answer leaves
+				// the permission at default. That counts as "Not now".
+				if (Notification.permission === "default") {
+					rest();
+				}
+			}
+
+			suggest();
+		});
+	}
+
+	if (!supported) {
+		suggest();
+
+		return;
+	}
+
+	box.hidden = false;
+
+	start()
+		.catch((error) => {
+			console.warn("notifications: could not read the state of this browser", error);
+			show(false);
+		})
+		.finally(suggest);
 })();

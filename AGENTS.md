@@ -434,6 +434,30 @@ browser, also when no tab of the site is open.
 - The switch in the person menu is a native checkbox with `role="switch"`,
   for the same reason as the checkboxes of the dialog. It starts hidden, and
   `push.js` shows it only in a browser that can receive a push.
+- A card at the bottom of the sidebar, above the person, suggests one next
+  step on this device. `nudge` in `internal/web/shell.templ` renders it
+  hidden with three steps, and `assets/js/push.js` shows at most one:
+  - `home`: Safari on an iPhone or an iPad in a tab. Such a tab can never
+    receive a push, so the card explains Add to Home Screen. Safari is the
+    one browser with `navigator.standalone`, which is false in a tab. That
+    is a feature test, not a test of the user agent.
+  - `install`: a phone (`pointer: coarse`) where Chrome or Edge fired
+    `beforeinstallprompt`. They fire it only while the site is not
+    installed, and the button calls `prompt()` on it. A computer never sees
+    this step.
+  - `notify`: the browser can receive a push and the permission is
+    `default`, so nobody asked yet.
+- The card respects a decision. A `denied` permission is a no. A `granted`
+  permission without a subscription means that the person turned the switch
+  off, also a no. "Not now" rests the card for 30 days. After the
+  second "Not now" it never comes back on that device. The count lives in
+  `localStorage` under `chat:nudge`. A no to the install question of the browser and a closed
+  permission question count as "Not now". The switch in the person menu
+  stays the way back.
+- No browser says from a tab that the site is installed, except through the
+  missing `beforeinstallprompt`. Safari says nothing, so the home step
+  reads "Open Chat from your Home Screen", which is right for a person who
+  added it already.
 - The site carries a manifest at `/manifest.webmanifest`, so it installs as
   an app. An iPhone delivers a push only to a site on the home screen. The
   PNG icons in `assets/img` are drawn from the shapes of `favicon.svg`.
