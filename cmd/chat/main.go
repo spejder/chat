@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/spejder/chat/internal/live"
 	"github.com/spejder/chat/internal/postgres"
 	"github.com/spejder/chat/internal/push"
+	"github.com/spejder/chat/internal/remind"
 	"github.com/spejder/chat/internal/server"
 	"github.com/spejder/chat/internal/sms"
 
@@ -112,6 +114,19 @@ func run() error {
 	go postgres.Listen(ctx, pool, hub)
 
 	conversations := chat.New(postgres.NewChatStore(pool), notifications, postgres.NewBroadcaster(pool))
+
+	// The SMS about missed messages goes out from a sweep every minute. The
+	// sweep stops, and the deferred calls run in reverse, before the
+	// database closes.
+	reminders := remind.New(postgres.NewRemindStore(pool), signIn, sms.StdoutSender{}, *origin)
+	remindCtx, stopReminders := context.WithCancel(ctx)
+
+	var reminding sync.WaitGroup
+
+	reminding.Go(func() { reminders.Run(remindCtx) })
+
+	defer reminding.Wait()
+	defer stopReminders()
 
 	slog.Info("the sign in is ready", "origin", *origin)
 	slog.Info("this is chat", "version", version, "commit", commit, "date", date)

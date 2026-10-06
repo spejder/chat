@@ -211,6 +211,44 @@ func (h *authHandlers) fail(w http.ResponseWriter, r *http.Request, err error) {
 	h.renderPanel(w, r, web.EmailPanel("", "Something went wrong. Try again."))
 }
 
+// link follows a link from an SMS. It signs the person in and opens the
+// conversation. A browser that is signed in as somebody else ends that
+// session first, because the device now belongs to the person of the link.
+// An unknown or old link leads to the sign in page.
+func (h *authHandlers) link(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+
+	current, signedIn := auth.UserFrom(r.Context())
+
+	signedInID := uuid.Nil()
+	if signedIn {
+		signedInID = current.ID
+	}
+
+	link, session, err := h.service.FollowLink(r.Context(), r.PathValue("token"), signedInID)
+	if err != nil {
+		if !errors.Is(err, auth.ErrNoLink) {
+			slog.Error("could not follow a link", "error", err)
+		}
+
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+		return
+	}
+
+	if session != "" {
+		if cookie, err := r.Cookie(sessionCookie); err == nil && signedIn {
+			if err := h.service.SignOut(r.Context(), cookie.Value); err != nil {
+				slog.Error("could not end the session of the other person", "error", err)
+			}
+		}
+
+		h.setSession(w, session)
+	}
+
+	http.Redirect(w, r, "/conversations/"+link.ConversationID.String(), http.StatusSeeOther)
+}
+
 // setSession writes the cookie that keeps the browser signed in.
 func (h *authHandlers) setSession(w http.ResponseWriter, token string) {
 	// The Secure flag follows the address of the site, because a browser

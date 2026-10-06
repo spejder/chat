@@ -57,6 +57,7 @@ func New(config Config) http.Handler {
 	mux.HandleFunc("POST /login/passkey", handlers.passkeyLogin)
 	mux.HandleFunc("POST /login/passkey/register", handlers.passkeyRegister)
 	mux.HandleFunc("POST /logout", handlers.logout)
+	mux.HandleFunc("GET /l/{token}", handlers.link)
 
 	// Every conversation route needs a person behind it.
 	mux.Handle("GET /conversations", requireUser(http.HandlerFunc(conversations.list)))
@@ -73,6 +74,8 @@ func New(config Config) http.Handler {
 
 	mux.Handle("POST /push/subscriptions", requireUser(http.HandlerFunc(notifications.subscribe)))
 	mux.Handle("DELETE /push/subscriptions", requireUser(http.HandlerFunc(notifications.unsubscribe)))
+
+	mux.Handle("PUT /sms-reminders", requireUser(http.HandlerFunc(conversations.smsReminders)))
 
 	return secure(compress(handlers.authenticate(mux)))
 }

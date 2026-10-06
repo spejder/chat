@@ -243,3 +243,49 @@ func TestAnUnknownSessionIsNobody(t *testing.T) {
 		t.Errorf("an empty token gave ok = %v, error = %v", ok, err)
 	}
 }
+
+// TestALinkSignsInUntilItExpires makes sure that a link starts a session
+// more than once within its lifetime, needs no new session for the same
+// person, and fails after its lifetime.
+func TestALinkSignsInUntilItExpires(t *testing.T) {
+	t.Parallel()
+
+	service, _, clock, person := testService(t)
+	conversation := uuid.NewV7()
+
+	token, err := service.IssueLink(t.Context(), person.ID, conversation)
+	if err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+
+	for range 2 {
+		link, session, err := service.FollowLink(t.Context(), token, uuid.Nil())
+		if err != nil {
+			t.Fatalf("follow: %v", err)
+		}
+
+		if link.UserID != person.ID || link.ConversationID != conversation {
+			t.Errorf("link = %+v, want the person and the conversation", link)
+		}
+
+		signedIn, ok, err := service.Session(t.Context(), session)
+		if err != nil || !ok || signedIn.ID != person.ID {
+			t.Errorf("the session reads %v, %v, %v, want the person", signedIn.ID, ok, err)
+		}
+	}
+
+	_, session, err := service.FollowLink(t.Context(), token, person.ID)
+	if err != nil || session != "" {
+		t.Errorf("follow while signed in: session %q, error %v, want no new session", session, err)
+	}
+
+	*clock = clock.Add(LinkLifetime + time.Minute)
+
+	if _, _, err := service.FollowLink(t.Context(), token, uuid.Nil()); !errors.Is(err, ErrNoLink) {
+		t.Errorf("an old link: error = %v, want %v", err, ErrNoLink)
+	}
+
+	if _, _, err := service.FollowLink(t.Context(), "made-up", uuid.Nil()); !errors.Is(err, ErrNoLink) {
+		t.Errorf("an unknown link: error = %v, want %v", err, ErrNoLink)
+	}
+}

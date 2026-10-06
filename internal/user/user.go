@@ -20,6 +20,10 @@ type User struct {
 	// form, for example +4521650113.
 	PhoneNumber string
 
+	// SMSReminders says that the person wants an SMS about a message that
+	// they missed. It is on unless the person turned it off.
+	SMSReminders bool
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

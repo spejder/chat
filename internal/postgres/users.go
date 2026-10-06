@@ -66,6 +66,20 @@ func (s *UserStore) SetPhoneNumber(ctx context.Context, id uuid.UUID, phoneNumbe
 	return toUser(row), nil
 }
 
+// SetSMSReminders turns the SMS about missed messages on or off.
+func (s *UserStore) SetSMSReminders(ctx context.Context, id uuid.UUID, on bool) (user.User, error) {
+	row, err := s.queries.SetSMSReminders(ctx, db.SetSMSRemindersParams{ID: id, SmsReminders: on})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return user.User{}, user.ErrNotFound
+		}
+
+		return user.User{}, fmt.Errorf("set the SMS reminders: %w", err)
+	}
+
+	return toUser(row), nil
+}
+
 // Get reads one user by identifier.
 func (s *UserStore) Get(ctx context.Context, id uuid.UUID) (user.User, error) {
 	row, err := s.queries.GetUser(ctx, id)
@@ -113,11 +127,12 @@ func (s *UserStore) List(ctx context.Context) ([]user.User, error) {
 // uses.
 func toUser(row db.User) user.User {
 	return user.User{
-		ID:          row.ID,
-		FullName:    row.FullName,
-		Email:       row.Email,
-		PhoneNumber: row.PhoneNumber,
-		CreatedAt:   row.CreatedAt,
-		UpdatedAt:   row.UpdatedAt,
+		ID:           row.ID,
+		FullName:     row.FullName,
+		Email:        row.Email,
+		PhoneNumber:  row.PhoneNumber,
+		SMSReminders: row.SmsReminders,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
 	}
 }

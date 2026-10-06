@@ -140,6 +140,28 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	return err
 }
 
+const createSignInLink = `-- name: CreateSignInLink :exec
+INSERT INTO sign_in_links (token_hash, user_id, conversation_id, expires_at)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateSignInLinkParams struct {
+	TokenHash      []byte
+	UserID         uuid.UUID
+	ConversationID uuid.UUID
+	ExpiresAt      time.Time
+}
+
+func (q *Queries) CreateSignInLink(ctx context.Context, arg CreateSignInLinkParams) error {
+	_, err := q.db.Exec(ctx, createSignInLink,
+		arg.TokenHash,
+		arg.UserID,
+		arg.ConversationID,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const deleteExpiredChallenges = `-- name: DeleteExpiredChallenges :exec
 DELETE FROM webauthn_challenges
 WHERE expires_at <= now()
@@ -167,6 +189,16 @@ WHERE expires_at <= now()
 
 func (q *Queries) DeleteExpiredSessions(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, deleteExpiredSessions)
+	return err
+}
+
+const deleteExpiredSignInLinks = `-- name: DeleteExpiredSignInLinks :exec
+DELETE FROM sign_in_links
+WHERE expires_at <= now()
+`
+
+func (q *Queries) DeleteExpiredSignInLinks(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredSignInLinks)
 	return err
 }
 
@@ -203,7 +235,7 @@ func (q *Queries) GetLatestCode(ctx context.Context, userID uuid.UUID) (OtpCode,
 }
 
 const getSessionUser = `-- name: GetSessionUser :one
-SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number FROM sessions
+SELECT users.id, users.full_name, users.email, users.created_at, users.updated_at, users.phone_number, users.sms_reminders FROM sessions
 JOIN users ON users.id = sessions.user_id
 WHERE sessions.token_hash = $1 AND sessions.expires_at > now()
 `
@@ -219,6 +251,27 @@ func (q *Queries) GetSessionUser(ctx context.Context, tokenHash []byte) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhoneNumber,
+		&i.SmsReminders,
+	)
+	return i, err
+}
+
+const getSignInLink = `-- name: GetSignInLink :one
+SELECT token_hash, user_id, conversation_id, expires_at, created_at FROM sign_in_links
+WHERE token_hash = $1 AND expires_at > now()
+`
+
+// GetSignInLink reads a live link. A link works more than once until it
+// expires, because a messaging app may open it for a preview first.
+func (q *Queries) GetSignInLink(ctx context.Context, tokenHash []byte) (SignInLink, error) {
+	row := q.db.QueryRow(ctx, getSignInLink, tokenHash)
+	var i SignInLink
+	err := row.Scan(
+		&i.TokenHash,
+		&i.UserID,
+		&i.ConversationID,
+		&i.ExpiresAt,
+		&i.CreatedAt,
 	)
 	return i, err
 }

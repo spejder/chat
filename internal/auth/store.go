@@ -34,6 +34,13 @@ type Challenge struct {
 	Data   []byte
 }
 
+// Link is a link in an SMS that signs a person in and opens one
+// conversation. The store keeps the hash of its token.
+type Link struct {
+	UserID         uuid.UUID
+	ConversationID uuid.UUID
+}
+
 // Purpose says which ceremony a challenge belongs to.
 const (
 	PurposeLogin    = "login"
@@ -65,4 +72,7 @@ type Store interface {
 	SaveSession(ctx context.Context, hash []byte, userID uuid.UUID, expiresAt time.Time) error
 	SessionUser(ctx context.Context, hash []byte) (user.User, bool, error)
 	DeleteSession(ctx context.Context, hash []byte) error
+
+	SaveLink(ctx context.Context, hash []byte, link Link, expiresAt time.Time) error
+	Link(ctx context.Context, hash []byte) (Link, bool, error)
 }

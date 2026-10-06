@@ -26,3 +26,10 @@ UPDATE users
 SET phone_number = $2, updated_at = now()
 WHERE id = $1
 RETURNING *;
+
+-- SetSMSReminders turns the SMS about missed messages on or off.
+-- name: SetSMSReminders :one
+UPDATE users
+SET sms_reminders = $2, updated_at = now()
+WHERE id = $1
+RETURNING *;

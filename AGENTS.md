@@ -138,6 +138,8 @@ passkey.
   with an unclear browser error.
 - `internal/sms` prints the message instead of sending it. There is no
   provider yet.
+- An SMS reminder carries a link `/l/<token>` that signs the person in. See
+  "SMS reminders".
 - The last line of the message is `@<host> #<code>`. Keep it. Some browsers
   read the code from that line, and the line binds the code to this site.
 - A Go test cannot run a passkey ceremony, because that needs an
@@ -193,6 +195,10 @@ thread or room.
 - The sign out is a plain form inside the person menu, not a menu item. A
   menu item swallowed the click before htmx saw it, and a form needs no script
   at all.
+- The person menu moves its content into `<body>`, and htmx does not listen
+  to markup there. A control in the menu that must send a request uses a
+  form or a listener on the document, as the switch for the SMS reminders
+  does in `assets/js/app.js`.
 - A line of the sidebar reads like a phone: the subject and the time of the
   newest message, then the first name of its writer, or "You", and the start
   of its text. `ListConversations` brings the newest message with a lateral
@@ -336,9 +342,9 @@ thread or room.
 - The button that jumps to the newest message needs `relative z-10`. The
   message list above it is positioned and would otherwise paint over it and
   swallow the click.
-- `ChatStore.Create` is the only transaction in the project. Every query
-  inside it must go through the `*db.Queries` that `WithTx` returns, or the
-  work lands outside the transaction.
+- `ChatStore.Create` and `RemindStore.Claim` hold the only transactions in
+  the project. Every query inside one must go through the `*db.Queries`
+  that `WithTx` returns, or the work lands outside the transaction.
 
 ## Live updates
 
@@ -479,6 +485,56 @@ browser, also when no tab of the site is open.
   The Go tests cover the sending end to end against a fake push service.
   Check the allowed path by hand in a real Chrome on `http://localhost`,
   which counts as a secure origin.
+
+## SMS reminders
+
+A person who misses a message and has no push notifications receives an
+SMS with the subject and a link. The link signs the person in and opens the
+conversation. `internal/remind` holds the rules and the sweep,
+`internal/postgres/remind.go` the claim, and `internal/server/auth.go` the
+route of the link.
+
+- A sweep runs every minute (`remind.Every`). `ClaimReminders` in
+  `internal/postgres/queries/remind.sql` finds every person and conversation
+  that is due, and notes the SMS in the same statement. When all four rules
+  hold, a pair is due:
+  1. A message from somebody else is newer than the reading of the person,
+     and it is between 15 minutes (`remind.Delay`) and 24 hours
+     (`remind.MaxAge`) old.
+  2. The person has no live push subscription. Push wins over SMS.
+  3. The person left the switch on and has a phone number.
+  4. No SMS for this pair went out after the reading of the person.
+- The fourth rule gives one SMS per unread stretch. The next SMS for that
+  conversation comes only after the person read it and then missed new
+  messages again. An open page reads at once, so a person who looks never
+  gets an SMS.
+- The upper limit of 24 hours keeps the first sweep after a deploy from
+  sending an SMS for every old unread conversation.
+- The claim runs in a transaction that first takes
+  `pg_try_advisory_xact_lock`. A second server instance finds the lock
+  taken and claims nothing, so nobody gets two SMS.
+- The claim is stored before the SMS goes out. A failed send costs that SMS
+  and goes to the log. It never causes a second SMS.
+- The SMS keeps to the GSM alphabet where it can. A subject over 40
+  characters ends in three dots, not in an ellipsis character, because one
+  character outside the alphabet halves the room of an SMS.
+- The link is `/l/<token>`. The token comes from `rand.Text`, and
+  `sign_in_links` keeps its hash, like a session. The path is short, so the
+  SMS fits in 160 characters.
+- A link works for 12 hours (`auth.LinkLifetime`), and more than once,
+  because a messaging app sometimes opens it for a preview before the
+  person taps it. After 12 hours it leads to `/login`.
+- The link starts a session of the normal lifetime. The SMS is the same
+  proof as a sign in code, which also arrives by SMS.
+- A browser that is signed in as the same person gets no new session. A
+  browser of somebody else ends that session first, because the device now
+  belongs to the person of the link.
+- The switch "SMS reminders" in the person menu writes
+  `users.sms_reminders` through `PUT /sms-reminders`. A form on another site
+  cannot send PUT. The switch is on for everybody until they turn it off.
+- Check a change by hand: write a message with a `created_at` 20 minutes in
+  the past with `psql`, and the SMS appears in the log of the server within
+  a minute.
 
 ## Tests that need the database
 

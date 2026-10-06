@@ -203,3 +203,35 @@ func (s *AuthStore) DeleteSession(ctx context.Context, hash []byte) error {
 
 // AuthStore must carry out the interface that internal/auth declares.
 var _ auth.Store = (*AuthStore)(nil)
+
+// SaveLink stores a link that signs a person in, and drops the old ones.
+func (s *AuthStore) SaveLink(ctx context.Context, hash []byte, link auth.Link, expiresAt time.Time) error {
+	if err := s.queries.DeleteExpiredSignInLinks(ctx); err != nil {
+		return fmt.Errorf("clean up the old links: %w", err)
+	}
+
+	if err := s.queries.CreateSignInLink(ctx, db.CreateSignInLinkParams{
+		TokenHash:      hash,
+		UserID:         link.UserID,
+		ConversationID: link.ConversationID,
+		ExpiresAt:      expiresAt,
+	}); err != nil {
+		return fmt.Errorf("store the link: %w", err)
+	}
+
+	return nil
+}
+
+// Link reads a live link.
+func (s *AuthStore) Link(ctx context.Context, hash []byte) (auth.Link, bool, error) {
+	row, err := s.queries.GetSignInLink(ctx, hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return auth.Link{}, false, nil
+		}
+
+		return auth.Link{}, false, fmt.Errorf("read the link: %w", err)
+	}
+
+	return auth.Link{UserID: row.UserID, ConversationID: row.ConversationID}, true, nil
+}

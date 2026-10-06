@@ -14,7 +14,7 @@ import (
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, full_name, email, phone_number)
 VALUES ($1, $2, $3, $4)
-RETURNING id, full_name, email, created_at, updated_at, phone_number
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
 `
 
 type CreateUserParams struct {
@@ -41,12 +41,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhoneNumber,
+		&i.SmsReminders,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
 WHERE id = $1
 `
 
@@ -60,12 +61,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhoneNumber,
+		&i.SmsReminders,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
 WHERE lower(email) = lower($1::text)
 `
 
@@ -79,12 +81,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhoneNumber,
+		&i.SmsReminders,
 	)
 	return i, err
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, full_name, email, created_at, updated_at, phone_number FROM users
+SELECT id, full_name, email, created_at, updated_at, phone_number, sms_reminders FROM users
 ORDER BY id
 `
 
@@ -106,6 +109,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PhoneNumber,
+			&i.SmsReminders,
 		); err != nil {
 			return nil, err
 		}
@@ -117,11 +121,39 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 	return items, nil
 }
 
+const setSMSReminders = `-- name: SetSMSReminders :one
+UPDATE users
+SET sms_reminders = $2, updated_at = now()
+WHERE id = $1
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
+`
+
+type SetSMSRemindersParams struct {
+	ID           uuid.UUID
+	SmsReminders bool
+}
+
+// SetSMSReminders turns the SMS about missed messages on or off.
+func (q *Queries) SetSMSReminders(ctx context.Context, arg SetSMSRemindersParams) (User, error) {
+	row := q.db.QueryRow(ctx, setSMSReminders, arg.ID, arg.SmsReminders)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.FullName,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PhoneNumber,
+		&i.SmsReminders,
+	)
+	return i, err
+}
+
 const setUserPhone = `-- name: SetUserPhone :one
 UPDATE users
 SET phone_number = $2, updated_at = now()
 WHERE id = $1
-RETURNING id, full_name, email, created_at, updated_at, phone_number
+RETURNING id, full_name, email, created_at, updated_at, phone_number, sms_reminders
 `
 
 type SetUserPhoneParams struct {
@@ -141,6 +173,7 @@ func (q *Queries) SetUserPhone(ctx context.Context, arg SetUserPhoneParams) (Use
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PhoneNumber,
+		&i.SmsReminders,
 	)
 	return i, err
 }

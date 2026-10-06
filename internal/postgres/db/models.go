@@ -60,13 +60,28 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
+type SignInLink struct {
+	TokenHash      []byte
+	UserID         uuid.UUID
+	ConversationID uuid.UUID
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+}
+
+type SmsReminder struct {
+	UserID         uuid.UUID
+	ConversationID uuid.UUID
+	SentAt         time.Time
+}
+
 type User struct {
-	ID          uuid.UUID
-	FullName    string
-	Email       string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	PhoneNumber string
+	ID           uuid.UUID
+	FullName     string
+	Email        string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	PhoneNumber  string
+	SmsReminders bool
 }
 
 type VapidKey struct {

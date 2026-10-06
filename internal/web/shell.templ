@@ -170,10 +170,11 @@ templ personMenu(pushKey string) {
 								<span class="truncate text-xs">{ person.Email }</span>
 							</div>
 						}
+						@dropdownmenu.Separator()
 						if pushKey != "" {
-							@dropdownmenu.Separator()
 							@pushSwitch(pushKey, person.ID.String())
 						}
+						@smsSwitch(person.SMSReminders)
 						@dropdownmenu.Separator()
 						// A form, not a menu item: a plain submit works with
 						// the keyboard, with no script, and without htmx. The
@@ -202,8 +203,7 @@ templ personMenu(pushKey string) {
 //
 // The switch is a native checkbox with the role of a switch. The switch of
 // the registry hides its real input from the keyboard and needs its own
-// script, and push.js must set the state from outside. The classes copy the
-// look of the registry switch.
+// script, and push.js must set the state from outside.
 templ pushSwitch(pushKey, personID string) {
 	<div data-push hidden class="px-2 py-1.5">
 		<label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
@@ -211,25 +211,59 @@ templ pushSwitch(pushKey, personID string) {
 				@icon.Bell(icon.Props{Class: "size-4 text-muted-foreground"})
 				Notifications
 			</span>
-			<span class="relative inline-flex shrink-0 items-center">
-				<input
-					type="checkbox"
-					role="switch"
-					data-push-switch
-					data-push-key={ pushKey }
-					data-push-user={ personID }
-					class="peer h-[18.4px] w-8 cursor-pointer appearance-none rounded-full border border-transparent bg-input shadow-xs transition-all outline-none checked:bg-primary focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/80 dark:checked:bg-primary"
-				/>
-				<span
-					aria-hidden="true"
-					class="pointer-events-none absolute left-px size-4 rounded-full bg-background transition-transform peer-checked:translate-x-[calc(100%-2px)] dark:bg-foreground dark:peer-checked:bg-primary-foreground"
-				></span>
-			</span>
+			@switchInput(templ.Attributes{
+				"data-push-switch": true,
+				"data-push-key":    pushKey,
+				"data-push-user":   personID,
+			})
 		</label>
 		<p data-push-note hidden class="max-w-56 pt-1 text-xs text-muted-foreground">
 			This browser blocks notifications from Chat. Allow them in the settings of the browser.
 		</p>
 	</div>
+}
+
+// smsSwitch turns the SMS about missed messages on and off. assets/js/app.js
+// stores it on every change, because the person menu moves its content
+// into <body>, where htmx no longer listens. The server keeps the switch
+// for the person, not for the browser, so the page renders the state
+// itself.
+templ smsSwitch(on bool) {
+	<div class="px-2 py-1.5">
+		<label class="flex cursor-pointer items-center justify-between gap-4 text-sm">
+			<span class="flex items-center gap-2">
+				@icon.MessageSquareText(icon.Props{Class: "size-4 text-muted-foreground"})
+				SMS reminders
+			</span>
+			@switchInput(templ.Attributes{
+				"name":            "on",
+				"value":           "true",
+				"checked":         on,
+				"data-sms-switch": true,
+			})
+		</label>
+		<p class="max-w-56 pt-1 text-xs text-muted-foreground">
+			An SMS when you miss a message and notifications are off on all your devices.
+		</p>
+	</div>
+}
+
+// switchInput is the native checkbox with the role of a switch that both
+// switches of the person menu share. The classes copy the look of the
+// registry switch.
+templ switchInput(attributes templ.Attributes) {
+	<span class="relative inline-flex shrink-0 items-center">
+		<input
+			type="checkbox"
+			role="switch"
+			class="peer h-[18.4px] w-8 cursor-pointer appearance-none rounded-full border border-transparent bg-input shadow-xs transition-all outline-none checked:bg-primary focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/80 dark:checked:bg-primary"
+			{ attributes... }
+		/>
+		<span
+			aria-hidden="true"
+			class="pointer-events-none absolute left-px size-4 rounded-full bg-background transition-transform peer-checked:translate-x-[calc(100%-2px)] dark:bg-foreground dark:peer-checked:bg-primary-foreground"
+		></span>
+	</span>
 }
 
 // nudge suggests the next step towards notifications on this device: the

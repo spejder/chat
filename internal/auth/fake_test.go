@@ -82,7 +82,13 @@ type fakeStore struct {
 	}
 	codes    []storedCode
 	sessions map[string]storedSession
+	links    map[string]storedLink
 	users    *fakeUsers
+}
+
+type storedLink struct {
+	link      Link
+	expiresAt time.Time
 }
 
 func newFakeStore(users *fakeUsers, now func() time.Time) *fakeStore {
@@ -95,6 +101,7 @@ func newFakeStore(users *fakeUsers, now func() time.Time) *fakeStore {
 			expiresAt time.Time
 		}{},
 		sessions: map[string]storedSession{},
+		links:    map[string]storedLink{},
 		users:    users,
 	}
 }
@@ -254,4 +261,25 @@ func (f *fakeStore) DeleteSession(_ context.Context, hash []byte) error {
 	delete(f.sessions, string(hash))
 
 	return nil
+}
+
+func (f *fakeStore) SaveLink(_ context.Context, hash []byte, link Link, expiresAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.links[string(hash)] = storedLink{link: link, expiresAt: expiresAt}
+
+	return nil
+}
+
+func (f *fakeStore) Link(_ context.Context, hash []byte) (Link, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	row, ok := f.links[string(hash)]
+	if !ok || !row.expiresAt.After(f.now()) {
+		return Link{}, false, nil
+	}
+
+	return row.link, true, nil
 }

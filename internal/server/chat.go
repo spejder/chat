@@ -26,6 +26,7 @@ import (
 // Users lists the people that a conversation can reach.
 type Users interface {
 	List(ctx context.Context) ([]user.User, error)
+	SetSMSReminders(ctx context.Context, id uuid.UUID, on bool) (user.User, error)
 }
 
 // chatHandlers holds the routes of the conversations.

@@ -258,11 +258,44 @@
 		);
 	};
 
+	// The switch for the SMS reminders stores itself on every change. The
+	// person menu moves its content into <body>, where htmx no longer
+	// listens, so a listener on the document does the work. A checkbox sends
+	// its value only while it is on, and a failed request puts the switch
+	// back.
+	const watchSmsSwitch = () => {
+		document.addEventListener("change", async (event) => {
+			const toggle = event.target instanceof Element ? event.target.closest("[data-sms-switch]") : null;
+
+			if (!toggle) {
+				return;
+			}
+
+			const body = new URLSearchParams();
+
+			if (toggle.checked) {
+				body.set(toggle.name, toggle.value);
+			}
+
+			try {
+				const answer = await fetch("/sms-reminders", { method: "PUT", body });
+
+				if (!answer.ok) {
+					throw new Error(`the server answered ${answer.status}`);
+				}
+			} catch (error) {
+				console.warn("sms reminders: the switch failed", error);
+				toggle.checked = !toggle.checked;
+			}
+		});
+	};
+
 	const start = () => {
 		update();
 		openOnPhone();
 		listen();
 		watchSwipes();
+		watchSmsSwitch();
 	};
 
 	document.addEventListener("htmx:after:swap", update);

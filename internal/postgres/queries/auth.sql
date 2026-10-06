@@ -78,3 +78,17 @@ WHERE token_hash = $1;
 -- name: DeleteExpiredSessions :exec
 DELETE FROM sessions
 WHERE expires_at <= now();
+
+-- name: CreateSignInLink :exec
+INSERT INTO sign_in_links (token_hash, user_id, conversation_id, expires_at)
+VALUES ($1, $2, $3, $4);
+
+-- GetSignInLink reads a live link. A link works more than once until it
+-- expires, because a messaging app may open it for a preview first.
+-- name: GetSignInLink :one
+SELECT * FROM sign_in_links
+WHERE token_hash = $1 AND expires_at > now();
+
+-- name: DeleteExpiredSignInLinks :exec
+DELETE FROM sign_in_links
+WHERE expires_at <= now();

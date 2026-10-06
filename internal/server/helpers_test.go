@@ -35,6 +35,25 @@ func newHandler(t *testing.T) (http.Handler, *sms.Recorder, *postgres.UserStore)
 func newHandlerWith(t *testing.T, options ...push.Option) (http.Handler, *sms.Recorder, *postgres.UserStore, *push.Service) {
 	t.Helper()
 
+	built := buildServer(t, options...)
+
+	return built.handler, built.messages, built.users, built.push
+}
+
+// testServer holds the routes and the parts behind them that a test may
+// need to reach.
+type testServer struct {
+	handler  http.Handler
+	messages *sms.Recorder
+	users    *postgres.UserStore
+	push     *push.Service
+	auth     *auth.Service
+}
+
+// buildServer builds the routes with a database and a recorder behind them.
+func buildServer(t *testing.T, options ...push.Option) testServer {
+	t.Helper()
+
 	pool := postgrestest.New(t)
 	users := postgres.NewUserStore(pool)
 	messages := &sms.Recorder{}
@@ -76,7 +95,13 @@ func newHandlerWith(t *testing.T, options ...push.Option) (http.Handler, *sms.Re
 		Live:  hub,
 	})
 
-	return handler, messages, users, notifications
+	return testServer{
+		handler:  handler,
+		messages: messages,
+		users:    users,
+		push:     notifications,
+		auth:     service,
+	}
 }
 
 // signIn walks the code path and returns the session cookie of that person.
