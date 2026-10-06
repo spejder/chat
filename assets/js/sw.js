@@ -1,9 +1,20 @@
 // The service worker of Chat. It exists for the push notifications alone, so
 // it has no fetch handler and keeps no cache.
 //
-// The server sends a small JSON message: title, body, url and tag. The
-// worker shows it, unless a visible window already shows that conversation.
+// The server sends a small JSON message: title, body, url, tag, the unread
+// count and a mark for the night. The worker shows it, unless a visible
+// window already shows that conversation.
+//
+// A conversation sounds once per unread stretch, like the SMS reminders:
+// the first message alerts, and the next ones update the same notification
+// without a sound and count up. It sounds again only after realertMs
+// without an alert. Opening the notification, or the conversation in a page
+// (chat.js), ends the stretch.
 "use strict";
+
+// realertMs is the silence after which a waiting conversation may sound
+// again. It equals the wait of the SMS reminders.
+const realertMs = 15 * 60 * 1000;
 
 // A new version takes over at once. The worker holds no state, so nothing is
 // lost when an old one stops.
@@ -47,14 +58,32 @@ self.addEventListener("push", (event) => {
 				return;
 			}
 
+			const tag = (message && message.tag) || "chat";
+			const line = (message && message.body) || "A new message arrived.";
+
+			// A notification of this conversation that still shows means
+			// the stretch goes on.
+			const [showing] = await self.registration.getNotifications({ tag });
+			const before = (showing && showing.data) || {};
+			const count = (Number(before.count) || 0) + 1;
+			const now = Date.now();
+			const due = !showing || now - (Number(before.alertedAt) || 0) >= realertMs;
+
+			// In the night the notification arrives without sound or
+			// vibration. The specification refuses silent together with
+			// renotify, so a quiet one never renotifies.
+			const silent = Boolean(message && message.quiet);
+			const alert = due && !silent;
+
 			await self.registration.showNotification(title, {
-				body: (message && message.body) || "A new message arrived.",
+				body: count > 1 ? `${count} new messages\n${line}` : line,
 				// A newer message of the same conversation replaces the older
-				// notification, and renotify makes it sound again.
-				tag: (message && message.tag) || "chat",
-				renotify: true,
+				// notification. renotify makes the replacement sound.
+				tag,
+				renotify: alert,
+				silent,
 				icon: "/assets/img/icon-192.png",
-				data: { url },
+				data: { url, count, alertedAt: alert || !showing ? now : before.alertedAt },
 			});
 		})(),
 	);

@@ -297,10 +297,46 @@
 		});
 	};
 
+	// The reader sees the conversation, so its notification has done its
+	// job, and the next message starts a new stretch that sounds again (see
+	// sw.js). A notification on another device stays until that device
+	// opens the conversation. getNotifications sits behind a feature test,
+	// and a refusal changes nothing else.
+	const closeNotifications = async () => {
+		const form = document.getElementById("write");
+
+		if (!form || !form.dataset.conversation || !("serviceWorker" in navigator)) {
+			return;
+		}
+
+		try {
+			const registration = await navigator.serviceWorker.getRegistration("/");
+
+			if (!registration || !("getNotifications" in registration)) {
+				return;
+			}
+
+			const shown = await registration.getNotifications({ tag: "conversation-" + form.dataset.conversation });
+
+			for (const notification of shown) {
+				notification.close();
+			}
+		} catch {
+			// Nothing to close.
+		}
+	};
+
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "visible") {
+			closeNotifications();
+		}
+	});
+
 	document.addEventListener("DOMContentLoaded", () => {
 		counted = countMessages();
 		wireField();
 		openAtStart();
+		closeNotifications();
 	});
 
 	document.addEventListener("click", (event) => {
@@ -431,5 +467,6 @@
 		counted = countMessages();
 		wireField();
 		openAtStart();
+		closeNotifications();
 	}
 })();

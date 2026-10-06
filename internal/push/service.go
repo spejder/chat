@@ -16,6 +16,7 @@ import (
 	"uuid"
 
 	"github.com/spejder/chat/internal/address"
+	"github.com/spejder/chat/internal/quiet"
 
 	"github.com/SherClockHolmes/webpush-go"
 
@@ -230,8 +231,10 @@ func (s *Service) MessageWritten(ctx context.Context, conversation chat.Conversa
 			slog.Error("could not count the unread messages", "error", err)
 		}
 
+		night := quiet.Night(time.Now())
+
 		for _, target := range targets {
-			data, err := json.Marshal(payloadFor(conversation, message, unread[target.UserID]))
+			data, err := json.Marshal(payloadFor(conversation, message, unread[target.UserID], night))
 			if err != nil {
 				slog.Error("could not write the push message", "error", err)
 
@@ -244,15 +247,26 @@ func (s *Service) MessageWritten(ctx context.Context, conversation chat.Conversa
 }
 
 // payloadFor writes the message for one person. Everything but the count of
-// unread messages is the same for everybody.
-func payloadFor(conversation chat.Conversation, message chat.Message, unread int) Payload {
+// unread messages is the same for everybody. The body starts with the first
+// name of the writer, like the SMS, which is short on a lock screen.
+func payloadFor(conversation chat.Conversation, message chat.Message, unread int, night bool) Payload {
 	return Payload{
 		Title:  conversation.Subject,
-		Body:   message.AuthorName + ": " + shorten(message.Body),
+		Body:   firstName(message.AuthorName) + ": " + shorten(message.Body),
 		URL:    address.Conversation(conversation.ID),
 		Tag:    "conversation-" + conversation.ID.String(),
 		Unread: unread,
+		Quiet:  night,
 	}
+}
+
+// firstName returns the first word of a name.
+func firstName(name string) string {
+	if fields := strings.Fields(name); len(fields) > 0 {
+		return fields[0]
+	}
+
+	return name
 }
 
 // Wait blocks until every round of sending is over.

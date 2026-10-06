@@ -19,11 +19,8 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	// The image starts from scratch and holds no time zone files, so the
-	// binary carries them for the quiet hours.
-	_ "time/tzdata"
-
 	"github.com/spejder/chat/internal/address"
+	"github.com/spejder/chat/internal/quiet"
 	"github.com/spejder/chat/internal/sms"
 )
 
@@ -39,18 +36,6 @@ const (
 
 	// Every is the pause between two sweeps.
 	Every = time.Minute
-
-	// QuietFrom is the hour in the time zone Zone when the night without
-	// SMS starts. A message that falls due in the night waits for the first
-	// sweep in the morning.
-	QuietFrom = 22
-
-	// QuietUntil is the hour when the night without SMS ends.
-	QuietUntil = 7
-
-	// Zone is the time zone of the quiet hours. The people of the site live
-	// in Denmark.
-	Zone = "Europe/Copenhagen"
 
 	// smsLength is the room of one SMS in the GSM alphabet. The subjects get
 	// what the rest of the text leaves of it.
@@ -99,7 +84,6 @@ type Service struct {
 	links  Links
 	sender sms.Sender
 	origin string
-	zone   *time.Location
 
 	// now is the clock. A test replaces it with WithClock.
 	now func() time.Time
@@ -115,18 +99,12 @@ func WithClock(now func() time.Time) Option {
 
 // New builds the service. The origin is the address of the site, which the
 // link in the SMS starts with.
-func New(store Store, links Links, sender sms.Sender, origin string, options ...Option) (*Service, error) {
-	zone, err := time.LoadLocation(Zone)
-	if err != nil {
-		return nil, fmt.Errorf("load the time zone of the quiet hours: %w", err)
-	}
-
+func New(store Store, links Links, sender sms.Sender, origin string, options ...Option) *Service {
 	s := &Service{
 		store:  store,
 		links:  links,
 		sender: sender,
 		origin: strings.TrimSuffix(origin, "/"),
-		zone:   zone,
 		now:    time.Now,
 	}
 
@@ -134,7 +112,7 @@ func New(store Store, links Links, sender sms.Sender, origin string, options ...
 		option(s)
 	}
 
-	return s, nil
+	return s
 }
 
 // Run sweeps at once and then every minute, until the context ends.
@@ -155,13 +133,14 @@ func (s *Service) Run(ctx context.Context) {
 	}
 }
 
-// Sweep sends one SMS to every person who is due now, and nothing during the
-// quiet hours. The store notes an SMS before it goes out, so a failed send
+// Sweep sends one SMS to every person who is due now, and nothing in the
+// night of internal/quiet. A sweep in the night claims nothing, so a message
+// that falls due then gets its SMS from the first sweep in the morning. The store notes an SMS before it goes out, so a failed send
 // costs that SMS and never sends two.
 func (s *Service) Sweep(ctx context.Context) error {
 	now := s.now()
 
-	if s.quiet(now) {
+	if quiet.Night(now) {
 		return nil
 	}
 
@@ -175,13 +154,6 @@ func (s *Service) Sweep(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// quiet answers whether the moment falls in the night.
-func (s *Service) quiet(at time.Time) bool {
-	hour := at.In(s.zone).Hour()
-
-	return hour >= QuietFrom || hour < QuietUntil
 }
 
 // send writes one SMS about the conversations that one person missed. One

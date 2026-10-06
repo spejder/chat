@@ -511,6 +511,28 @@ browser, also when no tab of the site is open.
   why the payload is written per target. A read on another device while the
   app is closed leaves the badge too high until the app opens or the next
   push arrives.
+- A conversation sounds once per unread stretch, like the SMS reminders.
+  `assets/js/sw.js` reads the notification of the conversation that still
+  shows (`getNotifications` with its tag). The first message alerts. The
+  next ones replace the notification without a sound and count up:
+  "3 new messages" above the newest line.
+- A conversation sounds again after 15 minutes without an alert
+  (`realertMs`, the wait of the SMS). The count and the time of the last
+  alert live in the `data` of the notification, because a worker keeps no
+  state between two pushes.
+- A click on the notification ends the stretch, and so does a page that
+  shows the conversation. `assets/js/chat.js` closes the notifications of
+  its conversation at load and whenever the tab becomes visible. The tag
+  `conversation-<uuid>` is written in Go and read in both scripts, so
+  change all three together. A notification on another device stays until
+  that device opens the conversation.
+- In the night of `internal/quiet` the payload carries `quiet`, and the
+  worker shows the notification with `silent: true`, without sound or
+  vibration. The specification refuses `silent` together with `renotify`,
+  so a quiet notification never renotifies. Safari ignores `silent`, and
+  the phone then follows its own Do Not Disturb.
+- The body starts with the first name of the writer, like the SMS, because
+  a lock screen has little room.
 - A browser that a tool drives refuses the permission by itself: the browser
   pane says denied, and the Chrome of the DevTools tools denies the prompt.
   The Go tests cover the sending end to end against a fake push service.
@@ -557,12 +579,13 @@ person in and opens the conversation. `internal/remind` holds the rules and the 
   link leads to the list (`/conversations?t=<token>`). The row of such
   a link holds NULL as the conversation. The queries turn it into the nil
   UUID, so Go never sees a nullable column.
-- No SMS goes out from 22:00 to 07:00 in `Europe/Copenhagen`
-  (`remind.QuietFrom`, `remind.QuietUntil`, `remind.Zone`). A sweep in the
-  night claims nothing, so a message that falls due in the night gets its
-  SMS from the first sweep at 07:00. The 24 hours of `MaxAge` cover a whole
-  night. `internal/remind` imports `time/tzdata`, because the image starts
-  from scratch and holds no time zone files.
+- No SMS goes out in the night of `internal/quiet`: from 22:00 to 07:00 in
+  `Europe/Copenhagen`. A sweep in the night claims nothing, so a message
+  that falls due in the night gets its SMS from the first sweep at 07:00.
+  The 24 hours of `MaxAge` cover a whole night.
+- `internal/quiet` is the one home of the night, for the SMS and for push.
+  It imports `time/tzdata`, because the image starts from scratch and
+  holds no time zone files.
 - The SMS keeps to the GSM alphabet where it can. The subjects get the room
   that the rest leaves of 160 characters, and a cut ends in three dots, not
   in an ellipsis character. One character outside the alphabet halves the

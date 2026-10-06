@@ -71,10 +71,13 @@ type Store interface {
 // tag makes a newer notification of the same conversation replace an older
 // one, and a click opens the address. Unread is the number of unread
 // messages of the person it goes to, which the worker puts on the icon.
+// Quiet marks a message in the night of internal/quiet, which the worker
+// shows without sound or vibration.
 type Payload struct {
 	Title  string `json:"title"`
 	Body   string `json:"body"`
 	URL    string `json:"url"`
 	Tag    string `json:"tag"`
 	Unread int    `json:"unread"`
+	Quiet  bool   `json:"quiet,omitempty"`
 }

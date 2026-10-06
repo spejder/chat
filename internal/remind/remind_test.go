@@ -9,6 +9,7 @@ import (
 	"uuid"
 
 	"github.com/spejder/chat/internal/address"
+	"github.com/spejder/chat/internal/quiet"
 	"github.com/spejder/chat/internal/remind"
 	"github.com/spejder/chat/internal/sms"
 )
@@ -44,12 +45,7 @@ func (f *fakeLinks) IssueLink(_ context.Context, _, conversationID uuid.UUID) (s
 func at(t *testing.T, hour int) func() time.Time {
 	t.Helper()
 
-	zone, err := time.LoadLocation(remind.Zone)
-	if err != nil {
-		t.Fatalf("load the zone: %v", err)
-	}
-
-	moment := time.Date(2026, time.October, 6, hour, 30, 0, 0, zone)
+	moment := time.Date(2026, time.October, 6, hour, 30, 0, 0, quiet.Location())
 
 	return func() time.Time { return moment }
 }
@@ -62,10 +58,7 @@ func sweep(t *testing.T, hour int, due []remind.Due) ([]sms.Message, *fakeStore,
 	links := &fakeLinks{}
 	messages := &sms.Recorder{}
 
-	service, err := remind.New(store, links, messages, "https://chat.example/", remind.WithClock(at(t, hour)))
-	if err != nil {
-		t.Fatalf("build the service: %v", err)
-	}
+	service := remind.New(store, links, messages, "https://chat.example/", remind.WithClock(at(t, hour)))
 
 	if err := service.Sweep(t.Context()); err != nil {
 		t.Fatalf("sweep: %v", err)
@@ -188,14 +181,14 @@ func TestTheNightIsQuiet(t *testing.T) {
 		return []remind.Due{{UserID: uuid.NewV7(), ConversationID: uuid.NewV7(), PhoneNumber: "+4521650113", Subject: "Lunch"}}
 	}
 
-	for _, hour := range []int{remind.QuietFrom, 23, 0, 3, remind.QuietUntil - 1} {
+	for _, hour := range []int{quiet.From, 23, 0, 3, quiet.Until - 1} {
 		sent, store, _ := sweep(t, hour, due())
 		if len(sent) != 0 || store.claimed {
 			t.Errorf("at %d:30 the sweep claimed %v and sent %d, want nothing", hour, store.claimed, len(sent))
 		}
 	}
 
-	for _, hour := range []int{remind.QuietUntil, 12, remind.QuietFrom - 1} {
+	for _, hour := range []int{quiet.Until, 12, quiet.From - 1} {
 		if sent, _, _ := sweep(t, hour, due()); len(sent) != 1 {
 			t.Errorf("at %d:30 the sweep sent %d, want 1", hour, len(sent))
 		}

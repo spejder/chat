@@ -118,11 +118,7 @@ func run() error {
 	// The SMS about missed messages goes out from a sweep every minute. The
 	// sweep stops, and the deferred calls run in reverse, before the
 	// database closes.
-	reminders, err := remind.New(postgres.NewRemindStore(pool), signIn, sms.StdoutSender{}, *origin)
-	if err != nil {
-		return err
-	}
-
+	reminders := remind.New(postgres.NewRemindStore(pool), signIn, sms.StdoutSender{}, *origin)
 	remindCtx, stopReminders := context.WithCancel(ctx)
 
 	var reminding sync.WaitGroup
